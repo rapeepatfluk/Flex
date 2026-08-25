@@ -23,6 +23,7 @@ $s = $pdo->prepare("
         u.phone,
         wp.professional_headline AS headline,
         wp.biography,
+        wp.profile_image_path,
         wp.skills,
         wp.resume_file_path AS profile_resume,
         wp.portfolio_file_path,
@@ -37,16 +38,16 @@ $app = $s->fetch();
 if (!$app) redirect('employer/applicants.php?job=' . $jobId);
 
 // Handle status update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['status'], ['submitted', 'eligible', 'not_selected'], true)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['status'] ?? ''), ['submitted', 'eligible', 'not_selected'], true)) {
     try { verify_csrf(); } catch (RuntimeException $e) { flash('error', $e->getMessage()); redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId); }
-    $pdo->prepare('UPDATE applications SET application_status=? WHERE application_id=? AND job_id=?')
-        ->execute([$_POST['status'], $appId, $jobId]);
-    notify_worker_status($appId);
-    flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
+    $update = $pdo->prepare("UPDATE applications SET application_status=? WHERE application_id=? AND job_id=? AND application_status<>'withdrawn'");
+    $update->execute([$_POST['status'], $appId, $jobId]);
+    if ($update->rowCount()) { notify_worker_status($appId); flash('success', 'อัปเดตสถานะผู้สมัครแล้ว'); }
+    else flash('error', 'ไม่สามารถเปลี่ยนสถานะใบสมัครที่ผู้หางานถอนแล้ว');
     redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId);
 }
 
-$statusLabel = ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน'];
+$statusLabel = ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน', 'withdrawn' => 'ถอนใบสมัครแล้ว'];
 $pageTitle = 'โปรไฟล์ผู้สมัคร | FLEXJOB';
 require APP_ROOT . '/partials/header.php'; ?>
 <main class="detail">
@@ -54,7 +55,7 @@ require APP_ROOT . '/partials/header.php'; ?>
 
     <div class="app-detail-header">
         <div class="app-detail-hero">
-            <div class="applicant-avatar applicant-avatar-lg"><?= e(mb_substr($app['name'], 0, 1)) ?></div>
+            <?php if ($app['profile_image_path']): ?><img class="applicant-avatar-image applicant-avatar-image-lg" src="<?= BASE_URL . '/' . e($app['profile_image_path']) ?>" alt="รูปโปรไฟล์ <?= e($app['name']) ?>"><?php else: ?><div class="applicant-avatar applicant-avatar-lg"><?= e(mb_substr($app['name'], 0, 1)) ?></div><?php endif ?>
             <div>
                 <p class="eyebrow">ผู้สมัครงาน · <?= e($job['job_title']) ?></p>
                 <h1><?= e($app['name']) ?></h1>
@@ -63,7 +64,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                 <?php endif; ?>
             </div>
         </div>
-        <span class="status <?= $app['status'] ?> status-lg"><?= $statusLabel[$app['status']] ?? $app['status'] ?></span>
+        <span class=" status <?= $app['status'] ?> status-lg"><?= $statusLabel[$app['status']] ?? $app['status'] ?></span>
     </div>
 
     <div class="app-detail-grid">
@@ -153,7 +154,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                 <h2>จัดการสถานะ</h2>
                 <p class="muted" style="font-size:13px;margin-top:0">เปลี่ยนสถานะผู้สมัครและบันทึกผลการพิจารณา</p>
 
-                <div class="status-options">
+                <?php if ($app['status'] === 'withdrawn'): ?><div class="alert alert-secondary mb-0">ผู้หางานถอนใบสมัครนี้แล้ว ไม่สามารถเปลี่ยนสถานะได้</div><?php else: ?><div class="status-options">
                     <form method="post">
                         <?= csrf_field() ?>
                         <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
@@ -193,11 +194,11 @@ require APP_ROOT . '/partials/header.php'; ?>
 
                         <button class="btn btn-primary full-width" style="margin-top:16px">บันทึกสถานะ</button>
                     </form>
-                </div>
+                </div><?php endif ?>
             </div>
 
             <!-- Quick Actions -->
-            <div class="panel mt-16">
+            <?php if ($app['status'] !== 'withdrawn'): ?><div class="panel mt-16">
                 <h2>ดำเนินการด่วน</h2>
                 <div class="quick-actions">
                     <a href="mailto:<?= e($app['email']) ?>?subject=เรื่อง: ใบสมัครงาน <?= e($job['job_title']) ?>" class="quick-action-btn">
@@ -217,7 +218,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                     </a>
                     <?php endif; ?>
                 </div>
-            </div>
+            </div><?php endif ?>
         </div>
     </div>
 </main>

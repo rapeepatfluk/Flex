@@ -50,7 +50,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                     </div></a></div><?php endforeach ?></div>
     </section>
 
-    <section class="worker-how" aria-labelledby="worker-how-title">
+    <!-- <section class="worker-how" aria-labelledby="worker-how-title">
         <div class="row align-items-center g-5">
         <div class="col-12 col-md-5">
         <div class="worker-how-visual" aria-hidden="true">
@@ -75,7 +75,7 @@ require APP_ROOT . '/partials/header.php'; ?>
         </div>
         </div>
         </div>
-    </section>
+    </section> -->
 
 </main>
 

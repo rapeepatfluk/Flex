@@ -6,16 +6,16 @@ if (!$job) {
     flash('error', 'ไม่พบประกาศงาน');
     redirect('jobs.php');
 }
-$already = false;
+$applicationStatus = null;
 $jobSkillStmt = db()->prepare("SELECT GROUP_CONCAT(IF(js.importance='required',s.skill_id,NULL) ORDER BY s.skill_id) required_skill_ids,GROUP_CONCAT(IF(js.importance='preferred',s.skill_id,NULL) ORDER BY s.skill_id) preferred_skill_ids,GROUP_CONCAT(IF(js.importance='required',s.skill_name,NULL) ORDER BY s.skill_id SEPARATOR '||') required_skill_names,GROUP_CONCAT(IF(js.importance='preferred',s.skill_name,NULL) ORDER BY s.skill_id SEPARATOR '||') preferred_skill_names FROM job_skills js JOIN skills s ON s.skill_id=js.skill_id WHERE js.job_id=?");
 $jobSkillStmt->execute([$job['id']]);
 $job = array_merge($job, $jobSkillStmt->fetch() ?: []);
 $jobRequirements = matching_calculate($job, []);
 $jobMatch = null;
 if (is_role('worker')) {
-    $s = db()->prepare('SELECT application_id FROM applications WHERE job_id=? AND worker_user_id=?');
+    $s = db()->prepare('SELECT application_status FROM applications WHERE job_id=? AND worker_user_id=?');
     $s->execute([$job['id'], user()['id']]);
-    $already = (bool)$s->fetch();
+    $applicationStatus = $s->fetchColumn() ?: null;
     $workerStmt = db()->prepare("SELECT wp.work_province,wp.preferred_work_mode,GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids FROM worker_profiles wp LEFT JOIN worker_skills ws ON ws.worker_user_id=wp.user_id LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=wp.user_id WHERE wp.user_id=? GROUP BY wp.user_id");
     $workerStmt->execute([user()['id']]);
     $jobMatch = matching_calculate($job, $workerStmt->fetch() ?: []);
@@ -66,8 +66,8 @@ require APP_ROOT . '/partials/header.php'; ?>
 
                             <?php if (!$isOpen): ?>
                                 <button class="btn btn-secondary px-4" disabled>ปิดรับสมัครแล้ว</button>
-                            <?php elseif ($already): ?>
-                                <button class="btn btn-secondary px-4" disabled>คุณสมัครงานนี้แล้ว</button>
+                            <?php elseif ($applicationStatus): ?>
+                                <button class="btn btn-secondary px-4" disabled><?= $applicationStatus === 'withdrawn' ? 'คุณถอนใบสมัครนี้แล้ว' : 'คุณสมัครงานนี้แล้ว' ?></button>
                             <?php else: ?>
                                 <form action="<?= BASE_URL ?>/apply.php" method="post">
                                     <?= csrf_field() ?>

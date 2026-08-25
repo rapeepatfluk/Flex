@@ -6,15 +6,16 @@ $s = $pdo->prepare('SELECT job_id AS id,job_title AS title FROM jobs WHERE job_i
 $s->execute([$jobId, user()['id']]);
 $job = $s->fetch();
 if (!$job) redirect('employer/dashboard.php');
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['status'], ['submitted', 'eligible', 'not_selected'], true)) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['status'] ?? ''), ['submitted', 'eligible', 'not_selected'], true)) {
     try { verify_csrf(); } catch (RuntimeException $e) { flash('error', $e->getMessage()); redirect('employer/applicants.php?job=' . $jobId); }
     $updatedAppId = (int)$_POST['application_id'];
-    $pdo->prepare('UPDATE applications SET application_status=? WHERE application_id=? AND job_id=?')->execute([$_POST['status'], $updatedAppId, $jobId]);
-    notify_worker_status($updatedAppId);
-    flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
+    $update = $pdo->prepare("UPDATE applications SET application_status=? WHERE application_id=? AND job_id=? AND application_status<>'withdrawn'");
+    $update->execute([$_POST['status'], $updatedAppId, $jobId]);
+    if ($update->rowCount()) { notify_worker_status($updatedAppId); flash('success', 'อัปเดตสถานะผู้สมัครแล้ว'); }
+    else flash('error', 'ไม่สามารถเปลี่ยนสถานะใบสมัครที่ผู้หางานถอนแล้ว');
     redirect('employer/applicants.php?job=' . $jobId);
 }
-$s = $pdo->prepare("SELECT a.application_id AS id,a.application_status AS status,a.cover_note,a.resume_file_path AS application_resume_file,CONCAT(u.first_name,' ',u.last_name) AS name,u.email,u.phone,wp.professional_headline AS headline,wp.biography,wp.skills,wp.resume_file_path AS profile_resume_file,wp.portfolio_file_path,wp.portfolio_url FROM applications a JOIN users u ON u.user_id=a.worker_user_id LEFT JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE a.job_id=? ORDER BY a.created_at DESC");
+$s = $pdo->prepare("SELECT a.application_id AS id,a.application_status AS status,a.cover_note,a.resume_file_path AS application_resume_file,CONCAT(u.first_name,' ',u.last_name) AS name,u.email,u.phone,wp.professional_headline AS headline,wp.biography,wp.profile_image_path,wp.skills,wp.resume_file_path AS profile_resume_file,wp.portfolio_file_path,wp.portfolio_url FROM applications a JOIN users u ON u.user_id=a.worker_user_id LEFT JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE a.job_id=? ORDER BY a.created_at DESC");
 $s->execute([$jobId]);
 $apps = $s->fetchAll();
 $pageTitle = 'ผู้สมัคร | FLEXJOB';
@@ -28,7 +29,7 @@ require APP_ROOT . '/partials/header.php'; ?>
         </div>
     </div>
     <section class="panel"><?php foreach ($apps as $app): ?><article class="applicant">
-                <div class="applicant-avatar"><?= e(mb_substr($app['name'], 0, 1)) ?></div>
+                <?php if ($app['profile_image_path']): ?><img class="applicant-avatar-image" src="<?= BASE_URL . '/' . e($app['profile_image_path']) ?>" alt="รูปโปรไฟล์ <?= e($app['name']) ?>"><?php else: ?><div class="applicant-avatar"><?= e(mb_substr($app['name'], 0, 1)) ?></div><?php endif ?>
                 <div class="applicant-info">
                     <h3><?= e($app['name']) ?></h3>
                     <p class="muted">อีเมล: <?= e($app['email']) ?> · โทร: <?= e($app['phone'] ?: '-') ?></p>
@@ -42,10 +43,11 @@ require APP_ROOT . '/partials/header.php'; ?>
                         <?php if ($app['portfolio_url']): ?><a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="<?= e($app['portfolio_url']) ?>">Portfolio URL</a><?php endif ?>
                     </div>
                 </div>
-                <form method="post"><?= csrf_field() ?><input type="hidden" name="application_id" value="<?= $app['id'] ?>"><select name="status">
+                <?php if ($app['status'] === 'withdrawn'): ?><span class=" status withdrawn text-center " style = "font-size: 15px; color:red; margin-top: 30px ; margin-bottom:30px; display: flex;justify-content: center; align-items: center; text-align: center;">ถอนใบสมัครแล้ว</span><?php 
+                        else: ?><form method="post"><?= csrf_field() ?><input type="hidden" name="application_id" value="<?= $app['id'] ?>"><select name="status">
                         <option value="submitted" <?= $app['status'] === 'submitted' ? 'selected' : '' ?>>รอพิจารณา</option>
                         <option value="eligible" <?= $app['status'] === 'eligible' ? 'selected' : '' ?>>มีสิทธิ์สัมภาษณ์</option>
                         <option value="not_selected" <?= $app['status'] === 'not_selected' ? 'selected' : '' ?>>ไม่ผ่าน</option>
-                    </select><button class="btn btn-primary btn-sm">บันทึก</button></form>
+                    </select><button class="btn btn-primary btn-sm">บันทึก</button></form><?php endif ?>
             </article><?php endforeach ?><?php if (!$apps): ?><div class="empty">ยังไม่มีผู้สมัคร</div><?php endif ?></section>
 </main><?php require APP_ROOT . '/partials/footer.php'; ?>

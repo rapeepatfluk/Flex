@@ -1,5 +1,5 @@
 <?php require_once __DIR__ . '/config/config.php';
-if (user()) redirect(dashboard_path(user()['role']));
+if (user() && ($_GET['scroll'] ?? '') !== 'how') redirect(dashboard_path(user()['role']));
 $jobs = db()->query("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,j.job_description AS description,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order LIMIT 1) cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id WHERE j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE()) ORDER BY j.created_at DESC LIMIT 10")->fetchAll();
 $pageTitle = 'FLEXJOB | งานที่ยืดหยุ่นสำหรับคุณ';
 $pageStyles = ['index', 'index-how'];

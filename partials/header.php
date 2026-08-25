@@ -14,12 +14,23 @@ $accountDisplayName = $currentUser
     : '';
 $notifications = [];
 $unreadNotifications = 0;
+$accountAvatarPath = null;
 
 if ($currentUser) {
     $notificationStmt = db()->prepare('SELECT notification_id, notification_title, notification_message, notification_url, is_read, created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 8');
     $notificationStmt->execute([$currentUser['id']]);
     $notifications = $notificationStmt->fetchAll();
     $unreadNotifications = count(array_filter($notifications, fn(array $notification): bool => !(bool) $notification['is_read']));
+
+    if ($role === 'worker') {
+        $avatarStmt = db()->prepare('SELECT profile_image_path FROM worker_profiles WHERE user_id=?');
+        $avatarStmt->execute([$currentUser['id']]);
+        $accountAvatarPath = $avatarStmt->fetchColumn() ?: null;
+    } elseif ($role === 'employer') {
+        $avatarStmt = db()->prepare('SELECT company_logo_path FROM employer_profiles WHERE user_id=?');
+        $avatarStmt->execute([$currentUser['id']]);
+        $accountAvatarPath = $avatarStmt->fetchColumn() ?: null;
+    }
 }
 
 $accountOverviewPath = $role === 'worker'
@@ -87,7 +98,7 @@ $styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
             <?php else: ?>
                 <a href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a>
                 <?php if ($role === 'employer'): ?><a href="<?= BASE_URL ?>/employer/candidates.php">ค้นหาผู้หางาน</a><?php endif ?>
-                <a href="<?= BASE_URL ?>/index.php#how">วิธีใช้งาน</a>
+                <a href="<?= BASE_URL ?>/index.php<?= $currentUser ? '?scroll=how' : '' ?>#how" id="howItWorksLink">วิธีใช้งาน</a>
                 <?php if (!$currentUser || $role !== 'worker'): ?>
                     <a href="<?= BASE_URL ?>/employer/dashboard.php">สำหรับผู้ว่าจ้าง</a>
                 <?php endif ?>
@@ -119,10 +130,14 @@ $styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
                 <details class="account-menu">
                     <summary>
                         <span class="account-avatar" aria-label="บัญชีผู้ใช้">
+                            <?php if ($accountAvatarPath): ?>
+                            <img src="<?= BASE_URL . '/' . e($accountAvatarPath) ?>" alt="">
+                            <?php else: ?>
                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                 <circle cx="12" cy="8" r="3.5"></circle>
                                 <path d="M4.5 20c.8-4 3.3-6 7.5-6s6.7 2 7.5 6"></path>
                             </svg>
+                            <?php endif ?>
                         </span>
                         <span>
                             <span class="account-name"><?= e($accountDisplayName) ?></span>

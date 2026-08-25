@@ -8,6 +8,7 @@ $workerId = user()['id'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         verify_csrf();
+        $profileImage = upload_file('profile_image', ['jpg', 'jpeg', 'png', 'webp'], 'profile-images');
         $resumeFile = upload_file('resume_file', ['pdf', 'doc', 'docx'], 'resumes');
         $portfolioFile = upload_file('portfolio_file', ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'zip'], 'portfolios');
         $firstName = trim($_POST['first_name'] ?? '');
@@ -26,8 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ->execute([$firstName, $lastName, trim($_POST['phone'] ?? ''), $workerId]);
 
         $skillsInput = trim($_POST['skills'] ?? '');
-        $pdo->prepare('INSERT INTO worker_profiles (user_id, professional_headline, biography, skills, resume_file_path, portfolio_file_path, portfolio_url, profile_visibility, work_province, preferred_work_mode, available_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE professional_headline=VALUES(professional_headline), biography=VALUES(biography), skills=VALUES(skills), resume_file_path=COALESCE(VALUES(resume_file_path), resume_file_path), portfolio_file_path=COALESCE(VALUES(portfolio_file_path), portfolio_file_path), portfolio_url=VALUES(portfolio_url), profile_visibility=VALUES(profile_visibility), work_province=VALUES(work_province), preferred_work_mode=VALUES(preferred_work_mode), available_from=VALUES(available_from)')
-            ->execute([$workerId, trim($_POST['headline'] ?? ''), trim($_POST['introduce'] ?? ''), $skillsInput, $resumeFile, $portfolioFile, trim($_POST['portfolio_url'] ?? ''), $visibility, trim($_POST['work_province'] ?? ''), $workMode, ($_POST['available_from'] ?? '') ?: null]);
+        $pdo->prepare('INSERT INTO worker_profiles (user_id, professional_headline, biography, profile_image_path, skills, resume_file_path, portfolio_file_path, portfolio_url, profile_visibility, work_province, preferred_work_mode, available_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE professional_headline=VALUES(professional_headline), biography=VALUES(biography), profile_image_path=COALESCE(VALUES(profile_image_path), profile_image_path), skills=VALUES(skills), resume_file_path=COALESCE(VALUES(resume_file_path), resume_file_path), portfolio_file_path=COALESCE(VALUES(portfolio_file_path), portfolio_file_path), portfolio_url=VALUES(portfolio_url), profile_visibility=VALUES(profile_visibility), work_province=VALUES(work_province), preferred_work_mode=VALUES(preferred_work_mode), available_from=VALUES(available_from)')
+            ->execute([$workerId, trim($_POST['headline'] ?? ''), trim($_POST['introduce'] ?? ''), $profileImage, $skillsInput, $resumeFile, $portfolioFile, trim($_POST['portfolio_url'] ?? ''), $visibility, trim($_POST['work_province'] ?? ''), $workMode, ($_POST['available_from'] ?? '') ?: null]);
         matching_sync_worker_skills($pdo, $workerId, $skillsInput);
         matching_sync_worker_preferences($pdo, $workerId, (array) ($_POST['job_preferences'] ?? []));
 
@@ -41,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('worker/editprofiles.php');
 }
 
-$profileStmt = $pdo->prepare('SELECT u.first_name, u.last_name, u.email, u.phone, wp.professional_headline, wp.biography, wp.skills, wp.resume_file_path, wp.portfolio_file_path, wp.portfolio_url, wp.profile_visibility, wp.work_province, wp.preferred_work_mode, wp.available_from FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=?');
+$profileStmt = $pdo->prepare('SELECT u.first_name, u.last_name, u.email, u.phone, wp.professional_headline, wp.biography, wp.profile_image_path, wp.skills, wp.resume_file_path, wp.portfolio_file_path, wp.portfolio_url, wp.profile_visibility, wp.work_province, wp.preferred_work_mode, wp.available_from FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=?');
 $profileStmt->execute([$workerId]);
 $profile = $profileStmt->fetch() ?: [];
 $skillStmt = $pdo->prepare("SELECT GROUP_CONCAT(s.skill_name ORDER BY s.skill_name SEPARATOR ', ') FROM worker_skills ws JOIN skills s ON s.skill_id=ws.skill_id WHERE ws.worker_user_id=?");
@@ -69,6 +70,13 @@ require APP_ROOT . '/partials/header.php';
         <div class="card-body p-4 p-md-5">
             <h2 class="h5 mb-3">ข้อมูลส่วนตัว</h2>
             <div class="row g-3 mb-4">
+                <div class="col-12">
+                    <label class="form-label" for="profile_image">รูปโปรไฟล์</label>
+                    <div class="d-flex flex-column flex-sm-row align-items-sm-center gap-3">
+                        <?php if (!empty($profile['profile_image_path'])): ?><img class="profile-photo-preview" src="<?= BASE_URL . '/' . e($profile['profile_image_path']) ?>" alt="รูปโปรไฟล์ปัจจุบัน"><?php else: ?><div class="profile-photo-placeholder" aria-hidden="true"><?= e(mb_substr(($profile['first_name'] ?? 'F'), 0, 1)) ?></div><?php endif ?>
+                        <div class="flex-grow-1"><input id="profile_image" class="form-control" type="file" name="profile_image" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"><div class="form-text">ใช้รูปหน้าตรงที่เห็นใบหน้าชัดเจน รองรับ JPG, PNG หรือ WebP ขนาดไม่เกิน 8 MB</div></div>
+                    </div>
+                </div>
                 <div class="col-md-6"><label class="form-label" for="first_name">ชื่อ</label><input id="first_name" class="form-control" name="first_name" value="<?= e($profile['first_name'] ?? '') ?>" required></div>
                 <div class="col-md-6"><label class="form-label" for="last_name">นามสกุล</label><input id="last_name" class="form-control" name="last_name" value="<?= e($profile['last_name'] ?? '') ?>" required></div>
                 <div class="col-md-6"><label class="form-label" for="phone">เบอร์โทรศัพท์</label><input id="phone" class="form-control" name="phone" value="<?= e($profile['phone'] ?? '') ?>"></div>

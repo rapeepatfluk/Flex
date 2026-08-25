@@ -7,6 +7,7 @@ $s = $pdo->prepare("
     SELECT
         a.application_id AS id,
         a.application_status AS status,
+        a.withdrawn_at,
         a.cover_note,
         a.resume_file_path AS application_resume,
         a.created_at,
@@ -32,8 +33,7 @@ $s->execute([$appId, user()['id']]);
 $app = $s->fetch();
 if (!$app) redirect('worker/dashboard.php');
 
-$statusLabel = ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน'];
-$statusClass = ['submitted' => 'submitted', 'eligible' => 'eligible', 'not_selected' => 'not_selected'];
+$statusLabel = ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน', 'withdrawn' => 'ถอนใบสมัครแล้ว'];
 $pageTitle = 'รายละเอียดการสมัคร | FLEXJOB';
 require APP_ROOT . '/partials/header.php'; ?>
 <main class="detail">
@@ -63,20 +63,20 @@ require APP_ROOT . '/partials/header.php'; ?>
             <div class="panel app-timeline-panel">
                 <h2>สถานะการสมัคร</h2>
                 <div class="app-timeline">
-                    <div class="timeline-step <?= in_array($app['status'], ['submitted','eligible','not_selected']) ? 'done' : '' ?>">
+                    <div class="timeline-step <?= in_array($app['status'], ['submitted','eligible','not_selected','withdrawn']) ? 'done' : '' ?>">
                         <div class="timeline-dot"></div>
                         <div class="timeline-content">
                             <b>ส่งใบสมัครแล้ว</b>
                             <small><?= date('d/m/Y H:i', strtotime($app['created_at'])) ?></small>
                         </div>
                     </div>
-                    <div class="timeline-step <?= $app['status'] === 'eligible' || $app['status'] === 'not_selected' ? 'done' : '' ?> <?= $app['status'] === 'eligible' ? 'current' : '' ?>">
+                    <?php if ($app['status'] !== 'withdrawn'): ?><div class="timeline-step <?= $app['status'] === 'eligible' || $app['status'] === 'not_selected' ? 'done' : '' ?> <?= $app['status'] === 'eligible' ? 'current' : '' ?>">
                         <div class="timeline-dot"></div>
                         <div class="timeline-content">
                             <b>อยู่ระหว่างพิจารณา</b>
                             <small>ผู้ว่าจ้างกำลังตรวจสอบโปรไฟล์ของคุณ</small>
                         </div>
-                    </div>
+                    </div><?php endif ?>
                     <?php if ($app['status'] === 'eligible'): ?>
                     <div class="timeline-step current eligible-step">
                         <div class="timeline-dot eligible-dot"></div>
@@ -93,8 +93,25 @@ require APP_ROOT . '/partials/header.php'; ?>
                             <small>ขอบคุณที่สนใจสมัครงาน สามารถสมัครงานอื่นได้</small>
                         </div>
                     </div>
+                    <?php elseif ($app['status'] === 'withdrawn'): ?>
+                    <div class="timeline-step done">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <b>ถอนใบสมัครแล้ว</b>
+                            <small><?= $app['withdrawn_at'] ? date('d/m/Y H:i', strtotime($app['withdrawn_at'])) : '' ?></small>
+                        </div>
+                    </div>
                     <?php endif; ?>
                 </div>
+
+                <?php if ($app['status'] === 'submitted'): ?>
+                <form class="mt-16" method="post" action="<?= BASE_URL ?>/worker/withdraw-application.php" onsubmit="return confirm('ยืนยันการถอนใบสมัครนี้? หลังถอนแล้วจะสมัครงานเดิมซ้ำไม่ได้')">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
+                    <button class="btn btn-outline-danger" type="submit">ถอนใบสมัคร</button>
+                    <p class="muted" style="font-size:12px;margin:8px 0 0">ถอนได้เฉพาะช่วงที่ผู้ว่าจ้างยังไม่ได้เปลี่ยนผลการพิจารณา</p>
+                </form>
+                <?php endif; ?>
 
                 <?php if ($app['status'] === 'eligible'): ?>
                 <div class="contact-callout">
@@ -125,7 +142,7 @@ require APP_ROOT . '/partials/header.php'; ?>
             <?php if ($app['application_resume']): ?>
             <div class="panel mt-16">
                 <h2>เอกสารที่แนบ</h2>
-                <a class="btn btn-primary" target="_blank" rel="noopener" href="<?= BASE_URL . '/' . e($app['application_resume']) ?>">
+                <a class="btn btn-primary" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=application_resume&id=<?= $app['id'] ?>">
                     📄 เปิดดู Resume ที่แนบ
                 </a>
             </div>

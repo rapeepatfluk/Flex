@@ -190,11 +190,12 @@ function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
     if (!$job) return [];
 
     $statement = $pdo->prepare("SELECT u.user_id,CONCAT(u.first_name,' ',u.last_name) name,
-        wp.professional_headline headline,wp.biography,wp.work_province,wp.preferred_work_mode,wp.available_from,
+        wp.professional_headline headline,wp.biography,wp.profile_image_path,wp.work_province,wp.preferred_work_mode,wp.available_from,
         GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,
         GROUP_CONCAT(DISTINCT sk.skill_name ORDER BY sk.skill_name SEPARATOR '||') skill_names,
         GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids,
         ji.invitation_status,
+        (SELECT a.application_status FROM applications a WHERE a.job_id=? AND a.worker_user_id=u.user_id LIMIT 1) application_status,
         EXISTS(SELECT 1 FROM applications a WHERE a.job_id=? AND a.worker_user_id=u.user_id) has_applied
         FROM users u JOIN worker_profiles wp ON wp.user_id=u.user_id
         LEFT JOIN worker_skills ws ON ws.worker_user_id=u.user_id LEFT JOIN skills sk ON sk.skill_id=ws.skill_id
@@ -202,7 +203,7 @@ function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
         LEFT JOIN job_invitations ji ON ji.job_id=? AND ji.worker_user_id=u.user_id
         WHERE u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable'
         GROUP BY u.user_id ORDER BY u.created_at DESC LIMIT 300");
-    $statement->execute([$jobId, $jobId]);
+    $statement->execute([$jobId, $jobId, $jobId]);
     $workers = $statement->fetchAll();
     foreach ($workers as &$worker) $worker['match'] = matching_calculate($job, $worker);
     unset($worker);

@@ -7,9 +7,12 @@ For a new database, import the files in this order:
 3. `migrate_password_reset.sql`
 4. `migrate_matching.sql`
 5. `migrate_security_hardening.sql`
-6. Seed files only when sample data is required
+6. `migrate_worker_profile_withdrawal.sql`
+7. Seed files only when sample data is required
 
 `migrate_matching.sql` is additive and safe to run on the existing database. It keeps the legacy `worker_profiles.skills` column while structured skill data is adopted.
+
+`migrate_worker_profile_withdrawal.sql` adds worker profile photos and the auditable `withdrawn` application status without deleting existing applications.
 
 After migrating an existing database, run `php database/backfill_matching.php` once to copy non-empty legacy worker skills into the structured tables. Job requirements must be entered by the employer; they are not inferred from job descriptions.
 

@@ -7,6 +7,7 @@ $employerId = user()['id'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
+        verify_csrf();
         $firstName = trim($_POST['first_name'] ?? '');
         $lastName = trim($_POST['last_name'] ?? '');
         $companyName = trim($_POST['company_name'] ?? '');
@@ -59,6 +60,7 @@ require APP_ROOT . '/partials/header.php';
     </div>
 
     <form method="post" enctype="multipart/form-data" class="card border-0 shadow-sm">
+        <?= csrf_field() ?>
         <div class="card-body p-4 p-md-5">
             <h2 class="h5 mb-3">ข้อมูลส่วนตัว</h2>
             <div class="row g-3 mb-4">

@@ -267,8 +267,11 @@ button,input,textarea,select {
   color:#c9d9d3
 }
 
-.section,.listing,.detail,.dashboard {
+.section,.listing {
   padding:76px max(24px,7vw)
+}
+.detail,.dashboard {
+  padding:76px max(24px,4vw)
 }
 
 .soft {
@@ -630,7 +633,7 @@ textarea {
 }
 
 .detail {
-  max-width:1180px;
+  max-width:1440px;
   margin:auto
 }
 
@@ -730,7 +733,7 @@ textarea {
 }
 
 .dashboard {
-  max-width:1280px;
+  max-width:1440px;
   margin:auto;
   min-height:650px
 }
@@ -749,6 +752,10 @@ textarea {
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:20px
+}
+
+.dashboard-grid.col {
+  grid-template-columns:1fr
 }
 
 .employer-grid {
@@ -1024,7 +1031,7 @@ blockquote {
   }
 
   .section,.listing,.detail,.dashboard {
-    padding:52px 24px
+    padding:52px 20px
   }
 
   .category-grid,.job-grid,.results {
@@ -1177,8 +1184,8 @@ blockquote {
 }
 .app-detail-grid {
   display:grid;
-  grid-template-columns:1fr 340px;
-  gap:20px;
+  grid-template-columns:1fr 420px;
+  gap:24px;
   align-items:start
 }
 .app-detail-left,.app-detail-right {
@@ -1319,6 +1326,32 @@ blockquote {
   font-size:24px;
   flex-shrink:0
 }
+
+.applicant-avatar-image,
+.profile-photo-preview {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex: 0 0 auto;
+    border: 2px solid #e0e8e3;
+    background: #f4f7f5;
+}
+.applicant-avatar-image-lg { width: 72px; height: 72px; }
+.profile-photo-preview { width: 88px; height: 88px; }
+.profile-photo-placeholder {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    background: #e9f5ef;
+    color: #166b54;
+    font-size: 28px;
+    font-weight: 700;
+}
+.status.withdrawn,.status-lg.withdrawn { background:#edf0ef; color:#596560; }
 .application-link {
   display:flex;
   justify-content:space-between;

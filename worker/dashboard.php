@@ -27,12 +27,12 @@ require APP_ROOT . '/partials/header.php'; ?>
             <p>รายละเอียดงานที่สมัคร</p>
         </div><a class="btn btn-primary" href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a>
     </div>
-    <div class="dashboard-grid">
+    <div class="dashboard-grid col">
         <section class="panel" id="applications">
             <h2>งานที่สมัคร <span class="count"><?= count($apps) ?></span></h2><?php foreach ($apps as $app): ?><a class="application application-link" href="<?= BASE_URL ?>/worker/application-detail.php?id=<?= $app['application_id'] ?>">
                     <div><b><?= e($app['title']) ?></b>
                         <p><?= e($app['company_name']) ?> · <?= pay_text($app) ?></p><small>สมัครเมื่อ <?= date('d/m/Y', strtotime($app['created_at'])) ?></small>
-                    </div><span class="status <?= $app['status'] ?>"><?= ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน'][$app['status']] ?></span>
+                    </div><span class="status <?= $app['status'] ?>"><?= ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน', 'withdrawn' => 'ถอนใบสมัครแล้ว'][$app['status']] ?? e($app['status']) ?></span>
                 </a><?php endforeach ?><?php if (!$apps): ?><div class="empty">ยังไม่มีงานที่สมัคร <a href="<?= BASE_URL ?>/jobs.php">เริ่มค้นหางาน</a></div><?php endif ?>
         </section>
     </div>
