@@ -1,0 +1,119 @@
+.site-header {
+  padding-left: clamp(16px, 2vw, 32px);
+  padding-right: clamp(16px, 2vw, 32px);
+  background: var(--green);
+  border-bottom-color: #258067;
+}
+.site-header .brand {
+  color: #fff;
+}
+.site-header .brand > span:not(.brand-mark) {
+  color: var(--lime);
+}
+.site-header .main-nav a {
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  transition: color 0.2s ease;
+}
+.site-header .main-nav a:hover {
+  color: var(--lime);
+}
+
+/* Header Action Buttons */
+.site-header .text-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 18px;
+  border: 2px solid #ffffff !important;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff !important;
+  font-weight: 600;
+  font-size: 13.5px;
+  border-radius: 20px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+.site-header .text-link:hover {
+  background: #ffffff !important;
+  color: #113b2e !important;
+  border-color: #ffffff !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.site-header .btn-light {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 20px;
+  background: #ffffff !important;
+  color: var(--green) !important;
+  font-weight: 700;
+  font-size: 13.5px;
+  border-radius: 20px;
+  border: 1px solid #ffffff;
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  transition: all 0.2s ease;
+}
+.site-header .btn-light:hover {
+  background: var(--lime) !important;
+  color: #10392c !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+.site-header .btn-light:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.account-avatar {
+  width: 37px;
+  height: 37px;
+  border: 1.5px solid #bce6c4;
+  background: #fff;
+  color: var(--green);
+}
+.account-avatar svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+.account-name {
+  color: #fff;
+}
+.account-role,
+.account-caret {
+  color: #c7e5d8;
+}
+.account-panel {
+  border-color: #d5e7dd;
+  background: #fff;
+}
+.account-panel strong {
+  color: #477062;
+}
+.account-panel a {
+  color: #315244;
+}
+.account-panel a:hover {
+  background: #eaf5ed;
+  color: var(--green);
+}
+.account-panel .account-icon {
+  color: var(--green);
+}
+.account-divider {
+  background: #dcebe3;
+}
+.account-panel .logout-link {
+  color: #ca4040;
+}
+.account-panel .logout-link .account-icon {
+  color: #ca4040;
+}

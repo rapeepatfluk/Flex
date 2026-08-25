@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Spark Event Studio">
+  <rect width="160" height="160" rx="32" fill="#0052CC"/>
+  <path d="M80 29l10 31 31 10-31 10-10 31-10-31-31-10 31-10z" fill="#00A3FF"/>
+  <circle cx="80" cy="80" r="12" fill="#fff"/>
+</svg>

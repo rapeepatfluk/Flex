@@ -1,0 +1,100 @@
+/* Unique selectors prevent clashes with the legacy homepage styles in app.css. */
+.how-section {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(440px, 1.2fr);
+  align-items: center;
+  column-gap: clamp(52px, 8vw, 132px);
+  margin-top: 72px;
+  padding: 88px clamp(32px, 5vw, 80px);
+  background: #e7f4e6;
+}
+
+.how-visual {
+  display: grid;
+  min-width: 0;
+  place-items: center;
+}
+
+.how-content {
+  width: 100%;
+  min-width: 0;
+  max-width: 540px;
+}
+
+.how-content .eyebrow {
+  margin: 0 0 16px;
+}
+
+.how-content h2 {
+  margin: 0;
+  color: #10231e;
+  font-size: clamp(36px, 3.4vw, 48px);
+  line-height: 1.2;
+  letter-spacing: -1.8px;
+  white-space: nowrap;
+}
+
+.how-content ol {
+  display: grid;
+  gap: 22px;
+  margin: 32px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.how-content li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+  margin: 0;
+}
+
+.how-content li > div {
+  min-width: 0;
+}
+.how-content li b {
+  display: block;
+  font-size: 17px;
+  line-height: 1.45;
+}
+.how-content li p {
+  margin: 5px 0 0;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+@media (max-width: 900px) {
+  .how-section {
+    grid-template-columns: minmax(220px, 0.75fr) minmax(340px, 1.25fr);
+    column-gap: 44px;
+    padding: 72px 52px;
+  }
+}
+
+@media (max-width: 780px) {
+  .how-section {
+    grid-template-columns: 1fr;
+    row-gap: 44px;
+    margin-top: 48px;
+    padding: 58px 28px;
+  }
+
+  .how-content {
+    max-width: none;
+  }
+  .how-content h2 {
+    font-size: 36px;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 500px) {
+  .how-section {
+    margin-top: 36px;
+    padding: 48px 24px;
+  }
+  .how-content h2 {
+    font-size: 31px;
+  }
+}

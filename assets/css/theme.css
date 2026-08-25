@@ -1,0 +1,212 @@
+/* FLEXJOB blue theme — loaded last so every page shares the same palette. */
+:root {
+  --ink: #1e293b;
+  --green: #0052cc;
+  --lime: #00a3ff;
+  --paper: #f8fafc;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --white: #ffffff;
+  --bs-body-bg: #f8fafc;
+  --bs-body-color: #1e293b;
+  --bs-body-font-family: "Noto Sans Thai", sans-serif;
+  --bs-border-color: #e2e8f0;
+  --bs-border-radius: 0.75rem;
+  --bs-primary: #0052cc;
+  --bs-primary-rgb: 0, 82, 204;
+  --bs-link-color: #0052cc;
+  --bs-link-hover-color: #0045ad;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+main {
+  flex: 1 0 auto;
+}
+
+footer {
+  flex-shrink: 0;
+}
+
+.site-header {
+  background: #0052cc;
+  border-bottom-color: #0045ad;
+}
+.site-header .brand > span:not(.brand-mark),
+.site-header .main-nav a:hover {
+  color: #7dd3fc;
+}
+.brand-mark {
+  background: #00a3ff;
+  color: #ffffff;
+}
+.site-header .text-link {
+  border-color: #bfdbfe !important;
+  background: rgba(255, 255, 255, 0.1);
+}
+.site-header .text-link:hover {
+  color: #0052cc !important;
+}
+.site-header .btn-light {
+  color: #0052cc !important;
+}
+.site-header .btn-light:hover {
+  background: #e0f2fe !important;
+  color: #0045ad !important;
+}
+.account-avatar {
+  border-color: #bae6fd;
+  color: #0052cc;
+}
+.account-role,
+.account-caret {
+  color: #bfdbfe;
+}
+
+.btn-primary,
+.btn-success,
+.worker-welcome .btn-success,
+.employer-guide-copy .btn-success {
+  --bs-btn-bg: #00a3ff;
+  --bs-btn-border-color: #00a3ff;
+  --bs-btn-hover-bg: #0077e6;
+  --bs-btn-hover-border-color: #0077e6;
+  --bs-btn-active-bg: #006bcc;
+  --bs-btn-active-border-color: #006bcc;
+}
+.btn-outline-primary {
+  --bs-btn-color: #0052cc;
+  --bs-btn-border-color: #0052cc;
+  --bs-btn-hover-bg: #0052cc;
+  --bs-btn-hover-border-color: #0052cc;
+  --bs-btn-active-bg: #0045ad;
+  --bs-btn-active-border-color: #0045ad;
+}
+
+.hero-visual,
+.how-section,
+.worker-how,
+.employer-guide,
+.profile-guide-banner {
+  background: #eff6ff;
+}
+
+.hero-visual {
+  background: radial-gradient(circle at 65% 25%, #dbeafe 0, #eff6ff 56%, #e0f2fe 100%);
+}
+
+.person-shirt {
+  background: linear-gradient(145deg, #0052cc 0%, #0077e6 100%);
+  color: #ffffff;
+}
+.profile-guide-banner {
+  border-color: #bfdbfe;
+}
+.employer-guide-copy h1,
+.profile-guide-copy h2,
+.how-content h2,
+.worker-how-content h2 {
+  color: #1e293b;
+}
+.employer-guide-copy p:not(.eyebrow),
+.profile-guide-copy p:not(.eyebrow),
+.worker-how-content li p {
+  color: #64748b;
+}
+.worker-cta,
+.trust-strip,
+.stat-grid div {
+  background: #0052cc;
+}
+.worker-cta .eyebrow {
+  color: #7dd3fc;
+}
+.worker-cta p:not(.eyebrow),
+.trust-strip span,
+.trust-strip p {
+  color: #dbeafe;
+}
+.category-card i,
+.job-image,
+.detail-cover,
+.worker-job-image,
+.employer-job-image {
+  background: #e0f2fe;
+  color: #0052cc;
+}
+.worker-job-fallback,
+.employer-job-fallback {
+  color: #0052cc;
+}
+.phone,
+.worker-how-phone {
+  box-shadow: 18px 17px 0 #93c5fd;
+}
+.phone > b,
+.worker-how-phone > b,
+.phone > div small,
+.worker-how-phone > div small,
+.how-content li > span,
+.worker-how-content li > span,
+.step-card span {
+  color: #0052cc;
+}
+.phone > div,
+.worker-how-phone > div {
+  background: #eff6ff;
+}
+.home-job-icon.event {
+  background: #e0f2fe;
+}
+.home-job-icon.part_time {
+  background: #e0f2fe;
+}
+.home-job-icon.freelance {
+  background: #ede9fe;
+}
+.home-verified {
+  color: #008a63 !important;
+}
+.step-card,
+.category-card:hover,
+.home-job-row:hover,
+.employer-job-card:hover,
+.worker-job-card:hover {
+  border-color: #bfdbfe;
+  box-shadow: 0 8px 24px #123a2c12;
+}
+.employer-job-bottom span,
+.worker-job-bottom span,
+.tag {
+  background: #eff6ff;
+  color: #475569;
+}
+
+.account-panel {
+  border-color: #bfdbfe;
+}
+.account-panel strong {
+  color: #475569;
+}
+.account-panel a {
+  color: #334155;
+}
+.account-panel a:hover {
+  background: #eff6ff;
+  color: #0052cc;
+}
+.account-panel .account-icon {
+  color: #0052cc;
+}
+.account-divider {
+  background: #dbeafe;
+}
+.company-field:not([hidden]) {
+  display: block;
+}

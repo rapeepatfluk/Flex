@@ -1,0 +1,91 @@
+/* Bootstrap handles layout, spacing, cards, buttons and responsive columns.
+These rules keep only the FLEXJOB-specific appearance. */
+.worker-home {
+  padding-top: 52px;
+  padding-bottom: 80px;
+}
+
+.worker-welcome p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.worker-welcome .btn-success {
+  --bs-btn-bg: #177657;
+  --bs-btn-border-color: #177657;
+  --bs-btn-hover-bg: #105e45;
+  --bs-btn-hover-border-color: #105e45;
+  font-weight: 700;
+}
+
+.worker-job-card {
+  overflow: hidden;
+  border-color: var(--line);
+  color: inherit;
+  text-decoration: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
+}
+.worker-job-card:hover {
+  border-color: #9bc8b4;
+  box-shadow: 0 8px 24px #123a2c12;
+  color: inherit;
+  transform: translateY(-3px);
+}
+.worker-job-image {
+  display: block;
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  background: #dcefe0;
+}
+.worker-job-fallback {
+  display: grid;
+  place-items: center;
+  color: #176b54;
+  font-size: 38px;
+}
+.worker-job-body h3 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.worker-job-body p {
+  margin: 5px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.worker-job-meta {
+  margin-top: 14px !important;
+  line-height: 1.8;
+}
+.worker-job-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #eef1ef;
+}
+.worker-job-bottom strong {
+  color: var(--green);
+  font-size: 13px;
+}
+.worker-job-bottom span {
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: #edf2ef;
+  color: #52635b;
+  font-size: 10px;
+}
+
+@media (max-width: 575.98px) {
+  .worker-home {
+    padding-top: 35px;
+  }
+  .worker-job-image {
+    height: 185px;
+  }
+}

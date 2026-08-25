@@ -1,0 +1,7 @@
+/config/smtp.local.php
+/uploads/resumes/*
+!/uploads/resumes/.htaccess
+/uploads/portfolios/*
+!/uploads/portfolios/.htaccess
+/uploads/verification/*
+!/uploads/verification/.htaccess

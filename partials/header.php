@@ -1,0 +1,160 @@
+<?php
+require_once __DIR__ . '/../config/config.php';
+
+$currentUser = user();
+$role = $currentUser['role'] ?? '';
+$roleLabels = [
+    'worker' => 'ผู้หางาน',
+    'employer' => 'ผู้ว่าจ้าง',
+    'admin' => 'ผู้ดูแลระบบ',
+];
+$roleLabel = $roleLabels[$role] ?? '';
+$accountDisplayName = $currentUser
+    ? preg_split('/\s+/u', trim($currentUser['name']))[0]
+    : '';
+$notifications = [];
+$unreadNotifications = 0;
+
+if ($currentUser) {
+    $notificationStmt = db()->prepare('SELECT notification_id, notification_title, notification_message, notification_url, is_read, created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 8');
+    $notificationStmt->execute([$currentUser['id']]);
+    $notifications = $notificationStmt->fetchAll();
+    $unreadNotifications = count(array_filter($notifications, fn(array $notification): bool => !(bool) $notification['is_read']));
+}
+
+$accountOverviewPath = $role === 'worker'
+    ? 'worker/dashboard.php'
+    : dashboard_path($role);
+$brandPath = $role === 'admin' ? 'admin/dashboard.php' : 'index.php';
+
+$accountLinks = match ($role) {
+    'worker' => [
+        ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและ Resume', 'path' => 'worker/editprofiles.php'],
+        ['icon' => '◷', 'label' => 'งานที่สมัครของฉัน', 'path' => 'worker/dashboard.php#applications'],
+        ['icon' => '✦', 'label' => 'คำเชิญสมัครงาน', 'path' => 'worker/invitations.php'],
+    ],
+    'employer' => [
+        ['icon' => '⌂', 'label' => 'ภาพรวมของฉัน', 'path' => $accountOverviewPath],
+        ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและบริษัท', 'path' => 'employer/editprofile.php'],
+        ['icon' => '＋', 'label' => 'สร้างประกาศงาน', 'path' => 'employer/jobpost.php'],
+        ['icon' => '▣', 'label' => 'จัดการประกาศงาน', 'path' => 'employer/dashboard.php'],
+        ['icon' => '◎', 'label' => 'ค้นหาผู้หางาน', 'path' => 'employer/candidates.php'],
+    ],
+    'admin' => [
+        ['icon' => '⌂', 'label' => 'ภาพรวมของฉัน', 'path' => $accountOverviewPath],
+        ['icon' => '▣', 'label' => 'ตรวจสอบเอกสาร', 'path' => 'admin/documents.php'],
+        ['icon' => '◉', 'label' => 'จัดการประกาศงาน', 'path' => 'admin/jobs.php'],
+        ['icon' => '◉', 'label' => 'จัดการบัญชีผู้ใช้', 'path' => 'admin/users.php'],
+    ],
+    default => [],
+};
+
+$styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
+?>
+<!doctype html>
+<html lang="th">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title><?= e($pageTitle ?? 'FLEXJOB') ?></title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/app.css?v=<?= filemtime(APP_ROOT . '/app.css') ?>">
+
+    <?php foreach ($styles as $style):
+        $styleFile = APP_ROOT . '/assets/css/' . $style . '.css';
+        $styleVersion = is_file($styleFile) ? filemtime($styleFile) : time();
+    ?>
+        <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/<?= e($style) ?>.css?v=<?= $styleVersion ?>">
+    <?php endforeach ?>
+</head>
+
+<body>
+    <header class="site-header">
+        <a class="brand" href="<?= BASE_URL ?>/<?= $brandPath ?>">
+            <span class="brand-mark">F</span>FLEX<span>JOB</span>
+        </a>
+
+        <nav class="main-nav">
+            <?php if ($role === 'admin'): ?>
+                <a href="<?= BASE_URL ?>/admin/dashboard.php">ภาพรวมระบบ</a>
+                <a href="<?= BASE_URL ?>/admin/documents.php">เอกสารผู้ว่าจ้าง</a>
+                <a href="<?= BASE_URL ?>/admin/jobs.php">ตรวจสอบประกาศ</a>
+                <a href="<?= BASE_URL ?>/admin/users.php">จัดการบัญชี</a>
+            <?php else: ?>
+                <a href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a>
+                <?php if ($role === 'employer'): ?><a href="<?= BASE_URL ?>/employer/candidates.php">ค้นหาผู้หางาน</a><?php endif ?>
+                <a href="<?= BASE_URL ?>/index.php#how">วิธีใช้งาน</a>
+                <?php if (!$currentUser || $role !== 'worker'): ?>
+                    <a href="<?= BASE_URL ?>/employer/dashboard.php">สำหรับผู้ว่าจ้าง</a>
+                <?php endif ?>
+            <?php endif ?>
+        </nav>
+
+        <div class="header-actions">
+            <?php if ($currentUser): ?>
+                <details class="notification-menu">
+                    <summary aria-label="การแจ้งเตือน">
+                        <span class="notification-bell">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+                            <?php if ($unreadNotifications): ?><span class="notification-count"><?= $unreadNotifications > 9 ? '9+' : $unreadNotifications ?></span><?php endif; ?>
+                        </span>
+                    </summary>
+                    <div class="notification-panel">
+                        <strong>การแจ้งเตือน</strong>
+                        <?php foreach ($notifications as $notification): ?>
+                            <a class="notification-item <?= $notification['is_read'] ? 'is-read' : '' ?>" href="<?= BASE_URL ?>/notification.php?id=<?= $notification['notification_id'] ?>">
+                                <b><?= e($notification['notification_title']) ?></b>
+                                <span><?= e($notification['notification_message']) ?></span>
+                                <small><?= date('d/m/Y H:i', strtotime($notification['created_at'])) ?></small>
+                            </a>
+                        <?php endforeach; ?>
+                        <?php if (!$notifications): ?><p class="notification-empty">ยังไม่มีการแจ้งเตือน</p><?php endif; ?>
+                        <?php if ($notifications): ?><form class="notification-clear" method="post" action="<?= BASE_URL ?>/notification-clear.php"><?= csrf_field() ?><input type="hidden" name="return_path" value="<?= e(ltrim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '', '/')) ?>"><button type="submit">ล้างการแจ้งเตือนทั้งหมด</button></form><?php endif; ?>
+                    </div>
+                </details>
+                <details class="account-menu">
+                    <summary>
+                        <span class="account-avatar" aria-label="บัญชีผู้ใช้">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="12" cy="8" r="3.5"></circle>
+                                <path d="M4.5 20c.8-4 3.3-6 7.5-6s6.7 2 7.5 6"></path>
+                            </svg>
+                        </span>
+                        <span>
+                            <span class="account-name"><?= e($accountDisplayName) ?></span>
+                            <span class="account-role"><?= e($roleLabel) ?></span>
+                        </span>
+                        <span class="account-caret">⌄</span>
+                    </summary>
+
+                    <div class="account-panel">
+                        <strong>บัญชีของคุณ</strong>
+                        <?php foreach ($accountLinks as $link): ?>
+                            <a href="<?= BASE_URL ?>/<?= e($link['path']) ?>">
+                                <span class="account-icon"><?= e($link['icon']) ?></span>
+                                <?= e($link['label']) ?>
+                            </a>
+                        <?php endforeach ?>
+                        <div class="account-divider"></div>
+                        <a class="logout-link" href="<?= BASE_URL ?>/auth/logout.php">
+                            <span class="account-icon">↪</span>ออกจากระบบ
+                        </a>
+                    </div>
+                </details>
+            <?php else: ?>
+                <a class="text-link" href="<?= BASE_URL ?>/auth/login.php">เข้าสู่ระบบ</a>
+                <a class="btn btn-light btn-sm fw-semibold px-3" href="<?= BASE_URL ?>/auth/register.php">สมัครใช้งาน</a>
+            <?php endif ?>
+        </div>
+    </header>
+
+    <?php if ($message = flash('success')): ?>
+        <div class="flash alert alert-success" role="alert"><?= e($message) ?></div>
+    <?php endif ?>
+    <?php if ($message = flash('error')): ?>
+        <div class="flash alert alert-danger" role="alert"><?= e($message) ?></div>
+    <?php endif ?>
