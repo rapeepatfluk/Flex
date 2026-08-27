@@ -11,6 +11,20 @@ For a new database, import the files in this order:
 7. `migrate_work_interests.sql`
 8. Seed files only when sample data is required
 
+For an existing FLEXJOB database on another computer, back up that database and
+import `migrate_to_current_20260827.sql`. This is the consolidated upgrade file
+for the current application code, so the individual migration files do not need
+to be imported again afterward. The expected final report is:
+
+- `migration_status`: `FLEXJOB migration completed`
+- `active_work_interests`: `10`
+- `profile_visibility_column`: `1`
+- `work_interest_column`: `1`
+
+The consolidated migration assumes that the original FLEXJOB core tables already
+exist and that the database name is `db_flexjob`. Change only the `USE` line when
+the destination database intentionally uses a different name.
+
 `migrate_matching.sql` is additive and safe to run on the existing database. It keeps the legacy `worker_profiles.skills` column while structured skill data is adopted.
 
 `migrate_worker_profile_withdrawal.sql` adds worker profile photos and the auditable `withdrawn` application status without deleting existing applications.

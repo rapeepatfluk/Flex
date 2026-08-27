@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Aug 25, 2026 at 07:04 PM
+-- Generation Time: Aug 27, 2026 at 06:45 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.0.30
 
@@ -62,7 +62,8 @@ INSERT INTO `applications` (`application_id`, `job_id`, `worker_user_id`, `resum
 (1, 31, 5, NULL, 'hello', 'submitted', NULL, '2026-08-20 11:33:49'),
 (2, 31, 7, NULL, 'ffff', 'eligible', NULL, '2026-08-20 12:51:53'),
 (3, 32, 7, 'uploads/resumes/ac47684d40eadb4a0d0b.pdf', 'สวัสดี', 'submitted', NULL, '2026-08-23 08:52:40'),
-(4, 33, 7, 'uploads/resumes/ac47684d40eadb4a0d0b.pdf', '', 'withdrawn', '2026-08-25 14:04:44', '2026-08-25 07:04:35');
+(4, 33, 7, 'uploads/resumes/ac47684d40eadb4a0d0b.pdf', '', 'withdrawn', '2026-08-25 14:04:44', '2026-08-25 07:04:35'),
+(5, 34, 7, 'uploads/resumes/ac47684d40eadb4a0d0b.pdf', 'ดด', 'submitted', NULL, '2026-08-27 04:17:45');
 
 -- --------------------------------------------------------
 
@@ -100,7 +101,10 @@ INSERT INTO `email_log` (`id`, `to_email`, `subject`, `status`, `error_msg`, `se
 (16, 'frk24072561@gmail.com', 'ลิงก์ยืนยันอีเมล (ใหม่) — FLEXJOB', 'sent', NULL, '2026-08-22 12:41:44'),
 (17, 'frk24072561@gmail.com', 'ลิงก์ยืนยันอีเมล (ใหม่) — FLEXJOB', 'sent', NULL, '2026-08-22 12:44:12'),
 (18, 'frk24072561@gmail.com', 'มีผู้สมัครงานใหม่: นักเขียนโปรแกรม', 'sent', NULL, '2026-08-23 08:52:44'),
-(19, 'frk24072561@gmail.com', 'มีผู้สมัครงานใหม่: ออกแบบ UX / UI', 'sent', NULL, '2026-08-25 07:04:39');
+(19, 'frk24072561@gmail.com', 'มีผู้สมัครงานใหม่: ออกแบบ UX / UI', 'sent', NULL, '2026-08-25 07:04:39'),
+(20, 'nichakornkaisee@gmail.com', 'ยืนยันอีเมลของคุณ — FLEXJOB', 'sent', NULL, '2026-08-26 14:08:20'),
+(21, 'nichakornkaisee@gmail.com', 'ยืนยันอีเมลของคุณ — FLEXJOB', 'sent', NULL, '2026-08-26 14:09:50'),
+(22, 'frk24072561@gmail.com', 'มีผู้สมัครงานใหม่: คนยืนบูธงาน MotoGP', 'sent', NULL, '2026-08-27 04:18:11');
 
 -- --------------------------------------------------------
 
@@ -132,7 +136,8 @@ INSERT INTO `email_verifications` (`id`, `user_id`, `token`, `expires_at`, `used
 (9, 12, 'b02669c7fdd1a75749dee4dce7789cd31acf053419fddbc444bcd9d03de57a3f', '2026-08-23 19:36:34', '2026-08-22 12:41:41', '2026-08-22 12:36:34'),
 (10, 12, '9b088c426c9d4a434186f800157cfccdeb2babc03c295d3a77ede89d72069042', '2026-08-23 19:41:37', '2026-08-22 12:41:44', '2026-08-22 12:41:37'),
 (11, 12, '06a75adffbf99bd879d97cafe08a52bd23ef5fcb9ad4d23d749b76a4a3aa5451', '2026-08-23 19:41:41', '2026-08-22 12:44:12', '2026-08-22 12:41:41'),
-(12, 12, 'e0cccab308703f7332d5cb6a743102c5fbf3894a714fb64ab8e2aeb0a52c5758', '2026-08-23 19:44:08', '2026-08-22 12:44:23', '2026-08-22 12:44:08');
+(12, 12, 'e0cccab308703f7332d5cb6a743102c5fbf3894a714fb64ab8e2aeb0a52c5758', '2026-08-23 19:44:08', '2026-08-22 12:44:23', '2026-08-22 12:44:08'),
+(14, 15, '7855bb98652dbd854991210edd0983aee96af6875b48f143f3d6f39e670684b3', '2026-08-27 21:09:25', '2026-08-26 14:10:49', '2026-08-26 14:09:25');
 
 -- --------------------------------------------------------
 
@@ -196,6 +201,7 @@ CREATE TABLE `jobs` (
   `job_id` int(10) UNSIGNED NOT NULL,
   `employer_user_id` int(10) UNSIGNED NOT NULL,
   `job_category_id` int(10) UNSIGNED NOT NULL,
+  `work_interest_id` int(10) UNSIGNED DEFAULT NULL,
   `job_title` varchar(180) NOT NULL,
   `job_description` text NOT NULL,
   `work_location` varchar(180) NOT NULL,
@@ -215,21 +221,19 @@ CREATE TABLE `jobs` (
 -- Dumping data for table `jobs`
 --
 
-INSERT INTO `jobs` (`job_id`, `employer_user_id`, `job_category_id`, `job_title`, `job_description`, `work_location`, `work_province`, `work_schedule`, `work_mode`, `application_deadline`, `pay_amount`, `pay_unit`, `open_positions`, `job_status`, `created_at`, `updated_at`) VALUES
-(21, 2, 2, 'Event Staff งานเปิดตัวสินค้า', 'ดูแลจุดลงทะเบียน ให้ข้อมูลผู้ร่วมงาน และช่วยประสานงานหน้างาน', 'ศูนย์นิทรรศการและการประชุมไบเทค บางนา, 88 ถนนเทพรัตน แขวงบางนาใต้ เขตบางนา กรุงเทพมหานคร 10260', 'กรุงเทพมหานคร', '23–24 ส.ค. 2026 เวลา 09:00–18:00', 'onsite', NULL, 900.00, 'day', 8, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(22, 3, 1, 'พนักงานพาร์ทไทม์ ร้านกาแฟ', 'รับออเดอร์ เตรียมเครื่องดื่ม และดูแลความเรียบร้อยภายในร้าน', 'KIND Coffee, 51/2 ซอยอารีย์ 1 แขวงพญาไท เขตพญาไท กรุงเทพมหานคร 10400', 'กรุงเทพมหานคร', 'เลือกกะทำงานได้', 'onsite', NULL, 70.00, 'hour', 2, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(23, 4, 3, 'Graphic Designer (Freelance)', 'ออกแบบสื่อ Social Media สำหรับแคมเปญ จำนวน 10 ชิ้นต่อโปรเจกต์', 'ทำงานออนไลน์ (Work from Home)', 'ออนไลน์', 'ปิดรับ 30 ส.ค. 2026', 'onsite', NULL, 3500.00, 'project', 1, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(24, 2, 2, 'ทีมลงทะเบียนงานวิ่งการกุศล', 'ต้อนรับผู้ร่วมงาน แจกเบอร์วิ่ง และช่วยดูแลจุดลงทะเบียน', 'สวนลุมพินี ถนนพระราม 4 แขวงลุมพินี เขตปทุมวัน กรุงเทพมหานคร 10330', 'กรุงเทพมหานคร', '31 ส.ค. 2026 เวลา 04:30–10:00', 'onsite', NULL, 850.00, 'day', 12, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(25, 3, 1, 'Barista พาร์ทไทม์ วันเสาร์-อาทิตย์', 'ชงกาแฟ รับออเดอร์ และดูแลความเรียบร้อยหน้าร้าน มีการสอนงาน', 'KIND Coffee, 89 ถนนสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110', 'กรุงเทพมหานคร', 'เสาร์–อาทิตย์ 08:00–17:00', 'onsite', NULL, 75.00, 'hour', 2, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(26, 4, 3, 'ช่างภาพงานอีเวนต์', 'ถ่ายภาพบรรยากาศและกิจกรรมภายในงาน พร้อมคัดเลือกภาพส่งหลังจบงาน', 'ไอคอนสยาม, 299 ซอยเจริญนคร 5 แขวงคลองต้นไทร เขตคลองสาน กรุงเทพมหานคร 10600', 'กรุงเทพมหานคร', '6 ก.ย. 2026', 'onsite', NULL, 4500.00, 'project', 1, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(27, 3, 1, 'แอดมินตอบแชต (Work from Home)', 'ตอบคำถามลูกค้าและประสานงานทีมขาย มีคู่มือข้อความให้', 'ทำงานออนไลน์ (Work from Home)', 'ออนไลน์', 'จ.–ศ. 10:00–18:00', 'onsite', NULL, 700.00, 'day', 3, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(28, 2, 2, 'Staff แจกสินค้าตัวอย่าง', 'แจกสินค้าตัวอย่างและเชิญชวนผู้ร่วมงานเข้าร่วมกิจกรรมแบรนด์', 'เซ็นทรัลเวิลด์, 999/9 ถนนพระราม 1 แขวงปทุมวัน เขตปทุมวัน กรุงเทพมหานคร 10330', 'กรุงเทพมหานคร', '12–14 ก.ย. 2026', 'onsite', NULL, 950.00, 'day', 6, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(29, 4, 3, 'Content Creator สำหรับ TikTok', 'คิดคอนเทนต์ ถ่าย และตัดต่อวิดีโอ TikTok จำนวน 5 คลิป', 'ทำงานออนไลน์ (Work from Home)', 'ออนไลน์', 'ส่งงานภายใน 14 วัน', 'onsite', NULL, 6000.00, 'project', 1, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(30, 3, 1, 'พนักงานเสิร์ฟงานเลี้ยง', 'เสิร์ฟอาหารและเครื่องดื่ม ช่วยจัดโต๊ะ และดูแลความเรียบร้อยในงาน', 'โรงแรมริมปิง, 99 ถนนช้างคลาน ตำบลช้างคลาน อำเภอเมืองเชียงใหม่ เชียงใหม่ 50100', 'เชียงใหม่', '20 ก.ย. 2026 เวลา 16:00–23:00', 'onsite', NULL, 800.00, 'day', 5, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
-(31, 6, 3, 'ต้องการนักเขียนโปรแกรม', 'โปรแกรมเว็บขายสินค้า', 'abc company', 'บุรีรัมย์', '10.00-20.00', 'onsite', NULL, 400.00, 'day', 1, 'published', '2026-08-20 11:33:21', '2026-08-22 10:40:57'),
-(32, 12, 3, 'นักเขียนโปรแกรม', 'นักเขียนโปรแกรม เว็บไซต์บริษัท', '134 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'onsite', '2026-08-30', 350.00, 'day', 1, 'published', '2026-08-22 12:50:56', '2026-08-22 12:50:56'),
-(33, 12, 3, 'ออกแบบ UX / UI', 'ออกแบบ UX / UI สำหรับเว็บไซต์ขายรถยนต์', '134 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'remote', '2026-08-31', 5000.00, 'project', 1, 'published', '2026-08-25 07:02:23', '2026-08-25 07:02:23'),
-(34, 12, 2, 'คนยืนบูธงาน MotoGP', 'ยืนบูธงาน MotoGP รับลูกค้า', '13/4 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'onsite', '2026-08-31', 500.00, 'day', 3, 'published', '2026-08-25 08:28:47', '2026-08-25 08:28:47');
+INSERT INTO `jobs` (`job_id`, `employer_user_id`, `job_category_id`, `work_interest_id`, `job_title`, `job_description`, `work_location`, `work_province`, `work_schedule`, `work_mode`, `application_deadline`, `pay_amount`, `pay_unit`, `open_positions`, `job_status`, `created_at`, `updated_at`) VALUES
+(21, 2, 2, NULL, 'Event Staff งานเปิดตัวสินค้า', 'ดูแลจุดลงทะเบียน ให้ข้อมูลผู้ร่วมงาน และช่วยประสานงานหน้างาน', 'ศูนย์นิทรรศการและการประชุมไบเทค บางนา, 88 ถนนเทพรัตน แขวงบางนาใต้ เขตบางนา กรุงเทพมหานคร 10260', 'กรุงเทพมหานคร', '23–24 ส.ค. 2026 เวลา 09:00–18:00', 'onsite', NULL, 900.00, 'day', 8, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(22, 3, 1, NULL, 'พนักงานพาร์ทไทม์ ร้านกาแฟ', 'รับออเดอร์ เตรียมเครื่องดื่ม และดูแลความเรียบร้อยภายในร้าน', 'KIND Coffee, 51/2 ซอยอารีย์ 1 แขวงพญาไท เขตพญาไท กรุงเทพมหานคร 10400', 'กรุงเทพมหานคร', 'เลือกกะทำงานได้', 'onsite', NULL, 70.00, 'hour', 2, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(24, 2, 2, NULL, 'ทีมลงทะเบียนงานวิ่งการกุศล', 'ต้อนรับผู้ร่วมงาน แจกเบอร์วิ่ง และช่วยดูแลจุดลงทะเบียน', 'สวนลุมพินี ถนนพระราม 4 แขวงลุมพินี เขตปทุมวัน กรุงเทพมหานคร 10330', 'กรุงเทพมหานคร', '31 ส.ค. 2026 เวลา 04:30–10:00', 'onsite', NULL, 850.00, 'day', 12, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(25, 3, 1, NULL, 'Barista พาร์ทไทม์ วันเสาร์-อาทิตย์', 'ชงกาแฟ รับออเดอร์ และดูแลความเรียบร้อยหน้าร้าน มีการสอนงาน', 'KIND Coffee, 89 ถนนสุขุมวิท 55 แขวงคลองตันเหนือ เขตวัฒนา กรุงเทพมหานคร 10110', 'กรุงเทพมหานคร', 'เสาร์–อาทิตย์ 08:00–17:00', 'onsite', NULL, 75.00, 'hour', 2, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(26, 4, 3, NULL, 'ช่างภาพงานอีเวนต์', 'ถ่ายภาพบรรยากาศและกิจกรรมภายในงาน พร้อมคัดเลือกภาพส่งหลังจบงาน', 'ไอคอนสยาม, 299 ซอยเจริญนคร 5 แขวงคลองต้นไทร เขตคลองสาน กรุงเทพมหานคร 10600', 'กรุงเทพมหานคร', '6 ก.ย. 2026', 'onsite', NULL, 4500.00, 'project', 1, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(28, 2, 2, NULL, 'Staff แจกสินค้าตัวอย่าง', 'แจกสินค้าตัวอย่างและเชิญชวนผู้ร่วมงานเข้าร่วมกิจกรรมแบรนด์', 'เซ็นทรัลเวิลด์, 999/9 ถนนพระราม 1 แขวงปทุมวัน เขตปทุมวัน กรุงเทพมหานคร 10330', 'กรุงเทพมหานคร', '12–14 ก.ย. 2026', 'onsite', NULL, 950.00, 'day', 6, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(30, 3, 1, NULL, 'พนักงานเสิร์ฟงานเลี้ยง', 'เสิร์ฟอาหารและเครื่องดื่ม ช่วยจัดโต๊ะ และดูแลความเรียบร้อยในงาน', 'โรงแรมริมปิง, 99 ถนนช้างคลาน ตำบลช้างคลาน อำเภอเมืองเชียงใหม่ เชียงใหม่ 50100', 'เชียงใหม่', '20 ก.ย. 2026 เวลา 16:00–23:00', 'onsite', NULL, 800.00, 'day', 5, 'published', '2026-08-18 13:15:41', '2026-08-22 10:40:57'),
+(31, 6, 3, NULL, 'ต้องการนักเขียนโปรแกรม', 'โปรแกรมเว็บขายสินค้า', 'abc company', 'บุรีรัมย์', '10.00-20.00', 'onsite', NULL, 400.00, 'day', 1, 'published', '2026-08-20 11:33:21', '2026-08-22 10:40:57'),
+(32, 12, 3, 1, 'นักเขียนโปรแกรม', 'นักเขียนโปรแกรม เว็บไซต์บริษัท', '134 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'onsite', '2026-08-30', 350.00, 'day', 1, 'published', '2026-08-22 12:50:56', '2026-08-27 04:37:39'),
+(33, 12, 3, 3, 'ออกแบบ UX / UI', 'ออกแบบ UX / UI สำหรับเว็บไซต์ขายรถยนต์', '134 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'remote', '2026-08-31', 5000.00, 'project', 1, 'published', '2026-08-25 07:02:23', '2026-08-27 04:37:32'),
+(34, 12, 2, 7, 'คนยืนบูธงาน MotoGP', 'ยืนบูธงาน MotoGP รับลูกค้า', '13/4 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'onsite', '2026-08-31', 500.00, 'day', 3, 'published', '2026-08-25 08:28:47', '2026-08-27 04:37:27'),
+(35, 12, 3, 6, 'หาคนทำเอกสาร', 'ทำเอกสารการเงิน', '134 ต.ในเมือง อ.เมือง', 'บุรีรัมย์', '10:00 - 18:00', 'onsite', NULL, 1500.00, 'project', 3, 'published', '2026-08-26 19:07:10', '2026-08-27 04:34:18');
 
 -- --------------------------------------------------------
 
@@ -274,11 +278,8 @@ INSERT INTO `job_images` (`job_image_id`, `job_id`, `image_file_path`, `display_
 (33, 28, 'assets/images/job-event-staff-v1.png', 1),
 (34, 22, 'assets/images/job-barista-v1.png', 1),
 (35, 25, 'assets/images/job-barista-v1.png', 1),
-(36, 27, 'assets/images/job-barista-v1.png', 1),
 (37, 30, 'assets/images/job-barista-v1.png', 1),
-(38, 23, 'assets/images/job-creative-v1.png', 1),
 (39, 26, 'assets/images/job-creative-v1.png', 1),
-(40, 29, 'assets/images/job-creative-v1.png', 1),
 (41, 31, 'uploads/jobs/9d84048958a5d54f354e.png', 1),
 (42, 32, 'uploads/jobs/c849f78fc3757b7f45d4.png', 1),
 (43, 34, 'uploads/jobs/4bfd90ef79d3c8eb5960.jpg', 1);
@@ -331,7 +332,9 @@ INSERT INTO `job_skills` (`job_id`, `skill_id`, `importance`) VALUES
 (33, 71, 'required'),
 (33, 72, 'required'),
 (34, 74, 'required'),
-(34, 75, 'required');
+(34, 75, 'required'),
+(35, 88, 'required'),
+(35, 89, 'required');
 
 -- --------------------------------------------------------
 
@@ -412,7 +415,9 @@ INSERT INTO `skills` (`skill_id`, `skill_name`, `created_at`) VALUES
 (71, 'Figma', '2026-08-25 07:02:23'),
 (72, 'Photoshop', '2026-08-25 07:02:23'),
 (74, 'สื่อสารภาษาอังกฤษ', '2026-08-25 08:28:47'),
-(75, 'การบริการ', '2026-08-25 08:28:47');
+(75, 'การบริการ', '2026-08-25 08:28:47'),
+(88, 'word', '2026-08-26 19:07:10'),
+(89, 'excel', '2026-08-26 19:07:10');
 
 -- --------------------------------------------------------
 
@@ -445,7 +450,8 @@ INSERT INTO `users` (`user_id`, `first_name`, `last_name`, `email`, `password_ha
 (5, 'rapeepat', 'wongsuwan', 'rapeepat@gamail.com', '$2y$10$e2Kbr.SdS2Y1tTQHfuEF2uCE6JJobjLuwrbcapiEJq/q5tJafmXuq', 'worker', '0991028810', 'active', '2026-08-20 11:23:34', NULL),
 (6, 'rape', 'wong', 'abc@gmail.com', '$2y$10$9dNPHSFBb4OcxeoyNrVnIenZXJU.KXNmYe9BHnzJ2zenkXVGruyT2', 'employer', '0981629810', 'active', '2026-08-20 11:24:59', NULL),
 (7, 'Rapeepat', 'Wongsuwan', 'rapeepat.wo02@gmail.com', '$2y$10$p5nij3EhEFElT.GSFDCdNuJYp4BzG/dVdrRxFr4eNBRIa0G1CHEra', 'worker', '0919876782', 'active', '2026-08-20 12:19:02', '2026-08-20 12:44:27'),
-(12, 'Rapeepat', 'Wongsuwan', 'frk24072561@gmail.com', '$2y$10$ozg5i9xj/ZfmKOCvh57Gx.qO.3/kXVj6kpyyhxxyh/zjJaQ0yOQk6', 'employer', '0981029910', 'active', '2026-08-22 12:22:48', '2026-08-22 12:44:23');
+(12, 'Rapeepat', 'Wongsuwan', 'frk24072561@gmail.com', '$2y$10$ozg5i9xj/ZfmKOCvh57Gx.qO.3/kXVj6kpyyhxxyh/zjJaQ0yOQk6', 'employer', '0981029910', 'active', '2026-08-22 12:22:48', '2026-08-22 12:44:23'),
+(15, 'nichar', 'korn', 'nichakornkaisee@gmail.com', '$2y$10$bBkQzLQDxWPOlCr6G4hGWusryv.co6Xxg0QKvP7H3JZoWRNkoaz.e', 'worker', '0991029810', 'active', '2026-08-26 14:09:25', '2026-08-26 14:10:49');
 
 -- --------------------------------------------------------
 
@@ -496,7 +502,8 @@ CREATE TABLE `worker_profiles` (
 
 INSERT INTO `worker_profiles` (`worker_profile_id`, `user_id`, `professional_headline`, `biography`, `profile_image_path`, `skills`, `resume_file_path`, `portfolio_file_path`, `portfolio_url`, `profile_visibility`, `work_province`, `preferred_work_mode`, `available_from`, `updated_at`) VALUES
 (1, 5, '', '', NULL, '', 'uploads/resumes/a1b2bb781a0f5ad5a5d9.pdf', NULL, '', 'application_only', NULL, 'any', NULL, '2026-08-22 10:40:57'),
-(3, 7, 'นักเขียนโปรแกรม Backend Frontend', 'สวัสดีครับ ผมมีประสบการณ์ทำงานด้าน IT support , network , web deverloper', 'uploads/profile-images/8038939095cc5e34bc5c.png', 'canva, capcup, microsoft, vscode, ทำงานเป็นทีม, สื่อสารได้ดี', 'uploads/resumes/ac47684d40eadb4a0d0b.pdf', 'uploads/portfolios/ba3a87990e8be774d8fb.pdf', 'https://canva.link/ft59mmx4fa895oj', 'searchable', 'บุรีรัมย์', 'any', '2026-08-22', '2026-08-25 06:58:30');
+(3, 7, 'นักเขียนโปรแกรม Backend Frontend', 'สวัสดีครับ ผมมีประสบการณ์ทำงานด้าน IT support , network , web deverloper', 'uploads/profile-images/8038939095cc5e34bc5c.png', 'canva, capcup, microsoft, vscode, ทำงานเป็นทีม, สื่อสารได้ดี', 'uploads/resumes/ac47684d40eadb4a0d0b.pdf', 'uploads/portfolios/ba3a87990e8be774d8fb.pdf', 'https://canva.link/ft59mmx4fa895oj', 'searchable', 'บุรีรัมย์', 'any', '2026-08-22', '2026-08-25 06:58:30'),
+(13, 15, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'application_only', NULL, 'any', NULL, '2026-08-26 14:09:25');
 
 -- --------------------------------------------------------
 
@@ -521,6 +528,58 @@ INSERT INTO `worker_skills` (`worker_user_id`, `skill_id`, `proficiency_level`) 
 (7, 16, 'intermediate'),
 (7, 17, 'intermediate'),
 (7, 18, 'intermediate');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `worker_work_interests`
+--
+
+CREATE TABLE `worker_work_interests` (
+  `worker_user_id` int(10) UNSIGNED NOT NULL,
+  `work_interest_id` int(10) UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `worker_work_interests`
+--
+
+INSERT INTO `worker_work_interests` (`worker_user_id`, `work_interest_id`) VALUES
+(7, 1),
+(7, 3),
+(7, 4),
+(7, 7),
+(7, 10);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `work_interests`
+--
+
+CREATE TABLE `work_interests` (
+  `work_interest_id` int(10) UNSIGNED NOT NULL,
+  `interest_slug` varchar(100) NOT NULL,
+  `interest_name` varchar(180) NOT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `sort_order` smallint(5) UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `work_interests`
+--
+
+INSERT INTO `work_interests` (`work_interest_id`, `interest_slug`, `interest_name`, `is_active`, `sort_order`) VALUES
+(1, 'web-development', 'เขียนโปรแกรมและพัฒนาเว็บไซต์', 1, 10),
+(2, 'graphic-design', 'ออกแบบกราฟิกและโปสเตอร์', 1, 20),
+(3, 'ux-ui-design', 'ออกแบบ UX/UI', 1, 30),
+(4, 'video-editing', 'ตัดต่อวิดีโอ', 1, 40),
+(5, 'photo-video', 'ถ่ายภาพและวิดีโอ', 1, 50),
+(6, 'admin-document', 'งานเอกสารและธุรการ', 1, 60),
+(7, 'event-staff', 'Staff และงานอีเวนต์', 1, 70),
+(8, 'sales-promotion', 'งานขายและแนะนำสินค้า', 1, 80),
+(9, 'food-service', 'งานบริการ ร้านอาหาร และเครื่องดื่ม', 1, 90),
+(10, 'content-social', 'คอนเทนต์และดูแลโซเชียลมีเดีย', 1, 100);
 
 --
 -- Indexes for dumped tables
@@ -581,7 +640,8 @@ ALTER TABLE `jobs`
   ADD PRIMARY KEY (`job_id`),
   ADD KEY `fk_job_employer` (`employer_user_id`),
   ADD KEY `fk_job_category` (`job_category_id`),
-  ADD KEY `idx_job_listing` (`job_status`,`job_category_id`,`created_at`);
+  ADD KEY `idx_job_listing` (`job_status`,`job_category_id`,`created_at`),
+  ADD KEY `fk_job_work_interest` (`work_interest_id`);
 
 --
 -- Indexes for table `job_categories`
@@ -664,6 +724,21 @@ ALTER TABLE `worker_skills`
   ADD KEY `idx_worker_skill_lookup` (`skill_id`,`worker_user_id`);
 
 --
+-- Indexes for table `worker_work_interests`
+--
+ALTER TABLE `worker_work_interests`
+  ADD PRIMARY KEY (`worker_user_id`,`work_interest_id`),
+  ADD KEY `idx_worker_work_interest_lookup` (`work_interest_id`,`worker_user_id`);
+
+--
+-- Indexes for table `work_interests`
+--
+ALTER TABLE `work_interests`
+  ADD PRIMARY KEY (`work_interest_id`),
+  ADD UNIQUE KEY `uq_work_interest_slug` (`interest_slug`),
+  ADD KEY `idx_work_interest_active` (`is_active`,`sort_order`);
+
+--
 -- AUTO_INCREMENT for dumped tables
 --
 
@@ -677,19 +752,19 @@ ALTER TABLE `admin_action_logs`
 -- AUTO_INCREMENT for table `applications`
 --
 ALTER TABLE `applications`
-  MODIFY `application_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `application_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `email_log`
 --
 ALTER TABLE `email_log`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=20;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=23;
 
 --
 -- AUTO_INCREMENT for table `email_verifications`
 --
 ALTER TABLE `email_verifications`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `employer_documents`
@@ -707,7 +782,7 @@ ALTER TABLE `employer_profiles`
 -- AUTO_INCREMENT for table `jobs`
 --
 ALTER TABLE `jobs`
-  MODIFY `job_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=35;
+  MODIFY `job_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
 
 --
 -- AUTO_INCREMENT for table `job_categories`
@@ -743,19 +818,25 @@ ALTER TABLE `password_resets`
 -- AUTO_INCREMENT for table `skills`
 --
 ALTER TABLE `skills`
-  MODIFY `skill_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=76;
+  MODIFY `skill_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=152;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `user_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `user_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=17;
 
 --
 -- AUTO_INCREMENT for table `worker_profiles`
 --
 ALTER TABLE `worker_profiles`
-  MODIFY `worker_profile_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
+  MODIFY `worker_profile_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=19;
+
+--
+-- AUTO_INCREMENT for table `work_interests`
+--
+ALTER TABLE `work_interests`
+  MODIFY `work_interest_id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=41;
 
 --
 -- Constraints for dumped tables
@@ -798,7 +879,8 @@ ALTER TABLE `employer_profiles`
 --
 ALTER TABLE `jobs`
   ADD CONSTRAINT `fk_job_category` FOREIGN KEY (`job_category_id`) REFERENCES `job_categories` (`job_category_id`),
-  ADD CONSTRAINT `fk_job_employer` FOREIGN KEY (`employer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+  ADD CONSTRAINT `fk_job_employer` FOREIGN KEY (`employer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_job_work_interest` FOREIGN KEY (`work_interest_id`) REFERENCES `work_interests` (`work_interest_id`) ON DELETE SET NULL;
 
 --
 -- Constraints for table `job_images`
@@ -851,6 +933,13 @@ ALTER TABLE `worker_profiles`
 ALTER TABLE `worker_skills`
   ADD CONSTRAINT `fk_worker_skill_skill` FOREIGN KEY (`skill_id`) REFERENCES `skills` (`skill_id`) ON DELETE CASCADE,
   ADD CONSTRAINT `fk_worker_skill_worker` FOREIGN KEY (`worker_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `worker_work_interests`
+--
+ALTER TABLE `worker_work_interests`
+  ADD CONSTRAINT `fk_worker_work_interest_interest` FOREIGN KEY (`work_interest_id`) REFERENCES `work_interests` (`work_interest_id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_worker_work_interest_worker` FOREIGN KEY (`worker_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
