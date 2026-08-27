@@ -9,6 +9,7 @@ const DB_USER = 'root';
 const DB_PASS = '';
 const BASE_URL = '/Flex';
 const APP_ROOT = __DIR__ . '/..';
+const FLEXJOB_PROVINCE = 'บุรีรัมย์';
 
 // ── Gmail SMTP ──────────────────────────────────────────────────────────────
 // 1. เปิด 2-Step Verification ที่ myaccount.google.com

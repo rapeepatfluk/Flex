@@ -8,13 +8,18 @@ For a new database, import the files in this order:
 4. `migrate_matching.sql`
 5. `migrate_security_hardening.sql`
 6. `migrate_worker_profile_withdrawal.sql`
-7. Seed files only when sample data is required
+7. `migrate_work_interests.sql`
+8. Seed files only when sample data is required
 
 `migrate_matching.sql` is additive and safe to run on the existing database. It keeps the legacy `worker_profiles.skills` column while structured skill data is adopted.
 
 `migrate_worker_profile_withdrawal.sql` adds worker profile photos and the auditable `withdrawn` application status without deleting existing applications.
 
+`migrate_work_interests.sql` adds the curated work-interest catalog, worker selections, and one nullable primary interest per job. It never guesses or updates the interest of existing jobs.
+
 After migrating an existing database, run `php database/backfill_matching.php` once to copy non-empty legacy worker skills into the structured tables. Job requirements must be entered by the employer; they are not inferred from job descriptions.
+
+`audit_buriram_scope.sql` is a read-only report for finding old jobs and worker profiles outside the current Buriram-only scope. Review those records individually; the script never changes a province automatically.
 
 SMTP credentials must not be committed to source code. Configure these environment variables for Apache/PHP:
 

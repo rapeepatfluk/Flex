@@ -138,7 +138,7 @@ button,input,textarea,select {
   box-shadow:0 8px 22px #183b3012
 }
 
-.search-bar input,.filter-search input,.filter-search select {
+.search-bar input,.search-bar select,.filter-search input,.filter-search select {
   min-width:0;
   flex:1;
   padding:9px 11px;
@@ -1114,7 +1114,8 @@ blockquote {
     flex-wrap:wrap
   }
 
-  .search-bar input {
+  .search-bar input,
+  .search-bar select {
     flex-basis:100%
   }
 

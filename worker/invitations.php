@@ -10,8 +10,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? '';
         if (!in_array($status, ['accepted', 'declined'], true)) throw new RuntimeException('สถานะคำเชิญไม่ถูกต้อง');
         if ($status === 'accepted') {
-            $openStmt = $pdo->prepare("SELECT 1 FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id WHERE ji.job_invitation_id=? AND ji.worker_user_id=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())");
-            $openStmt->execute([$invitationId, $workerId]);
+            $openStmt = $pdo->prepare("SELECT 1 FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id WHERE ji.job_invitation_id=? AND ji.worker_user_id=? AND j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())");
+            $openStmt->execute([$invitationId, $workerId, FLEXJOB_PROVINCE]);
             if (!$openStmt->fetchColumn()) throw new RuntimeException('งานนี้ปิดรับสมัครแล้ว');
         }
         $statement = $pdo->prepare("UPDATE job_invitations SET invitation_status=?,responded_at=NOW() WHERE job_invitation_id=? AND worker_user_id=? AND invitation_status IN ('sent','viewed')");
@@ -22,8 +22,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect('worker/invitations.php');
 }
 $pdo->prepare("UPDATE job_invitations SET invitation_status='viewed' WHERE worker_user_id=? AND invitation_status='sent'")->execute([$workerId]);
-$statement = $pdo->prepare("SELECT ji.job_invitation_id,ji.invitation_message,ji.invitation_status,ji.created_at,j.job_id,j.job_title,j.job_status,j.application_deadline,j.work_location,j.pay_amount,j.pay_unit,ep.company_name,(j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())) is_open FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id JOIN employer_profiles ep ON ep.user_id=j.employer_user_id WHERE ji.worker_user_id=? ORDER BY ji.created_at DESC");
-$statement->execute([$workerId]);
+$statement = $pdo->prepare("SELECT ji.job_invitation_id,ji.invitation_message,ji.invitation_status,ji.created_at,j.job_id,j.job_title,j.job_status,j.application_deadline,j.work_location,j.pay_amount,j.pay_unit,ep.company_name,(j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())) is_open FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id JOIN employer_profiles ep ON ep.user_id=j.employer_user_id WHERE ji.worker_user_id=? ORDER BY ji.created_at DESC");
+$statement->execute([FLEXJOB_PROVINCE, $workerId]);
 $invitations = $statement->fetchAll();
 $pageTitle = 'คำเชิญสมัครงาน | FLEXJOB';
 require APP_ROOT . '/partials/header.php';

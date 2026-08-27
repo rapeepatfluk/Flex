@@ -14,13 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $firstName = trim($_POST['first_name'] ?? '');
         $lastName = trim($_POST['last_name'] ?? '');
         $workMode = $_POST['preferred_work_mode'] ?? 'any';
-        $visibility = $_POST['profile_visibility'] ?? 'application_only';
+        // A missing checkbox is the private option. Unknown values also fail closed.
+        $visibility = ($_POST['profile_visibility'] ?? '') === 'searchable' ? 'searchable' : 'application_only';
 
         if ($firstName === '' || $lastName === '') {
             throw new RuntimeException('กรุณากรอกชื่อและนามสกุล');
         }
         if (!in_array($workMode, ['any', 'onsite', 'remote', 'hybrid'], true)) throw new RuntimeException('รูปแบบงานไม่ถูกต้อง');
-        if (!in_array($visibility, ['application_only', 'searchable'], true)) throw new RuntimeException('การเปิดเผยโปรไฟล์ไม่ถูกต้อง');
 
         $pdo->beginTransaction();
         $pdo->prepare('UPDATE users SET first_name=?, last_name=?, phone=? WHERE user_id=?')
@@ -28,9 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $skillsInput = trim($_POST['skills'] ?? '');
         $pdo->prepare('INSERT INTO worker_profiles (user_id, professional_headline, biography, profile_image_path, skills, resume_file_path, portfolio_file_path, portfolio_url, profile_visibility, work_province, preferred_work_mode, available_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE professional_headline=VALUES(professional_headline), biography=VALUES(biography), profile_image_path=COALESCE(VALUES(profile_image_path), profile_image_path), skills=VALUES(skills), resume_file_path=COALESCE(VALUES(resume_file_path), resume_file_path), portfolio_file_path=COALESCE(VALUES(portfolio_file_path), portfolio_file_path), portfolio_url=VALUES(portfolio_url), profile_visibility=VALUES(profile_visibility), work_province=VALUES(work_province), preferred_work_mode=VALUES(preferred_work_mode), available_from=VALUES(available_from)')
-            ->execute([$workerId, trim($_POST['headline'] ?? ''), trim($_POST['introduce'] ?? ''), $profileImage, $skillsInput, $resumeFile, $portfolioFile, trim($_POST['portfolio_url'] ?? ''), $visibility, trim($_POST['work_province'] ?? ''), $workMode, ($_POST['available_from'] ?? '') ?: null]);
+            ->execute([$workerId, trim($_POST['headline'] ?? ''), trim($_POST['introduce'] ?? ''), $profileImage, $skillsInput, $resumeFile, $portfolioFile, trim($_POST['portfolio_url'] ?? ''), $visibility, FLEXJOB_PROVINCE, $workMode, ($_POST['available_from'] ?? '') ?: null]);
         matching_sync_worker_skills($pdo, $workerId, $skillsInput);
         matching_sync_worker_preferences($pdo, $workerId, (array) ($_POST['job_preferences'] ?? []));
+        matching_sync_worker_work_interests($pdo, $workerId, (array) ($_POST['work_interests'] ?? []));
 
         $pdo->commit();
         $_SESSION['user']['name'] = $firstName . ' ' . $lastName;
@@ -52,6 +53,10 @@ if ($structuredSkills) $profile['skills'] = $structuredSkills;
 $preferenceStmt = $pdo->prepare('SELECT jc.category_slug FROM worker_job_preferences wjp JOIN job_categories jc ON jc.job_category_id=wjp.job_category_id WHERE wjp.worker_user_id=?');
 $preferenceStmt->execute([$workerId]);
 $selectedPreferences = $preferenceStmt->fetchAll(PDO::FETCH_COLUMN);
+$workInterests = matching_work_interests($pdo);
+$workInterestStmt = $pdo->prepare('SELECT work_interest_id FROM worker_work_interests WHERE worker_user_id=? ORDER BY work_interest_id');
+$workInterestStmt->execute([$workerId]);
+$selectedWorkInterestIds = array_map('intval', $workInterestStmt->fetchAll(PDO::FETCH_COLUMN));
 $pageTitle = 'แก้ไขโปรไฟล์ | FLEXJOB';
 require APP_ROOT . '/partials/header.php';
 ?>
@@ -102,11 +107,12 @@ require APP_ROOT . '/partials/header.php';
 
             <h2 class="h5 mb-3">ความต้องการทำงานและการค้นพบโปรไฟล์</h2>
             <div class="row g-3 mb-4">
-                <div class="col-md-6"><label class="form-label" for="work_province">จังหวัดที่สะดวกทำงาน</label><input id="work_province" class="form-control" name="work_province" value="<?= e($profile['work_province'] ?? '') ?>" placeholder="เช่น กรุงเทพมหานคร"></div>
+                <div class="col-md-6"><label class="form-label">พื้นที่ให้บริการ</label><input class="form-control" value="จังหวัด<?= e(FLEXJOB_PROVINCE) ?>" disabled><div class="form-text">FLEXJOB เป็นเว็บไซต์หางานในจังหวัดบุรีรัมย์ จึงไม่ต้องเลือกจังหวัด</div></div>
                 <div class="col-md-6"><label class="form-label" for="preferred_work_mode">รูปแบบงานที่ต้องการ</label><select id="preferred_work_mode" class="form-select" name="preferred_work_mode"><?php foreach (['any' => 'ได้ทุกรูปแบบ', 'onsite' => 'ทำงานที่สถานที่', 'remote' => 'ทำงานออนไลน์', 'hybrid' => 'Hybrid'] as $value => $label): ?><option value="<?= $value ?>" <?= ($profile['preferred_work_mode'] ?? 'any') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
                 <div class="col-md-6"><label class="form-label" for="available_from">พร้อมเริ่มงานตั้งแต่</label><input id="available_from" class="form-control" type="date" name="available_from" value="<?= e($profile['available_from'] ?? '') ?>"></div>
-                <div class="col-md-6"><label class="form-label" for="profile_visibility">ใครค้นหาโปรไฟล์นี้ได้</label><select id="profile_visibility" class="form-select" name="profile_visibility"><option value="application_only" <?= ($profile['profile_visibility'] ?? 'application_only') === 'application_only' ? 'selected' : '' ?>>เฉพาะผู้ว่าจ้างที่ฉันสมัครงาน</option><option value="searchable" <?= ($profile['profile_visibility'] ?? '') === 'searchable' ? 'selected' : '' ?>>ผู้ว่าจ้างที่ยืนยันแล้วค้นหาได้</option></select><div class="form-text">หน้าค้นหาจะไม่แสดงอีเมล เบอร์โทร Resume หรือ Portfolio</div></div>
-                <div class="col-12"><label class="form-label">ประเภทงานที่สนใจ</label><div class="d-flex flex-wrap gap-3"><?php foreach (['part_time' => 'พาร์ทไทม์', 'event' => 'งานอีเวนต์', 'freelance' => 'ฟรีแลนซ์'] as $value => $label): ?><div class="form-check"><input class="form-check-input" type="checkbox" name="job_preferences[]" value="<?= $value ?>" id="pref_<?= $value ?>" <?= in_array($value, $selectedPreferences, true) ? 'checked' : '' ?>><label class="form-check-label" for="pref_<?= $value ?>"><?= $label ?></label></div><?php endforeach ?></div></div>
+                <div class="col-md-6"><fieldset class="border rounded p-3 h-100"><legend class="h6 mb-2">การแสดงโปรไฟล์ต่อนายจ้าง</legend><div class="form-check"><input id="profile_visibility" class="form-check-input" type="checkbox" name="profile_visibility" value="searchable" <?= ($profile['profile_visibility'] ?? 'application_only') === 'searchable' ? 'checked' : '' ?>><label class="form-check-label fw-semibold" for="profile_visibility">ให้นายจ้างใน FLEXJOB ค้นพบโปรไฟล์ของฉัน</label></div><div class="form-text mt-2">เฉพาะนายจ้างที่ผ่านการยืนยันและมีประกาศที่เปิดรับเท่านั้น ระบบไม่แสดงอีเมล เบอร์โทร Resume หรือ Portfolio ในหน้าค้นหา</div><div class="form-text">หากไม่เปิด คุณยังสมัครงานเองได้ตามปกติ</div></fieldset></div>
+                <div class="col-12"><label class="form-label">งานที่สนใจ <span class="text-secondary">(เลือกได้ไม่เกิน 5 หมวด)</span></label><div class="row g-2"><?php foreach ($workInterests as $interest): ?><div class="col-md-6"><div class="form-check border rounded p-3 h-100"><input class="form-check-input ms-0 me-2" type="checkbox" name="work_interests[]" value="<?= $interest['work_interest_id'] ?>" id="work_interest_<?= $interest['work_interest_id'] ?>" <?= in_array((int) $interest['work_interest_id'], $selectedWorkInterestIds, true) ? 'checked' : '' ?>><label class="form-check-label" for="work_interest_<?= $interest['work_interest_id'] ?>"><?= e($interest['interest_name']) ?></label></div></div><?php endforeach ?></div><div class="form-text">งานที่สนใจใช้บอกสิ่งที่อยากทำ ส่วนทักษะใช้บอกสิ่งที่คุณทำได้จริง</div><div class="text-danger small mt-1" id="editInterestError" hidden>เลือกได้สูงสุด 5 หมวด</div></div>
+                <div class="col-12"><label class="form-label">รูปแบบการจ้างที่สนใจ</label><div class="d-flex flex-wrap gap-3"><?php foreach (['part_time' => 'พาร์ทไทม์', 'event' => 'งานอีเวนต์', 'freelance' => 'ฟรีแลนซ์'] as $value => $label): ?><div class="form-check"><input class="form-check-input" type="checkbox" name="job_preferences[]" value="<?= $value ?>" id="pref_<?= $value ?>" <?= in_array($value, $selectedPreferences, true) ? 'checked' : '' ?>><label class="form-check-label" for="pref_<?= $value ?>"><?= $label ?></label></div><?php endforeach ?></div></div>
             </div>
 
             <h2 class="h5 mb-3">Resume</h2>
@@ -120,5 +126,18 @@ require APP_ROOT . '/partials/header.php';
         </div>
     </form>
 </main>
-
+<script>
+(() => {
+    const inputs = [...document.querySelectorAll('input[name="work_interests[]"]')];
+    const error = document.querySelector('#editInterestError');
+    inputs.forEach(input => input.addEventListener('change', event => {
+        if (inputs.filter(item => item.checked).length > 5) {
+            event.currentTarget.checked = false;
+            error.hidden = false;
+        } else {
+            error.hidden = true;
+        }
+    }));
+})();
+</script>
 <?php require APP_ROOT . '/partials/footer.php'; ?>

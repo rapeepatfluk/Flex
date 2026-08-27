@@ -1,6 +1,11 @@
 <?php require_once __DIR__ . '/config/config.php';
 if (user() && ($_GET['scroll'] ?? '') !== 'how') redirect(dashboard_path(user()['role']));
-$jobs = db()->query("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,j.job_description AS description,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order LIMIT 1) cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id WHERE j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE()) ORDER BY j.created_at DESC LIMIT 10")->fetchAll();
+$jobStatement = db()->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,wi.interest_name work_interest_name,j.job_description AS description,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order LIMIT 1) cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id WHERE j.job_status='published' AND j.work_province=? AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE()) ORDER BY j.created_at DESC LIMIT 10");
+$jobStatement->execute([FLEXJOB_PROVINCE]);
+$jobs = $jobStatement->fetchAll();
+$positionStatement = db()->prepare("SELECT COALESCE(SUM(open_positions),0) FROM jobs WHERE job_status='published' AND work_province=? AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
+$positionStatement->execute([FLEXJOB_PROVINCE]);
+$openPositionCount = (int) $positionStatement->fetchColumn();
 $pageTitle = 'FLEXJOB | งานที่ยืดหยุ่นสำหรับคุณ';
 $pageStyles = ['index', 'index-how'];
 require __DIR__ . '/partials/header.php'; ?>
@@ -10,8 +15,8 @@ require __DIR__ . '/partials/header.php'; ?>
         <div>
             <p class="eyebrow">FLEXIBLE WORK, REAL OPPORTUNITY</p>
             <h1>งานที่ใช่<br>ในเวลาที่<span>ยืดหยุ่น</span></h1>
-            <p class="lead">ค้นหางานพาร์ทไทม์ งานอีเวนต์ และฟรีแลนซ์จากผู้ว่าจ้างที่ผ่านการตรวจสอบแล้ว</p>
-            <form class="search-bar" action="<?= BASE_URL ?>/jobs.php" method="get"><input name="q" placeholder="ค้นหาตำแหน่ง, ทักษะ หรือชื่อบริษัท"><input name="province" placeholder="จังหวัด หรือทำงานออนไลน์"><button class="btn btn-primary">ค้นหางาน</button></form>
+            <p class="lead">ค้นหางานพาร์ทไทม์ งานอีเวนต์ และฟรีแลนซ์ในจังหวัด<?= e(FLEXJOB_PROVINCE) ?>จากผู้ว่าจ้างที่ผ่านการตรวจสอบแล้ว</p>
+            <form class="search-bar" action="<?= BASE_URL ?>/jobs.php" method="get"><input name="q" placeholder="ค้นหาตำแหน่ง, ทักษะ หรือชื่อบริษัท"><select name="work_mode" aria-label="รูปแบบการทำงาน"><option value="">ทุกรูปแบบงานในบุรีรัมย์</option><option value="onsite">ทำงานที่สถานที่</option><option value="remote">ทำงานออนไลน์</option><option value="hybrid">Hybrid</option></select><button class="btn btn-primary">ค้นหางาน</button></form>
             <p class="popular">ค้นหายอดนิยม: <a href="<?= BASE_URL ?>/jobs.php?type=event">Staff Event</a><a href="<?= BASE_URL ?>/jobs.php?type=part_time">งานพาร์ทไทม์</a><a href="<?= BASE_URL ?>/jobs.php?type=freelance">กราฟิก</a></p>
         </div>
         <div class="hero-visual">
@@ -21,7 +26,7 @@ require __DIR__ . '/partials/header.php'; ?>
                 <div class="person-shirt">FLEXJOB</div>
             </div>
             <div class="float-card bottom-card"><b>✓ ได้งานแล้ว!</b><small>เริ่มงาน 24 ส.ค.</small></div>
-            <div class="hero-badge">งานที่เหมาะกับคุณ<br><strong>1,240+</strong> ตำแหน่ง</div>
+            <div class="hero-badge">ตำแหน่งเปิดรับในบุรีรัมย์ <br><strong><?= number_format($openPositionCount) ?></strong> ตำแหน่ง</div>
         </div>
     </section>
     <section class="worker-cta">
@@ -67,7 +72,7 @@ require __DIR__ . '/partials/header.php'; ?>
                             <?php if ($job['is_verified']): ?><p class="home-verified">● ผู้ว่าจ้างยืนยันแล้ว</p><?php endif ?>
                             <h3><?= e($job['title']) ?></h3>
                             <p class="home-company"><?php if ($job['company_logo']): ?><img class="company-logo" src="<?= BASE_URL . '/' . e($job['company_logo']) ?>" alt="โลโก้ <?= e($job['company_name']) ?>"><?php endif; ?><?= e($job['company_name']) ?></p>
-                            <div class="home-job-tags"><span><?= job_type($job['job_type']) ?></span><span><?= e($job['positions']) ?> อัตรา</span></div>
+                            <div class="home-job-tags"><?php if ($job['work_interest_name']): ?><span><?= e($job['work_interest_name']) ?></span><?php endif ?><span><?= job_type($job['job_type']) ?></span><span><?= e($job['positions']) ?> อัตรา</span></div>
                             <p class="home-job-location">⌖ <?= e($job['location']) ?></p>
                             <div class="home-job-footer">
                                 <div><small>◷ <?= e($job['work_date']) ?></small><strong><?= pay_text($job) ?></strong></div><a class="btn btn-primary btn-sm home-job-button" href="<?= BASE_URL ?>/job.php?id=<?= $job['id'] ?>">ดูงานนี้</a>

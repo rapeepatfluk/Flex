@@ -1,14 +1,14 @@
 <?php require_once __DIR__ . '/config/config.php';
-$where = ["j.job_status='published'", "(j.application_deadline IS NULL OR j.application_deadline>=CURDATE())"];
-$params = [];
+$where = ["j.job_status='published'", "j.work_province=?", "(j.application_deadline IS NULL OR j.application_deadline>=CURDATE())"];
+$params = [FLEXJOB_PROVINCE];
 if (!empty($_GET['q'])) {
-    $where[] = '(j.job_title LIKE ? OR j.job_description LIKE ? OR ep.company_name LIKE ?)';
+    $where[] = '(j.job_title LIKE ? OR j.job_description LIKE ? OR ep.company_name LIKE ? OR wi.interest_name LIKE ?)';
     $term = '%' . $_GET['q'] . '%';
-    $params = [$term, $term, $term];
+    array_push($params, $term, $term, $term, $term);
 }
-if (!empty($_GET['province'])) {
-    $where[] = "COALESCE(NULLIF(j.work_province, ''), j.work_location) LIKE ?";
-    $params[] = '%' . $_GET['province'] . '%';
+if (!empty($_GET['work_mode']) && in_array($_GET['work_mode'], ['onsite', 'remote', 'hybrid'], true)) {
+    $where[] = 'j.work_mode=?';
+    $params[] = $_GET['work_mode'];
 }
 if (!empty($_GET['type']) && in_array($_GET['type'], ['part_time', 'event', 'freelance'], true)) {
     $where[] = 'jc.category_slug=?';
@@ -16,13 +16,13 @@ if (!empty($_GET['type']) && in_array($_GET['type'], ['part_time', 'event', 'fre
 }
 $page = max(1, (int) ($_GET['page'] ?? 1));
 $perPage = 12;
-$countStmt = db()->prepare('SELECT COUNT(*) FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id WHERE ' . implode(' AND ', $where));
+$countStmt = db()->prepare('SELECT COUNT(*) FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id WHERE ' . implode(' AND ', $where));
 $countStmt->execute($params);
 $totalJobs = (int) $countStmt->fetchColumn();
 $totalPages = max(1, (int) ceil($totalJobs / $perPage));
 if ($page > $totalPages) $page = $totalPages;
 $offset = ($page - 1) * $perPage;
-$stmt = db()->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order, ji.job_image_id LIMIT 1) AS cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id WHERE " . implode(' AND ', $where) . " ORDER BY j.created_at DESC LIMIT {$perPage} OFFSET {$offset}");
+$stmt = db()->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,wi.interest_name work_interest_name,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order, ji.job_image_id LIMIT 1) AS cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id WHERE " . implode(' AND ', $where) . " ORDER BY j.created_at DESC LIMIT {$perPage} OFFSET {$offset}");
 $stmt->execute($params);
 $jobs = $stmt->fetchAll();
 $pageTitle = 'ค้นหางาน | FLEXJOB';
@@ -33,12 +33,12 @@ require APP_ROOT . '/partials/header.php'; ?>
         <h1>ค้นหางานที่ยืดหยุ่นสำหรับคุณ</h1>
         <form class="row g-2 mt-3" method="get">
             <div class="col-12 col-md"><input class="form-control" name="q" value="<?= e($_GET['q'] ?? '') ?>" placeholder="ชื่อตำแหน่ง หรือบริษัท"></div>
-            <div class="col-12 col-md"><input class="form-control" name="province" value="<?= e($_GET['province'] ?? '') ?>" placeholder="จังหวัด เช่น กรุงเทพมหานคร"></div>
+            <div class="col-12 col-md"><select class="form-select" name="work_mode"><option value="">ทุกรูปแบบงานในบุรีรัมย์</option><?php foreach (['onsite' => 'ทำงานที่สถานที่', 'remote' => 'ทำงานออนไลน์', 'hybrid' => 'Hybrid'] as $value => $label): ?><option value="<?= $value ?>" <?= ($_GET['work_mode'] ?? '') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
             <div class="col-12 col-md"><select class="form-select" name="type"><option value="">ทุกประเภทงาน</option><?php foreach (['part_time' => 'พาร์ทไทม์', 'event' => 'งานอีเวนต์', 'freelance' => 'ฟรีแลนซ์'] as $value => $label): ?><option value="<?= $value ?>" <?= ($_GET['type'] ?? '') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
             <div class="col-12 col-md-auto"><button class="btn btn-success w-100" type="submit">ค้นหา</button></div>
         </form>
     </div>
-    <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 text-secondary small mb-4"><span>พบ <?= $totalJobs ?> งาน</span><span>งานที่ยังเปิดรับสมัคร</span></div>
+    <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 text-secondary small mb-4"><span>พบ <?= $totalJobs ?> งาน</span><span>เฉพาะงานในจังหวัด<?= e(FLEXJOB_PROVINCE) ?>ที่ยังเปิดรับสมัคร</span></div>
     <div class="row g-4">
         <?php foreach ($jobs as $job): ?>
             <div class="col-12 col-md-6 col-xl-4">
@@ -51,7 +51,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                         <?php endif; ?>
                     </div>
                     <div class="card-body d-flex flex-column p-3">
-                        <span class="tag mt-0 align-self-start"><?= job_type($job['job_type']) ?></span>
+                        <div class="d-flex flex-wrap gap-2 align-items-start"><?php if ($job['work_interest_name']): ?><span class="tag mt-0"><?= e($job['work_interest_name']) ?></span><?php endif ?><span class="tag mt-0"><?= job_type($job['job_type']) ?></span></div>
                         <h3><?= e($job['title']) ?></h3>
                         <p><?php if ($job['company_logo']): ?><img class="company-logo" src="<?= BASE_URL . '/' . e($job['company_logo']) ?>" alt="โลโก้ <?= e($job['company_name']) ?>"><?php endif; ?><?= e($job['company_name']) ?> <?php if ($job['is_verified']): ?><em>✓</em><?php endif ?></p>
                         <div class="job-meta">⌖ <?= e($job['location']) ?><br>◷ <?= e($job['work_date']) ?></div>

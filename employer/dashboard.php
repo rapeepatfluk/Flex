@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     redirect('employer/dashboard.php');
 }
-$jobsStmt = $pdo->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,j.pay_amount,j.pay_unit,j.job_status AS status,COUNT(DISTINCT a.application_id) applicants,COUNT(DISTINCT js.skill_id) matching_skills FROM jobs j JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN applications a ON a.job_id=j.job_id LEFT JOIN job_skills js ON js.job_id=j.job_id WHERE j.employer_user_id=? GROUP BY j.job_id ORDER BY j.created_at DESC");
+$jobsStmt = $pdo->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,wi.interest_name work_interest_name,j.pay_amount,j.pay_unit,j.job_status AS status,COUNT(DISTINCT a.application_id) applicants,COUNT(DISTINCT js.skill_id) matching_skills FROM jobs j JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id LEFT JOIN applications a ON a.job_id=j.job_id LEFT JOIN job_skills js ON js.job_id=j.job_id WHERE j.employer_user_id=? GROUP BY j.job_id ORDER BY j.created_at DESC");
 $jobsStmt->execute([user()['id']]);
 $jobs = $jobsStmt->fetchAll();
 $pageTitle = 'ผู้ว่าจ้าง | FLEXJOB';
@@ -39,7 +39,7 @@ require APP_ROOT . '/partials/header.php'; ?>
     <section class="panel">
         <h2>ประกาศงานของคุณ <span class="count"><?= count($jobs) ?></span></h2><?php foreach ($jobs as $job): ?><div class="application">
                     <div><b><?= e($job['title']) ?></b>
-                        <p><?= job_type($job['job_type']) ?> · <?= pay_text($job) ?></p><small>ผู้สมัคร <?= e((string)$job['applicants']) ?> คน · <?= $job['status'] === 'published' ? 'เผยแพร่แล้ว' : 'ปิดแล้ว' ?> · <?= $job['matching_skills'] ? 'มีข้อมูล Matching ' . e((string) $job['matching_skills']) . ' ทักษะ' : 'ยังไม่มีข้อมูล Matching' ?></small>
+                        <p><?= job_type($job['job_type']) ?> · <?= e($job['work_interest_name'] ?: 'ยังไม่ได้เลือกหมวดงาน') ?> · <?= pay_text($job) ?></p><small>ผู้สมัคร <?= e((string)$job['applicants']) ?> คน · <?= $job['status'] === 'published' ? 'เผยแพร่แล้ว' : 'ปิดแล้ว' ?> · <?= $job['matching_skills'] ? 'มีข้อมูล Matching ' . e((string) $job['matching_skills']) . ' ทักษะ' : 'ยังไม่มีข้อมูล Matching' ?></small><?php if (!$job['work_interest_name']): ?><div class="text-warning small mt-1">ควรแก้ไขประกาศและเลือกหมวดงาน เพื่อให้ Matching แม่นยำขึ้น</div><?php endif ?>
                     </div>
                     <div class="d-flex flex-wrap gap-2">
                         <a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $job['id'] ?>">ดูผู้สมัคร</a>

@@ -63,6 +63,37 @@ function matching_sync_worker_preferences(PDO $pdo, int $workerId, array $catego
     }
 }
 
+function matching_work_interests(PDO $pdo): array
+{
+    return $pdo->query('SELECT work_interest_id,interest_slug,interest_name FROM work_interests WHERE is_active=1 ORDER BY sort_order,interest_name')->fetchAll();
+}
+
+function matching_work_interest_exists(PDO $pdo, int $interestId): bool
+{
+    if ($interestId < 1) return false;
+    $statement = $pdo->prepare('SELECT 1 FROM work_interests WHERE work_interest_id=? AND is_active=1');
+    $statement->execute([$interestId]);
+    return (bool) $statement->fetchColumn();
+}
+
+function matching_sync_worker_work_interests(PDO $pdo, int $workerId, array $interestIds): void
+{
+    $ids = array_values(array_unique(array_filter(array_map('intval', $interestIds), fn(int $id): bool => $id > 0)));
+    if (count($ids) > 5) throw new RuntimeException('เลือกงานที่สนใจได้ไม่เกิน 5 หมวด');
+
+    if ($ids) {
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $statement = $pdo->prepare("SELECT work_interest_id FROM work_interests WHERE is_active=1 AND work_interest_id IN ({$placeholders})");
+        $statement->execute($ids);
+        $validIds = array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
+        if (count($validIds) !== count($ids)) throw new RuntimeException('หมวดงานที่สนใจไม่ถูกต้อง');
+    }
+
+    $pdo->prepare('DELETE FROM worker_work_interests WHERE worker_user_id=?')->execute([$workerId]);
+    $insert = $pdo->prepare('INSERT INTO worker_work_interests (worker_user_id,work_interest_id) VALUES (?,?)');
+    foreach ($ids as $interestId) $insert->execute([$workerId, $interestId]);
+}
+
 function matching_ids(string|null $value): array
 {
     if (!$value) return [];
@@ -79,6 +110,7 @@ function matching_calculate(array $job, array $worker): array
     $workerSkillIds = matching_ids($worker['skill_ids'] ?? null);
     $requiredIds = matching_ids($job['required_skill_ids'] ?? null);
     $preferredIds = matching_ids($job['preferred_skill_ids'] ?? null);
+    $workerInterestIds = matching_ids($worker['work_interest_ids'] ?? null);
     $requiredNames = matching_names($job['required_skill_names'] ?? null);
     $preferredNames = matching_names($job['preferred_skill_names'] ?? null);
     $earned = 0.0;
@@ -87,9 +119,9 @@ function matching_calculate(array $job, array $worker): array
     $missing = [];
 
     if ($requiredIds) {
-        $available += 50;
+        $available += 40;
         $matchedIds = array_intersect($requiredIds, $workerSkillIds);
-        $earned += 50 * count($matchedIds) / count($requiredIds);
+        $earned += 40 * count($matchedIds) / count($requiredIds);
         $reasons[] = 'ตรงทักษะจำเป็น ' . count($matchedIds) . '/' . count($requiredIds);
         foreach ($requiredIds as $index => $skillId) {
             if (!in_array($skillId, $workerSkillIds, true) && isset($requiredNames[$index])) $missing[] = $requiredNames[$index];
@@ -97,26 +129,29 @@ function matching_calculate(array $job, array $worker): array
     }
 
     if ($preferredIds) {
-        $available += 20;
+        $available += 15;
         $matchedCount = count(array_intersect($preferredIds, $workerSkillIds));
-        $earned += 20 * $matchedCount / count($preferredIds);
+        $earned += 15 * $matchedCount / count($preferredIds);
         if ($matchedCount) $reasons[] = 'ตรงทักษะเสริม ' . $matchedCount . '/' . count($preferredIds);
     }
 
-    $workerProvince = trim((string) ($worker['work_province'] ?? ''));
-    $jobProvince = trim((string) ($job['work_province'] ?? ''));
+    $jobInterestId = (int) ($job['work_interest_id'] ?? 0);
+    if ($jobInterestId && $workerInterestIds) {
+        $available += 25;
+        if (in_array($jobInterestId, $workerInterestIds, true)) {
+            $earned += 25;
+            $interestName = trim((string) ($job['work_interest_name'] ?? ''));
+            $reasons[] = $interestName !== '' ? 'สนใจงานด้าน: ' . $interestName : 'ตรงกับงานที่สนใจ';
+        }
+    }
+
     $preferredMode = (string) ($worker['preferred_work_mode'] ?? 'any');
     $jobMode = (string) ($job['work_mode'] ?? 'onsite');
-    if ($workerProvince !== '' || $preferredMode !== 'any') {
-        $available += 20;
-        $locationMatched = $jobMode === 'remote'
-            ? in_array($preferredMode, ['any', 'remote'], true)
-            : ($preferredMode === 'any' || $preferredMode === $jobMode)
-                && $workerProvince !== '' && $jobProvince !== ''
-                && mb_strtolower($workerProvince, 'UTF-8') === mb_strtolower($jobProvince, 'UTF-8');
-        if ($locationMatched) {
-            $earned += 20;
-            $reasons[] = $jobMode === 'remote' ? 'รูปแบบงาน Remote ตรงกัน' : 'พื้นที่และรูปแบบงานตรงกัน';
+    if (array_key_exists('preferred_work_mode', $worker)) {
+        $available += 10;
+        if ($preferredMode === 'any' || $preferredMode === $jobMode) {
+            $earned += 10;
+            $reasons[] = 'รูปแบบงานตรงกับที่ต้องการ';
         }
     }
 
@@ -125,12 +160,17 @@ function matching_calculate(array $job, array $worker): array
         $available += 10;
         if (in_array((int) ($job['job_category_id'] ?? 0), $preferenceIds, true)) {
             $earned += 10;
-            $reasons[] = 'ตรงประเภทงานที่สนใจ';
+            $reasons[] = 'ตรงรูปแบบการจ้างที่สนใจ';
         }
     }
 
+    $hasWorkerMatchingData = $workerSkillIds
+        || $workerInterestIds
+        || $preferenceIds
+        || trim((string) ($worker['work_province'] ?? '')) !== '';
+
     return [
-        'score' => $available > 0 ? (int) round($earned * 100 / $available) : null,
+        'score' => $available > 0 && $hasWorkerMatchingData ? (int) round($earned * 100 / $available) : null,
         'data_strength' => (int) round($available),
         'reasons' => $reasons,
         'missing_required' => $missing,
@@ -143,15 +183,17 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
 {
     $workerStatement = $pdo->prepare("SELECT wp.work_province,wp.preferred_work_mode,
         GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,
-        GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids
+        GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids,
+        GROUP_CONCAT(DISTINCT wwi.work_interest_id ORDER BY wwi.work_interest_id) work_interest_ids
         FROM worker_profiles wp
         LEFT JOIN worker_skills ws ON ws.worker_user_id=wp.user_id
         LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=wp.user_id
+        LEFT JOIN worker_work_interests wwi ON wwi.worker_user_id=wp.user_id
         WHERE wp.user_id=? GROUP BY wp.user_id");
     $workerStatement->execute([$workerId]);
     $worker = $workerStatement->fetch() ?: [];
 
-    $jobs = $pdo->query("SELECT j.job_id AS id,j.job_id,j.job_category_id,j.job_title AS title,
+    $jobsStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.job_title AS title,
         jc.category_slug AS job_type,j.work_location AS location,j.work_province,j.work_schedule AS work_date,
         j.work_mode,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path AS company_logo,
         (SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,
@@ -162,9 +204,12 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
         GROUP_CONCAT(DISTINCT IF(js.importance='preferred',s.skill_name,NULL) ORDER BY s.skill_id SEPARATOR '||') preferred_skill_names
         FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id
         JOIN job_categories jc ON jc.job_category_id=j.job_category_id
+        LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id
         LEFT JOIN job_skills js ON js.job_id=j.job_id LEFT JOIN skills s ON s.skill_id=js.skill_id
-        WHERE j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())
-        GROUP BY j.job_id ORDER BY j.created_at DESC LIMIT 200")->fetchAll();
+        WHERE j.job_status='published' AND j.work_province=? AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())
+        GROUP BY j.job_id ORDER BY j.created_at DESC LIMIT 200");
+    $jobsStatement->execute([FLEXJOB_PROVINCE]);
+    $jobs = $jobsStatement->fetchAll();
 
     foreach ($jobs as &$job) $job['match'] = matching_calculate($job, $worker);
     unset($job);
@@ -178,14 +223,15 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
 
 function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
 {
-    $jobStatement = $pdo->prepare("SELECT j.job_id,j.job_category_id,j.work_province,j.work_mode,j.job_title,
+    $jobStatement = $pdo->prepare("SELECT j.job_id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.work_province,j.work_mode,j.job_title,
         GROUP_CONCAT(DISTINCT IF(js.importance='required',s.skill_id,NULL) ORDER BY s.skill_id) required_skill_ids,
         GROUP_CONCAT(DISTINCT IF(js.importance='preferred',s.skill_id,NULL) ORDER BY s.skill_id) preferred_skill_ids,
         GROUP_CONCAT(DISTINCT IF(js.importance='required',s.skill_name,NULL) ORDER BY s.skill_id SEPARATOR '||') required_skill_names,
         GROUP_CONCAT(DISTINCT IF(js.importance='preferred',s.skill_name,NULL) ORDER BY s.skill_id SEPARATOR '||') preferred_skill_names
-        FROM jobs j LEFT JOIN job_skills js ON js.job_id=j.job_id LEFT JOIN skills s ON s.skill_id=js.skill_id
-        WHERE j.job_id=? AND j.employer_user_id=? GROUP BY j.job_id");
-    $jobStatement->execute([$jobId, $employerId]);
+        FROM jobs j LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id
+        LEFT JOIN job_skills js ON js.job_id=j.job_id LEFT JOIN skills s ON s.skill_id=js.skill_id
+        WHERE j.job_id=? AND j.employer_user_id=? AND j.work_province=? GROUP BY j.job_id");
+    $jobStatement->execute([$jobId, $employerId, FLEXJOB_PROVINCE]);
     $job = $jobStatement->fetch();
     if (!$job) return [];
 
@@ -194,16 +240,20 @@ function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
         GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,
         GROUP_CONCAT(DISTINCT sk.skill_name ORDER BY sk.skill_name SEPARATOR '||') skill_names,
         GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids,
+        GROUP_CONCAT(DISTINCT wwi.work_interest_id ORDER BY wwi.work_interest_id) work_interest_ids,
+        GROUP_CONCAT(DISTINCT wi.interest_name ORDER BY wi.sort_order SEPARATOR '||') work_interest_names,
         ji.invitation_status,
         (SELECT a.application_status FROM applications a WHERE a.job_id=? AND a.worker_user_id=u.user_id LIMIT 1) application_status,
         EXISTS(SELECT 1 FROM applications a WHERE a.job_id=? AND a.worker_user_id=u.user_id) has_applied
         FROM users u JOIN worker_profiles wp ON wp.user_id=u.user_id
         LEFT JOIN worker_skills ws ON ws.worker_user_id=u.user_id LEFT JOIN skills sk ON sk.skill_id=ws.skill_id
         LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=u.user_id
+        LEFT JOIN worker_work_interests wwi ON wwi.worker_user_id=u.user_id
+        LEFT JOIN work_interests wi ON wi.work_interest_id=wwi.work_interest_id
         LEFT JOIN job_invitations ji ON ji.job_id=? AND ji.worker_user_id=u.user_id
-        WHERE u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable'
+        WHERE u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable' AND wp.work_province=?
         GROUP BY u.user_id ORDER BY u.created_at DESC LIMIT 300");
-    $statement->execute([$jobId, $jobId, $jobId]);
+    $statement->execute([$jobId, $jobId, $jobId, FLEXJOB_PROVINCE]);
     $workers = $statement->fetchAll();
     foreach ($workers as &$worker) $worker['match'] = matching_calculate($job, $worker);
     unset($worker);
@@ -225,13 +275,13 @@ function matching_employer_is_verified(PDO $pdo, int $employerId): bool
 function matching_send_invitation(PDO $pdo, int $employerId, int $jobId, int $workerId, string $message): void
 {
     if (!matching_employer_is_verified($pdo, $employerId)) throw new RuntimeException('บัญชีผู้ว่าจ้างต้องผ่านการยืนยันก่อนส่งคำเชิญ');
-    $jobStatement = $pdo->prepare("SELECT job_title FROM jobs WHERE job_id=? AND employer_user_id=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
-    $jobStatement->execute([$jobId, $employerId]);
+    $jobStatement = $pdo->prepare("SELECT job_title FROM jobs WHERE job_id=? AND employer_user_id=? AND work_province=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
+    $jobStatement->execute([$jobId, $employerId, FLEXJOB_PROVINCE]);
     $jobTitle = $jobStatement->fetchColumn();
     if (!$jobTitle) throw new RuntimeException('ไม่พบประกาศงานที่เปิดรับสมัคร');
 
-    $workerStatement = $pdo->prepare("SELECT CONCAT(first_name,' ',last_name) FROM users u JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=? AND u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable'");
-    $workerStatement->execute([$workerId]);
+    $workerStatement = $pdo->prepare("SELECT CONCAT(first_name,' ',last_name) FROM users u JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=? AND u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable' AND wp.work_province=?");
+    $workerStatement->execute([$workerId, FLEXJOB_PROVINCE]);
     if (!$workerStatement->fetchColumn()) throw new RuntimeException('ผู้หางานรายนี้ไม่เปิดให้ค้นหาโปรไฟล์');
 
     $appliedStatement = $pdo->prepare('SELECT 1 FROM applications WHERE job_id=? AND worker_user_id=?');

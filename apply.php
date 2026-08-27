@@ -9,8 +9,8 @@ try {
     redirect('jobs.php');
 }
 $jobId = (int)$_POST['job_id'];
-$check = db()->prepare("SELECT job_id FROM jobs WHERE job_id=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
-$check->execute([$jobId]);
+$check = db()->prepare("SELECT job_id FROM jobs WHERE job_id=? AND work_province=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
+$check->execute([$jobId, FLEXJOB_PROVINCE]);
 if (!$check->fetch()) {
     flash('error', 'งานนี้ไม่เปิดรับสมัครแล้ว');
     redirect('jobs.php');

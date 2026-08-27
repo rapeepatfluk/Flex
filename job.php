@@ -1,6 +1,6 @@
 <?php require_once __DIR__ . '/config/config.php';
-$stmt = db()->prepare("SELECT j.job_id AS id,j.job_category_id,j.job_title AS title,j.job_status AS status,jc.category_slug AS job_type,j.job_description AS description,j.work_location AS location,j.work_province,j.work_schedule AS work_date,j.work_mode,j.application_deadline,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_description,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order, ji.job_image_id LIMIT 1) AS cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id WHERE j.job_id=? AND (j.job_status='published' OR ?=1)");
-$stmt->execute([(int)($_GET['id'] ?? 0), is_role('admin') ? 1 : 0]);
+$stmt = db()->prepare("SELECT j.job_id AS id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.job_title AS title,j.job_status AS status,jc.category_slug AS job_type,j.job_description AS description,j.work_location AS location,j.work_province,j.work_schedule AS work_date,j.work_mode,j.application_deadline,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_description,ep.company_logo_path AS company_logo,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order, ji.job_image_id LIMIT 1) AS cover_image FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id WHERE j.job_id=? AND (?=1 OR (j.job_status='published' AND j.work_province=?))");
+$stmt->execute([(int)($_GET['id'] ?? 0), is_role('admin') ? 1 : 0, FLEXJOB_PROVINCE]);
 $job = $stmt->fetch();
 if (!$job) {
     flash('error', 'ไม่พบประกาศงาน');
@@ -16,7 +16,7 @@ if (is_role('worker')) {
     $s = db()->prepare('SELECT application_status FROM applications WHERE job_id=? AND worker_user_id=?');
     $s->execute([$job['id'], user()['id']]);
     $applicationStatus = $s->fetchColumn() ?: null;
-    $workerStmt = db()->prepare("SELECT wp.work_province,wp.preferred_work_mode,GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids FROM worker_profiles wp LEFT JOIN worker_skills ws ON ws.worker_user_id=wp.user_id LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=wp.user_id WHERE wp.user_id=? GROUP BY wp.user_id");
+    $workerStmt = db()->prepare("SELECT wp.work_province,wp.preferred_work_mode,GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids,GROUP_CONCAT(DISTINCT wwi.work_interest_id ORDER BY wwi.work_interest_id) work_interest_ids FROM worker_profiles wp LEFT JOIN worker_skills ws ON ws.worker_user_id=wp.user_id LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=wp.user_id LEFT JOIN worker_work_interests wwi ON wwi.worker_user_id=wp.user_id WHERE wp.user_id=? GROUP BY wp.user_id");
     $workerStmt->execute([user()['id']]);
     $jobMatch = matching_calculate($job, $workerStmt->fetch() ?: []);
 }
@@ -40,7 +40,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                 <?php endif ?>
 
                 <div class="card-body p-4 p-md-5">
-                    <span class="badge text-bg-light border mb-2"><?= job_type($job['job_type']) ?></span>
+                    <div class="d-flex flex-wrap gap-2 mb-2"><span class="badge text-bg-light border"><?= job_type($job['job_type']) ?></span><?php if ($job['work_interest_name']): ?><span class="badge text-bg-primary"><?= e($job['work_interest_name']) ?></span><?php endif ?></div>
                     <h1 class="h2 mb-1"><?= e($job['title']) ?></h1>
                     <p class="text-secondary mb-4"><?php if ($job['company_logo']): ?><img class="company-logo company-logo-detail" src="<?= BASE_URL . '/' . e($job['company_logo']) ?>" alt="โลโก้ <?= e($job['company_name']) ?>"><?php endif; ?><?= e($job['company_name']) ?> <?php if ($job['is_verified']): ?><span class="text-primary">✓ ผู้ว่าจ้างยืนยันแล้ว</span><?php endif ?></p>
 
@@ -48,7 +48,7 @@ require APP_ROOT . '/partials/header.php'; ?>
 
                     <div class="row g-0 border rounded overflow-hidden mb-4 small">
                         <div class="col-6 border-end border-bottom p-3"><span class="d-block text-secondary">ค่าจ้าง</span><b><?= pay_text($job) ?></b></div>
-                        <div class="col-6 border-bottom p-3"><span class="d-block text-secondary">ที่อยู่ร้าน / สถานที่ทำงาน</span><b><?= e($job['location']) ?></b></div>
+                        <div class="col-6 border-bottom p-3"><span class="d-block text-secondary">สถานที่ทำงานในจังหวัด<?= e(FLEXJOB_PROVINCE) ?></span><b><?= e($job['location']) ?></b></div>
                         <div class="col-6 border-end p-3"><span class="d-block text-secondary">วันทำงาน</span><b><?= e($job['work_date']) ?></b></div>
                         <div class="col-6 p-3"><span class="d-block text-secondary">ต้องการ</span><b><?= e((string)$job['positions']) ?> คน</b></div>
                     </div>

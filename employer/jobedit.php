@@ -4,7 +4,7 @@ require_login('employer');
 
 $pdo = db();
 $jobId = (int) ($_GET['id'] ?? $_POST['job_id'] ?? 0);
-$jobStmt = $pdo->prepare("SELECT j.job_id,j.job_title,j.job_description,j.work_location,j.work_province,j.work_schedule,j.work_mode,j.application_deadline,j.pay_amount,j.pay_unit,j.open_positions,jc.category_slug,
+$jobStmt = $pdo->prepare("SELECT j.job_id,j.work_interest_id,j.job_title,j.job_description,j.work_location,j.work_province,j.work_schedule,j.work_mode,j.application_deadline,j.pay_amount,j.pay_unit,j.open_positions,jc.category_slug,
     GROUP_CONCAT(DISTINCT IF(js.importance='required',s.skill_name,NULL) ORDER BY s.skill_name SEPARATOR ', ') required_skills,
     GROUP_CONCAT(DISTINCT IF(js.importance='preferred',s.skill_name,NULL) ORDER BY s.skill_name SEPARATOR ', ') preferred_skills
     FROM jobs j JOIN job_categories jc ON jc.job_category_id=j.job_category_id
@@ -12,6 +12,7 @@ $jobStmt = $pdo->prepare("SELECT j.job_id,j.job_title,j.job_description,j.work_l
     WHERE j.job_id=? AND j.employer_user_id=? GROUP BY j.job_id");
 $jobStmt->execute([$jobId, user()['id']]);
 $job = $jobStmt->fetch();
+$workInterests = matching_work_interests($pdo);
 
 if (!$job) {
     flash('error', 'ไม่พบประกาศงานที่ต้องการแก้ไข');
@@ -30,15 +31,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $workMode = $_POST['work_mode'] ?? 'onsite';
         if (!in_array($workMode, ['onsite', 'remote', 'hybrid'], true)) throw new RuntimeException('รูปแบบงานไม่ถูกต้อง');
+        $workInterestId = (int) ($_POST['work_interest_id'] ?? 0);
+        if (!matching_work_interest_exists($pdo, $workInterestId)) throw new RuntimeException('กรุณาเลือกหมวดงานหลัก');
 
         $pdo->beginTransaction();
-        $pdo->prepare('UPDATE jobs SET job_category_id=?, job_title=?, job_description=?, work_location=?, work_province=?, work_schedule=?, work_mode=?, application_deadline=?, pay_amount=?, pay_unit=?, open_positions=? WHERE job_id=? AND employer_user_id=?')
+        $pdo->prepare('UPDATE jobs SET job_category_id=?, work_interest_id=?, job_title=?, job_description=?, work_location=?, work_province=?, work_schedule=?, work_mode=?, application_deadline=?, pay_amount=?, pay_unit=?, open_positions=? WHERE job_id=? AND employer_user_id=?')
             ->execute([
                 $categoryId,
+                $workInterestId,
                 trim($_POST['title'] ?? ''),
                 trim($_POST['description'] ?? ''),
                 trim($_POST['address'] ?? ''),
-                trim($_POST['province'] ?? ''),
+                FLEXJOB_PROVINCE,
                 trim($_POST['work_date'] ?? ''),
                 $workMode,
                 ($_POST['application_deadline'] ?? '') ?: null,
@@ -89,6 +93,7 @@ require APP_ROOT . '/partials/header.php';
         <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/employer/dashboard.php">กลับไปจัดการประกาศ</a>
     </div>
 
+    <?php if (($job['work_province'] ?? '') !== FLEXJOB_PROVINCE): ?><div class="alert alert-warning">ประกาศเดิมนี้อยู่นอกขอบเขตจังหวัดบุรีรัมย์ จึงไม่แสดงในหน้าค้นหาสาธารณะ กรุณาตรวจสอบสถานที่ทำงานก่อนบันทึก ระบบจะกำหนดจังหวัดเป็นบุรีรัมย์เมื่อคุณบันทึกการแก้ไข</div><?php endif ?>
     <form class="card border-0 shadow-sm" method="post" enctype="multipart/form-data">
         <?= csrf_field() ?>
         <input type="hidden" name="job_id" value="<?= $jobId ?>">
@@ -96,12 +101,13 @@ require APP_ROOT . '/partials/header.php';
             <div class="row g-3">
                 <div class="col-12"><label class="form-label" for="title">ชื่องาน</label><input id="title" class="form-control" name="title" value="<?= e($job['job_title']) ?>" required></div>
                 <div class="col-md-6"><label class="form-label" for="job_type">ประเภทงาน</label><select id="job_type" class="form-select" name="job_type"><?php foreach (['part_time' => 'พาร์ทไทม์', 'event' => 'งานอีเวนต์', 'freelance' => 'ฟรีแลนซ์'] as $value => $label): ?><option value="<?= $value ?>" <?= $job['category_slug'] === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-6"><label class="form-label" for="work_interest_id">งานนี้อยู่ในหมวดใด?</label><select id="work_interest_id" class="form-select" name="work_interest_id" required><option value="">เลือกหมวดงานหลัก</option><?php foreach ($workInterests as $interest): ?><option value="<?= $interest['work_interest_id'] ?>" <?= (int) ($job['work_interest_id'] ?? 0) === (int) $interest['work_interest_id'] ? 'selected' : '' ?>><?= e($interest['interest_name']) ?></option><?php endforeach ?></select><div class="form-text">ประกาศเดิมที่ยังไม่มีหมวดต้องเลือกก่อนบันทึก</div></div>
                 <div class="col-md-6"><label class="form-label" for="positions">จำนวนคน</label><input id="positions" class="form-control" type="number" name="positions" min="1" value="<?= e((string) $job['open_positions']) ?>" required></div>
                 <div class="col-12"><label class="form-label" for="description">รายละเอียดงาน</label><textarea id="description" class="form-control" name="description" rows="5" required><?= e($job['job_description']) ?></textarea></div>
                 <div class="col-12"><label class="form-label" for="required_skills">ทักษะที่จำเป็น</label><input id="required_skills" class="form-control" name="required_skills" value="<?= e($job['required_skills'] ?? '') ?>" placeholder="เช่น Excel, การสื่อสาร, Canva"><div class="form-text">คั่นแต่ละทักษะด้วยเครื่องหมายจุลภาค</div></div>
                 <div class="col-12"><label class="form-label" for="preferred_skills">ทักษะเสริม</label><input id="preferred_skills" class="form-control" name="preferred_skills" value="<?= e($job['preferred_skills'] ?? '') ?>" placeholder="เช่น ภาษาอังกฤษ, ถ่ายภาพ"></div>
-                <div class="col-md-6"><label class="form-label" for="province">จังหวัด</label><input id="province" class="form-control" name="province" value="<?= e($job['work_province'] ?? '') ?>" required></div>
-                <div class="col-md-6"><label class="form-label" for="address">ที่อยู่ / สถานที่ทำงาน</label><input id="address" class="form-control" name="address" value="<?= e($job['work_location']) ?>" required></div>
+                <div class="col-md-6"><label class="form-label">จังหวัด</label><input class="form-control" value="<?= e(FLEXJOB_PROVINCE) ?>" disabled><div class="form-text">FLEXJOB เปิดรับเฉพาะงานในจังหวัดบุรีรัมย์</div></div>
+                <div class="col-md-6"><label class="form-label" for="address">สถานที่ทำงาน / จุดประสานงานในบุรีรัมย์</label><input id="address" class="form-control" name="address" value="<?= e($job['work_location']) ?>" required><div class="form-text">งานออนไลน์ให้ระบุอำเภอหรือจุดประสานงานของผู้ว่าจ้างในบุรีรัมย์</div></div>
                 <div class="col-md-6"><label class="form-label" for="work_date">วัน/ช่วงเวลาทำงาน</label><input id="work_date" class="form-control" name="work_date" value="<?= e($job['work_schedule']) ?>"></div>
                 <div class="col-md-6"><label class="form-label" for="work_mode">รูปแบบการทำงาน</label><select id="work_mode" class="form-select" name="work_mode"><?php foreach (['onsite' => 'ทำงานที่สถานที่', 'remote' => 'ทำงานออนไลน์', 'hybrid' => 'Hybrid'] as $value => $label): ?><option value="<?= $value ?>" <?= ($job['work_mode'] ?? 'onsite') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
                 <div class="col-md-6"><label class="form-label" for="application_deadline">วันปิดรับสมัคร</label><input id="application_deadline" class="form-control" type="date" name="application_deadline" value="<?= e($job['application_deadline'] ?? '') ?>"></div>

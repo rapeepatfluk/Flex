@@ -5,7 +5,7 @@ require_login('admin');
 $pdo = db();
 
 $query = trim($_GET['q'] ?? '');
-$sql = 'SELECT j.job_id AS id, j.employer_user_id, j.job_title AS title, j.created_at, jc.category_slug AS job_type, ep.company_name FROM jobs j JOIN job_categories jc ON jc.job_category_id=j.job_category_id JOIN employer_profiles ep ON ep.user_id=j.employer_user_id';
+$sql = 'SELECT j.job_id AS id, j.employer_user_id, j.job_title AS title, j.created_at, jc.category_slug AS job_type, wi.interest_name work_interest_name, ep.company_name FROM jobs j JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id JOIN employer_profiles ep ON ep.user_id=j.employer_user_id';
 $params = [];
 if ($query !== '') {
     $sql .= ' WHERE j.job_title LIKE ? OR ep.company_name LIKE ?';
@@ -41,7 +41,7 @@ require APP_ROOT . '/partials/header.php';
                     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
                         <div>
                             <h2 class="h5 mb-1"><?= e($job['title']) ?></h2>
-                            <p class="text-secondary small mb-0"><a class="link-primary" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $job['employer_user_id'] ?>"><?= e($job['company_name']) ?></a> · <?= job_type($job['job_type']) ?> · <?= date('d/m/Y', strtotime($job['created_at'])) ?></p>
+                            <p class="text-secondary small mb-0"><a class="link-primary" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $job['employer_user_id'] ?>"><?= e($job['company_name']) ?></a> · <?= job_type($job['job_type']) ?> · <?= e($job['work_interest_name'] ?: 'ยังไม่เลือกหมวดงาน') ?> · <?= date('d/m/Y', strtotime($job['created_at'])) ?></p>
                         </div>
                         <div class="d-flex gap-2 flex-shrink-0">
                             <a class="btn btn-sm btn-secondary" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $job['employer_user_id'] ?>">ผู้ว่าจ้าง</a>

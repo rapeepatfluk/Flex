@@ -69,10 +69,32 @@ INSERT INTO job_categories (category_slug) VALUES
 ('event'),
 ('freelance');
 
+CREATE TABLE work_interests (
+  work_interest_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  interest_slug VARCHAR(100) NOT NULL UNIQUE,
+  interest_name VARCHAR(180) NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  INDEX idx_work_interest_active (is_active, sort_order)
+) ENGINE=InnoDB;
+
+INSERT INTO work_interests (interest_slug, interest_name, sort_order) VALUES
+('web-development', 'เขียนโปรแกรมและพัฒนาเว็บไซต์', 10),
+('graphic-design', 'ออกแบบกราฟิกและโปสเตอร์', 20),
+('ux-ui-design', 'ออกแบบ UX/UI', 30),
+('video-editing', 'ตัดต่อวิดีโอ', 40),
+('photo-video', 'ถ่ายภาพและวิดีโอ', 50),
+('admin-document', 'งานเอกสารและธุรการ', 60),
+('event-staff', 'Staff และงานอีเวนต์', 70),
+('sales-promotion', 'งานขายและแนะนำสินค้า', 80),
+('food-service', 'งานบริการ ร้านอาหาร และเครื่องดื่ม', 90),
+('content-social', 'คอนเทนต์และดูแลโซเชียลมีเดีย', 100);
+
 CREATE TABLE jobs (
   job_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   employer_user_id INT UNSIGNED NOT NULL,
   job_category_id INT UNSIGNED NOT NULL,
+  work_interest_id INT UNSIGNED NULL,
   job_title VARCHAR(180) NOT NULL,
   job_description TEXT NOT NULL,
   work_location VARCHAR(180) NOT NULL,
@@ -88,6 +110,7 @@ CREATE TABLE jobs (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT fk_job_employer FOREIGN KEY (employer_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_job_category FOREIGN KEY (job_category_id) REFERENCES job_categories(job_category_id),
+  CONSTRAINT fk_job_work_interest FOREIGN KEY (work_interest_id) REFERENCES work_interests(work_interest_id) ON DELETE SET NULL,
   INDEX idx_job_listing (job_status, job_category_id, created_at)
 ) ENGINE=InnoDB;
 
@@ -160,6 +183,15 @@ CREATE TABLE worker_job_preferences (
   CONSTRAINT fk_worker_preference_worker FOREIGN KEY (worker_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT fk_worker_preference_category FOREIGN KEY (job_category_id) REFERENCES job_categories(job_category_id) ON DELETE CASCADE,
   INDEX idx_worker_preference_category (job_category_id, worker_user_id)
+) ENGINE=InnoDB;
+
+CREATE TABLE worker_work_interests (
+  worker_user_id INT UNSIGNED NOT NULL,
+  work_interest_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY (worker_user_id, work_interest_id),
+  CONSTRAINT fk_worker_work_interest_worker FOREIGN KEY (worker_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  CONSTRAINT fk_worker_work_interest_interest FOREIGN KEY (work_interest_id) REFERENCES work_interests(work_interest_id) ON DELETE CASCADE,
+  INDEX idx_worker_work_interest_lookup (work_interest_id, worker_user_id)
 ) ENGINE=InnoDB;
 
 CREATE TABLE job_invitations (

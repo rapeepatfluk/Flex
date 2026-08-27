@@ -40,6 +40,7 @@ $brandPath = $role === 'admin' ? 'admin/dashboard.php' : 'index.php';
 
 $accountLinks = match ($role) {
     'worker' => [
+        ['icon' => '◎', 'label' => 'แบบสำรวจ Matching', 'path' => 'worker/matching-survey.php'],
         ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและ Resume', 'path' => 'worker/editprofiles.php'],
         ['icon' => '◷', 'label' => 'งานที่สมัครของฉัน', 'path' => 'worker/dashboard.php#applications'],
         ['icon' => '✦', 'label' => 'คำเชิญสมัครงาน', 'path' => 'worker/invitations.php'],
