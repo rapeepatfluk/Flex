@@ -1,20 +1,25 @@
-<?php require_once __DIR__ . '/../config/config.php';
+<?php
+require_once __DIR__ . '/../config/config.php';
+
 require_login('employer');
-$appId = (int)($_GET['id'] ?? 0);
-$jobId = (int)($_GET['job'] ?? 0);
+
+$appId = (int) ($_GET['id'] ?? 0);
+$jobId = (int) ($_GET['job'] ?? 0);
 $pdo = db();
 
-// Verify the job belongs to the current employer
-$s = $pdo->prepare('SELECT job_id, job_title FROM jobs WHERE job_id=? AND employer_user_id=?');
-$s->execute([$jobId, user()['id']]);
-$job = $s->fetch();
-if (!$job) redirect('employer/dashboard.php');
+$jobStatement = $pdo->prepare('SELECT job_id, job_title FROM jobs WHERE job_id=? AND employer_user_id=?');
+$jobStatement->execute([$jobId, user()['id']]);
+$job = $jobStatement->fetch();
 
-// Fetch the specific applicant
-$s = $pdo->prepare("
+if (!$job) {
+    redirect('employer/dashboard.php');
+}
+
+$applicantStatement = $pdo->prepare("
     SELECT
         a.application_id AS id,
         a.application_status AS status,
+        a.worker_user_id,
         a.cover_note,
         a.resume_file_path AS application_resume,
         a.created_at,
@@ -24,7 +29,7 @@ $s = $pdo->prepare("
         wp.professional_headline AS headline,
         wp.biography,
         wp.profile_image_path,
-        wp.skills,
+        (SELECT GROUP_CONCAT(s.skill_name ORDER BY s.skill_name SEPARATOR ', ') FROM worker_skills ws JOIN skills s ON s.skill_id=ws.skill_id WHERE ws.worker_user_id=a.worker_user_id) AS skills,
         wp.resume_file_path AS profile_resume,
         wp.portfolio_file_path,
         wp.portfolio_url
@@ -33,193 +38,250 @@ $s = $pdo->prepare("
     LEFT JOIN worker_profiles wp ON wp.user_id = u.user_id
     WHERE a.application_id = ? AND a.job_id = ?
 ");
-$s->execute([$appId, $jobId]);
-$app = $s->fetch();
-if (!$app) redirect('employer/applicants.php?job=' . $jobId);
+$applicantStatement->execute([$appId, $jobId]);
+$app = $applicantStatement->fetch();
 
-// Handle status update
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['status'] ?? ''), ['submitted', 'eligible', 'not_selected'], true)) {
-    try { verify_csrf(); } catch (RuntimeException $e) { flash('error', $e->getMessage()); redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId); }
+if (!$app) {
+    redirect('employer/applicants.php?job=' . $jobId);
+}
+
+$statusOptions = [
+    'submitted' => ['label' => 'รอพิจารณา', 'description' => 'ยังไม่ได้ตัดสินใจ', 'tone' => 'warning', 'icon' => '◷'],
+    'eligible' => ['label' => 'มีสิทธิ์สัมภาษณ์', 'description' => 'ผ่านการคัดเลือกเบื้องต้น', 'tone' => 'primary', 'icon' => '✓'],
+    'interview_passed' => ['label' => 'ผ่านสัมภาษณ์แล้ว', 'description' => 'พร้อมเริ่มต้นขั้นตอนการทำงาน', 'tone' => 'success', 'icon' => '✦'],
+    'completed' => ['label' => 'งานเสร็จสิ้น', 'description' => 'เปิดให้ทั้งสองฝ่ายให้คะแนนกันได้', 'tone' => 'info', 'icon' => '★'],
+    'not_selected' => ['label' => 'ไม่ผ่านการคัดเลือก', 'description' => 'ผู้สมัครไม่ผ่านเกณฑ์', 'tone' => 'danger', 'icon' => '×'],
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_POST['status'] ?? '')])) {
+    try {
+        verify_csrf();
+    } catch (RuntimeException $e) {
+        flash('error', $e->getMessage());
+        redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId);
+    }
+
     $update = $pdo->prepare("UPDATE applications SET application_status=? WHERE application_id=? AND job_id=? AND application_status<>'withdrawn'");
     $update->execute([$_POST['status'], $appId, $jobId]);
-    if ($update->rowCount()) { notify_worker_status($appId); flash('success', 'อัปเดตสถานะผู้สมัครแล้ว'); }
-    else flash('error', 'ไม่สามารถเปลี่ยนสถานะใบสมัครที่ผู้หางานถอนแล้ว');
+
+    if ($update->rowCount()) {
+        notify_worker_status($appId);
+        flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
+    } else {
+        flash('error', 'ไม่สามารถเปลี่ยนสถานะใบสมัครที่ผู้หางานถอนแล้ว');
+    }
+
     redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId);
 }
 
-$statusLabel = ['submitted' => 'รอพิจารณา', 'eligible' => 'มีสิทธิ์สัมภาษณ์', 'not_selected' => 'ไม่ผ่าน', 'withdrawn' => 'ถอนใบสมัครแล้ว'];
-$pageTitle = 'โปรไฟล์ผู้สมัคร | FLEXJOB';
-require APP_ROOT . '/partials/header.php'; ?>
-<main class="detail">
-    <a class="back-link" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $jobId ?>">← กลับรายชื่อผู้สมัคร</a>
+$ratingSummaryStatement = $pdo->prepare('SELECT ROUND(AVG(rating_by_employer), 1) AS average, COUNT(rating_by_employer) AS count FROM applications WHERE worker_user_id=? AND rating_by_employer IS NOT NULL');
+$ratingSummaryStatement->execute([$app['worker_user_id']]);
+$workerRatingSummary = $ratingSummaryStatement->fetch() ?: ['average' => null, 'count' => 0];
 
-    <div class="app-detail-header">
-        <div class="app-detail-hero">
-            <?php if ($app['profile_image_path']): ?><img class="applicant-avatar-image applicant-avatar-image-lg" src="<?= BASE_URL . '/' . e($app['profile_image_path']) ?>" alt="รูปโปรไฟล์ <?= e($app['name']) ?>"><?php else: ?><div class="applicant-avatar applicant-avatar-lg"><?= e(mb_substr($app['name'], 0, 1)) ?></div><?php endif ?>
-            <div>
-                <p class="eyebrow">ผู้สมัครงาน · <?= e($job['job_title']) ?></p>
-                <h1><?= e($app['name']) ?></h1>
-                <?php if ($app['headline']): ?>
-                <p class="company-line"><?= e($app['headline']) ?></p>
+$ratingSubmittedStatement = $pdo->prepare('SELECT rating_by_employer FROM applications WHERE application_id=?');
+$ratingSubmittedStatement->execute([$appId]);
+$employerRatingSubmitted = $ratingSubmittedStatement->fetchColumn() !== null;
+
+$currentStatus = $statusOptions[$app['status']] ?? ['label' => 'ถอนใบสมัครแล้ว', 'description' => 'ผู้หางานถอนใบสมัครนี้แล้ว', 'tone' => 'secondary', 'icon' => '−'];
+$resumeFile = $app['application_resume'] ?: $app['profile_resume'];
+$skills = array_filter(array_map('trim', explode(',', (string) $app['skills'])));
+
+$pageTitle = 'โปรไฟล์ผู้สมัคร | FLEXJOB';
+$pageStyles = ['rating', 'employer-applicant-detail'];
+require APP_ROOT . '/partials/header.php';
+?>
+<main class="container applicant-detail-page py-4 py-lg-5">
+    <a class="applicant-detail-back d-inline-flex align-items-center gap-2 mb-4" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $jobId ?>">← กลับรายชื่อผู้สมัคร</a>
+
+    <section class="card border-0 shadow-sm applicant-profile-hero mb-4">
+        <div class="card-body p-4 p-lg-5">
+            <div class="row align-items-center g-4">
+                <div class="col-lg">
+                    <div class="d-flex align-items-center gap-3 gap-lg-4">
+                        <?php if ($app['profile_image_path']): ?>
+                            <img class="applicant-profile-avatar" src="<?= BASE_URL . '/' . e($app['profile_image_path']) ?>" alt="รูปโปรไฟล์ <?= e($app['name']) ?>" width="96" height="96" fetchpriority="high" decoding="async">
+                        <?php else: ?>
+                            <div class="applicant-profile-avatar applicant-profile-avatar-fallback" aria-hidden="true"><?= e(mb_substr($app['name'], 0, 1)) ?></div>
+                        <?php endif; ?>
+                        <div class="min-w-0">
+                            <p class="applicant-detail-eyebrow mb-1">APPLICANT · <?= e($job['job_title']) ?></p>
+                            <h1 class="h2 mb-1 text-break"><?= e($app['name']) ?></h1>
+                            <?php if ($app['headline']): ?>
+                                <p class="mb-2 text-secondary"><?= e($app['headline']) ?></p>
+                            <?php endif; ?>
+                            <?php $ratingSummary = $workerRatingSummary; require APP_ROOT . '/partials/rating-summary.php'; ?>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-auto">
+                    <span class="badge rounded-pill text-bg-<?= e($currentStatus['tone']) ?> applicant-status-badge">
+                        <?= e($currentStatus['icon']) ?> <?= e($currentStatus['label']) ?>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="vstack gap-4">
+                <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantContactHeading">
+                    <div class="card-body p-4">
+                        <p class="applicant-detail-eyebrow mb-1">CONTACT INFORMATION</p>
+                        <h2 class="h4 mb-4" id="applicantContactHeading">ข้อมูลติดต่อ</h2>
+                        <dl class="row row-cols-1 row-cols-md-3 g-3 mb-0 applicant-contact-grid">
+                            <div class="col">
+                                <div class="applicant-contact-item h-100">
+                                    <dt>อีเมล</dt>
+                                    <dd class="mb-0"><a class="link-primary text-break" href="mailto:<?= e($app['email']) ?>"><?= e($app['email']) ?></a></dd>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="applicant-contact-item h-100">
+                                    <dt>โทรศัพท์</dt>
+                                    <dd class="mb-0">
+                                        <?php if ($app['phone']): ?>
+                                            <a class="link-primary" href="tel:<?= e($app['phone']) ?>"><?= e($app['phone']) ?></a>
+                                        <?php else: ?>
+                                            <span class="text-secondary">ยังไม่ได้ระบุ</span>
+                                        <?php endif; ?>
+                                    </dd>
+                                </div>
+                            </div>
+                            <div class="col">
+                                <div class="applicant-contact-item h-100">
+                                    <dt>วันที่สมัคร</dt>
+                                    <dd class="mb-0"><?= date('d/m/Y H:i', strtotime($app['created_at'])) ?></dd>
+                                </div>
+                            </div>
+                        </dl>
+                    </div>
+                </section>
+
+                <?php if ($skills): ?>
+                    <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantSkillsHeading">
+                        <div class="card-body p-4">
+                            <p class="applicant-detail-eyebrow mb-1">SKILLS</p>
+                            <h2 class="h4 mb-3" id="applicantSkillsHeading">ทักษะ</h2>
+                            <ul class="list-unstyled d-flex flex-wrap gap-2 mb-0">
+                                <?php foreach ($skills as $skill): ?>
+                                    <li><span class="badge applicant-skill-badge"><?= e($skill) ?></span></li>
+                                <?php endforeach; ?>
+                            </ul>
+                        </div>
+                    </section>
+                <?php endif; ?>
+
+                <?php if ($app['biography']): ?>
+                    <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantBioHeading">
+                        <div class="card-body p-4">
+                            <p class="applicant-detail-eyebrow mb-1">ABOUT THE APPLICANT</p>
+                            <h2 class="h4 mb-3" id="applicantBioHeading">แนะนำตัว</h2>
+                            <p class="mb-0 text-secondary applicant-detail-copy"><?= nl2br(e($app['biography'])) ?></p>
+                        </div>
+                    </section>
+                <?php endif; ?>
+
+                <?php if ($app['cover_note']): ?>
+                    <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantNoteHeading">
+                        <div class="card-body p-4">
+                            <p class="applicant-detail-eyebrow mb-1">COVER NOTE</p>
+                            <h2 class="h4 mb-3" id="applicantNoteHeading">จดหมายแนะนำตัว</h2>
+                            <blockquote class="applicant-cover-note mb-0"><?= nl2br(e($app['cover_note'])) ?></blockquote>
+                        </div>
+                    </section>
+                <?php endif; ?>
+
+                <?php if ($resumeFile || $app['portfolio_file_path'] || $app['portfolio_url']): ?>
+                    <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantDocumentsHeading">
+                        <div class="card-body p-4">
+                            <p class="applicant-detail-eyebrow mb-1">DOCUMENTS & PORTFOLIO</p>
+                            <h2 class="h4 mb-3" id="applicantDocumentsHeading">เอกสารและพอร์ตโฟลิโอ</h2>
+                            <div class="d-flex flex-wrap gap-2">
+                                <?php if ($resumeFile): ?>
+                                    <a class="btn btn-primary" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=application_resume&id=<?= $app['id'] ?>">เปิด Resume</a>
+                                <?php endif; ?>
+                                <?php if ($app['portfolio_file_path']): ?>
+                                    <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=application_portfolio&id=<?= $app['id'] ?>">เปิด Portfolio</a>
+                                <?php endif; ?>
+                                <?php if ($app['portfolio_url']): ?>
+                                    <a class="btn btn-outline-primary" target="_blank" rel="noopener" href="<?= e($app['portfolio_url']) ?>">Portfolio URL ↗</a>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </section>
                 <?php endif; ?>
             </div>
         </div>
-        <span class=" status <?= $app['status'] ?> status-lg"><?= $statusLabel[$app['status']] ?? $app['status'] ?></span>
-    </div>
 
-    <div class="app-detail-grid">
+        <aside class="col-lg-4">
+            <div class="vstack gap-4">
+                <section class="card border-0 shadow-sm applicant-detail-card applicant-status-card" aria-labelledby="applicantStatusHeading">
+                    <div class="card-body p-4">
+                        <p class="applicant-detail-eyebrow mb-1">APPLICATION STATUS</p>
+                        <h2 class="h4 mb-2" id="applicantStatusHeading">จัดการสถานะ</h2>
+                        <p class="small text-secondary mb-4">เปลี่ยนผลการพิจารณา แล้วระบบจะแจ้งผู้สมัครให้ทราบ</p>
 
-        <!-- Left: Profile Info -->
-        <div class="app-detail-left">
-
-            <!-- Contact Info -->
-            <div class="panel">
-                <h2>ข้อมูลติดต่อ</h2>
-                <div class="contact-list">
-                    <div class="contact-item-row">
-                        <span class="contact-icon">📧</span>
-                        <div>
-                            <small class="muted">อีเมล</small>
-                            <a href="mailto:<?= e($app['email']) ?>" class="contact-val"><?= e($app['email']) ?></a>
-                        </div>
+                        <?php if ($app['status'] === 'withdrawn'): ?>
+                            <div class="alert alert-secondary mb-0">ผู้หางานถอนใบสมัครนี้แล้ว จึงไม่สามารถเปลี่ยนสถานะได้</div>
+                        <?php else: ?>
+                            <form method="post">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
+                                <fieldset class="border-0 p-0 m-0">
+                                    <legend class="visually-hidden">เลือกสถานะผู้สมัคร</legend>
+                                    <div class="vstack gap-2">
+                                        <?php foreach ($statusOptions as $statusValue => $option): ?>
+                                            <label class="applicant-status-option tone-<?= e($option['tone']) ?> <?= $app['status'] === $statusValue ? 'is-selected' : '' ?>">
+                                                <input class="form-check-input m-0" type="radio" name="status" value="<?= e($statusValue) ?>" <?= $app['status'] === $statusValue ? 'checked' : '' ?>>
+                                                <span class="applicant-status-option-icon" aria-hidden="true"><?= e($option['icon']) ?></span>
+                                                <span class="applicant-status-option-copy">
+                                                    <strong><?= e($option['label']) ?></strong>
+                                                    <small><?= e($option['description']) ?></small>
+                                                </span>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </fieldset>
+                                <button class="btn btn-primary w-100 mt-3" type="submit">บันทึกสถานะ</button>
+                            </form>
+                        <?php endif; ?>
                     </div>
-                    <div class="contact-item-row">
-                        <span class="contact-icon">📞</span>
-                        <div>
-                            <small class="muted">โทรศัพท์</small>
-                            <a href="tel:<?= e($app['phone']) ?>" class="contact-val"><?= e($app['phone'] ?: '-') ?></a>
+                </section>
+
+                <?php if ($app['status'] === 'completed'): ?>
+                    <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantRatingHeading">
+                        <div class="card-body p-4">
+                            <p class="applicant-detail-eyebrow mb-1">WORK REVIEW</p>
+                            <h2 class="h4 mb-3" id="applicantRatingHeading">ให้คะแนนหลังจบงาน</h2>
+                            <?php
+                            $ratingApplicationId = (int) $app['id'];
+                            $ratingTargetName = $app['name'];
+                            $ratingTargetRole = 'ผู้หางาน';
+                            $ratingSummary = $workerRatingSummary;
+                            $ratingAlreadySubmitted = $employerRatingSubmitted;
+                            require APP_ROOT . '/partials/rating-form.php';
+                            ?>
                         </div>
-                    </div>
-                    <div class="contact-item-row">
-                        <span class="contact-icon">📅</span>
-                        <div>
-                            <small class="muted">วันที่สมัคร</small>
-                            <span class="contact-val"><?= date('d/m/Y H:i', strtotime($app['created_at'])) ?></span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+                    </section>
+                <?php endif; ?>
 
-            <!-- Skills -->
-            <?php if ($app['skills']): ?>
-            <div class="panel mt-16">
-                <h2>ทักษะ</h2>
-                <div class="skills-wrap">
-                    <?php foreach (array_filter(array_map('trim', explode(',', $app['skills']))) as $skill): ?>
-                    <span class="skill-tag"><?= e($skill) ?></span>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- Bio -->
-            <?php if ($app['biography']): ?>
-            <div class="panel mt-16">
-                <h2>แนะนำตัว</h2>
-                <p class="muted" style="font-size:14px;line-height:1.8"><?= nl2br(e($app['biography'])) ?></p>
-            </div>
-            <?php endif; ?>
-
-            <!-- Cover Note -->
-            <?php if ($app['cover_note']): ?>
-            <div class="panel mt-16">
-                <h2>จดหมายแนะนำตัว</h2>
-                <blockquote class="cover-note-quote"><?= nl2br(e($app['cover_note'])) ?></blockquote>
-            </div>
-            <?php endif; ?>
-
-            <!-- Documents -->
-            <?php $resumeFile = $app['application_resume'] ?: $app['profile_resume']; ?>
-            <?php if ($resumeFile || $app['portfolio_file_path'] || $app['portfolio_url']): ?>
-            <div class="panel mt-16">
-                <h2>เอกสารและพอร์ตโฟลิโอ</h2>
-                <div class="doc-links">
-                    <?php if ($resumeFile): ?>
-                    <a class="btn btn-primary" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=application_resume&id=<?= $app['id'] ?>">📄 Resume</a>
-                    <?php endif; ?>
-                    <?php if ($app['portfolio_file_path']): ?>
-                    <a class="btn btn-outline" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=application_portfolio&id=<?= $app['id'] ?>">🗂 Portfolio ไฟล์</a>
-                    <?php endif; ?>
-                    <?php if ($app['portfolio_url']): ?>
-                    <a class="btn btn-outline" target="_blank" rel="noopener" href="<?= e($app['portfolio_url']) ?>">🔗 Portfolio URL</a>
-                    <?php endif; ?>
-                </div>
-            </div>
-            <?php endif; ?>
-        </div>
-
-        <!-- Right: Status Management -->
-        <div class="app-detail-right">
-            <div class="panel">
-                <h2>จัดการสถานะ</h2>
-                <p class="muted" style="font-size:13px;margin-top:0">เปลี่ยนสถานะผู้สมัครและบันทึกผลการพิจารณา</p>
-
-                <?php if ($app['status'] === 'withdrawn'): ?><div class="alert alert-secondary mb-0">ผู้หางานถอนใบสมัครนี้แล้ว ไม่สามารถเปลี่ยนสถานะได้</div><?php else: ?><div class="status-options">
-                    <form method="post">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
-
-                        <label class="status-radio <?= $app['status'] === 'submitted' ? 'active' : '' ?>">
-                            <input type="radio" name="status" value="submitted" <?= $app['status'] === 'submitted' ? 'checked' : '' ?>>
-                            <div class="status-radio-content">
-                                <span class="status-icon">⏳</span>
-                                <div>
-                                    <b>รอพิจารณา</b>
-                                    <small>ยังไม่ได้ตัดสินใจ</small>
-                                </div>
+                <?php if ($app['status'] !== 'withdrawn'): ?>
+                    <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantActionsHeading">
+                        <div class="card-body p-4">
+                            <p class="applicant-detail-eyebrow mb-1">QUICK ACTIONS</p>
+                            <h2 class="h4 mb-3" id="applicantActionsHeading">ติดต่อผู้สมัคร</h2>
+                            <div class="d-grid gap-2">
+                                <a class="btn btn-outline-primary" href="mailto:<?= e($app['email']) ?>?subject=เรื่อง: ใบสมัครงาน <?= e($job['job_title']) ?>">ส่งอีเมล</a>
+                                <?php if ($app['phone']): ?>
+                                    <a class="btn btn-outline-secondary" href="tel:<?= e($app['phone']) ?>">โทร <?= e($app['phone']) ?></a>
+                                <?php endif; ?>
                             </div>
-                        </label>
-
-                        <label class="status-radio eligible <?= $app['status'] === 'eligible' ? 'active' : '' ?>">
-                            <input type="radio" name="status" value="eligible" <?= $app['status'] === 'eligible' ? 'checked' : '' ?>>
-                            <div class="status-radio-content">
-                                <span class="status-icon">✅</span>
-                                <div>
-                                    <b>มีสิทธิ์สัมภาษณ์</b>
-                                    <small>ผู้สมัครผ่านการคัดเลือกเบื้องต้น</small>
-                                </div>
-                            </div>
-                        </label>
-
-                        <label class="status-radio not-selected-opt <?= $app['status'] === 'not_selected' ? 'active' : '' ?>">
-                            <input type="radio" name="status" value="not_selected" <?= $app['status'] === 'not_selected' ? 'checked' : '' ?>>
-                            <div class="status-radio-content">
-                                <span class="status-icon">❌</span>
-                                <div>
-                                    <b>ไม่ผ่านการคัดเลือก</b>
-                                    <small>ผู้สมัครไม่ผ่านเกณฑ์</small>
-                                </div>
-                            </div>
-                        </label>
-
-                        <button class="btn btn-primary full-width" style="margin-top:16px">บันทึกสถานะ</button>
-                    </form>
-                </div><?php endif ?>
+                        </div>
+                    </section>
+                <?php endif; ?>
             </div>
-
-            <!-- Quick Actions -->
-            <?php if ($app['status'] !== 'withdrawn'): ?><div class="panel mt-16">
-                <h2>ดำเนินการด่วน</h2>
-                <div class="quick-actions">
-                    <a href="mailto:<?= e($app['email']) ?>?subject=เรื่อง: ใบสมัครงาน <?= e($job['job_title']) ?>" class="quick-action-btn">
-                        <span>✉️</span>
-                        <div>
-                            <b>ส่งอีเมล</b>
-                            <small>ติดต่อผู้สมัครโดยตรง</small>
-                        </div>
-                    </a>
-                    <?php if ($app['phone']): ?>
-                    <a href="tel:<?= e($app['phone']) ?>" class="quick-action-btn">
-                        <span>📞</span>
-                        <div>
-                            <b>โทรหา</b>
-                            <small><?= e($app['phone']) ?></small>
-                        </div>
-                    </a>
-                    <?php endif; ?>
-                </div>
-            </div><?php endif ?>
-        </div>
+        </aside>
     </div>
 </main>
 <?php require APP_ROOT . '/partials/footer.php'; ?>

@@ -41,46 +41,134 @@ $statement = $pdo->prepare($sql);
 $statement->execute($params);
 $documents = $statement->fetchAll();
 
+$statusMeta = [
+    'pending' => ['label' => 'รอตรวจสอบ', 'badge' => 'warning', 'icon' => '!', 'description' => 'เอกสารที่ส่งเข้ามาใหม่'],
+    'resubmit' => ['label' => 'ส่งเอกสารเพิ่ม', 'badge' => 'info', 'icon' => '↻', 'description' => 'รอทบทวนเอกสารเพิ่มเติม'],
+];
+
 $pageTitle = 'ตรวจเอกสารผู้ว่าจ้าง | FLEXJOB';
+$pageStyles = ['admin-documents'];
 require APP_ROOT . '/partials/header.php';
 ?>
 
-<main class="container py-5">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
-        <div>
-            <p class="eyebrow">VERIFICATION</p>
-            <h1 class="h2 mb-1">เอกสารผู้ว่าจ้างที่ต้องตรวจสอบ</h1>
-            <p class="text-secondary mb-0">อนุมัติ ไม่ผ่าน หรือขอเอกสารเพิ่มเติม</p>
-        </div><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/dashboard.php">กลับหน้า Admin</a>
-    </div>
-    <form class="row g-2 mb-4" method="get">
-        <div class="col-md-6"><input class="form-control" name="q" value="<?= e($query) ?>" placeholder="ค้นหาชื่อบริษัท ชื่อผู้ว่าจ้าง หรืออีเมล"></div>
-        <div class="col-auto"><button class="btn btn-success" type="submit">ค้นหา</button></div>
-    </form>
-
-    <div class="card border-0 shadow-sm">
-        <div class="card-body p-4">
-            <?php foreach ($documents as $document): ?><article class="border-bottom py-4">
-                    <div class="row g-3 align-items-center">
-                        <div class="col-lg">
-                            <h2 class="h5 mb-1"><a class="link-primary" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $document['employer_user_id'] ?>"><?= e($document['company_name']) ?></a></h2>
-                            <p class="text-secondary small mb-2"><?= e($document['name']) ?> · <?= e($document['email']) ?> · ส่งเมื่อ <?= date('d/m/Y H:i', strtotime($document['submitted_at'])) ?></p><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $document['employer_user_id'] ?>">ดูข้อมูลผู้ว่าจ้าง</a><?php if ($document['document_file_path']): ?> <a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=employer_document&id=<?= $document['employer_document_id'] ?>">เปิดเอกสาร</a><?php endif; ?>
-                        </div>
-                        <div class="col-lg-6">
-                            <form class="row g-2" method="post"><?= csrf_field() ?><input type="hidden" name="employer_document_id" value="<?= $document['employer_document_id'] ?>">
-                                <div class="col-12"><input class="form-control" name="review_note" value="<?= e($document['review_note'] ?? '') ?>" placeholder="หมายเหตุถึงผู้ว่าจ้าง"></div>
-                                <div class="col-sm"><select class="form-select" name="status">
-                                        <option value="approved">อนุมัติ</option>
-                                        <option value="resubmit">ขอเอกสารเพิ่ม</option>
-                                        <option value="rejected">ไม่ผ่าน</option>
-                                    </select></div>
-                                <div class="col-sm-auto"><button class="btn btn-success w-100" type="submit">ยืนยันผล</button></div>
-                            </form>
+<main id="content" class="admin-documents" tabindex="-1">
+    <div class="container">
+        <header class="admin-documents-hero card border-0 overflow-hidden mb-4">
+            <div class="card-body p-4 p-lg-5">
+                <div class="row align-items-center g-4">
+                    <div class="col-lg">
+                        <p class="admin-documents-eyebrow mb-2">VERIFICATION QUEUE</p>
+                        <h1 class="display-6 mb-2">ตรวจเอกสารผู้ว่าจ้าง</h1>
+                        <p class="admin-documents-lead mb-0">ตรวจข้อมูลบริษัท อนุมัติ หรือขอเอกสารเพิ่มเติม พร้อมแจ้งผลให้ผู้ว่าจ้างทราบทันที</p>
+                    </div>
+                    <div class="col-lg-auto">
+                        <div class="admin-documents-summary">
+                            <span class="admin-documents-summary-icon" aria-hidden="true">▤</span>
+                            <div><strong><?= number_format(count($documents)) ?></strong><span>รายการที่ต้องดำเนินการ</span></div>
                         </div>
                     </div>
-                </article><?php endforeach; ?>
-            <?php if (!$documents): ?><p class="text-secondary mb-0">ไม่พบเอกสารที่รอตรวจสอบ</p><?php endif; ?>
-        </div>
+                </div>
+            </div>
+        </header>
+
+        <section class="card border-0 admin-documents-search mb-4" aria-label="ค้นหาเอกสาร">
+            <div class="card-body p-3 p-lg-4">
+                <form class="row g-2 align-items-center" method="get">
+                    <div class="col-lg">
+                        <label class="visually-hidden" for="document-search">ค้นหาชื่อบริษัท ชื่อผู้ว่าจ้าง หรืออีเมล</label>
+                        <div class="input-group">
+                            <span class="input-group-text" aria-hidden="true">⌕</span>
+                            <input class="form-control" id="document-search" name="q" value="<?= e($query) ?>" placeholder="ค้นหาชื่อบริษัท ชื่อผู้ว่าจ้าง หรืออีเมล">
+                        </div>
+                    </div>
+                    <div class="col-sm-auto"><button class="btn btn-primary w-100" type="submit">ค้นหาเอกสาร</button></div>
+                    <?php if ($query !== ''): ?><div class="col-sm-auto"><a class="btn btn-outline-secondary w-100" href="<?= BASE_URL ?>/admin/documents.php">ล้างการค้นหา</a></div><?php endif; ?>
+                    <div class="col-lg-auto ms-lg-auto"><a class="btn btn-outline-primary w-100" href="<?= BASE_URL ?>/admin/dashboard.php">กลับหน้า Admin</a></div>
+                </form>
+            </div>
+        </section>
+
+        <section aria-labelledby="document-queue-heading">
+            <div class="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-2 mb-3">
+                <div>
+                    <p class="admin-documents-eyebrow mb-1">PENDING REVIEW</p>
+                    <h2 class="h3 mb-0" id="document-queue-heading"><?= $query !== '' ? 'ผลการค้นหาเอกสาร' : 'รายการที่ต้องตรวจสอบ' ?></h2>
+                </div>
+                <p class="small text-secondary mb-0">แสดง <?= number_format(count($documents)) ?> รายการ</p>
+            </div>
+
+            <?php if ($documents): ?>
+                <div class="row g-3">
+                    <?php foreach ($documents as $document):
+                        $meta = $statusMeta[$document['document_status']] ?? $statusMeta['pending'];
+                        $noteId = 'review-note-' . $document['employer_document_id'];
+                        $statusId = 'review-status-' . $document['employer_document_id'];
+                    ?>
+                        <div class="col-12">
+                            <article class="card border-0 admin-document-card h-100">
+                                <div class="card-body p-4 p-lg-4">
+                                    <div class="row g-4 align-items-start">
+                                        <div class="col-xl-6">
+                                            <div class="d-flex align-items-start gap-3">
+                                                <span class="admin-document-icon admin-document-icon-<?= e($meta['badge']) ?>" aria-hidden="true"><?= e($meta['icon']) ?></span>
+                                                <div class="min-w-0 flex-grow-1">
+                                                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+                                                        <span class="badge rounded-pill text-bg-<?= e($meta['badge']) ?>"><?= e($meta['label']) ?></span>
+                                                        <span class="small text-secondary"><?= e($meta['description']) ?></span>
+                                                    </div>
+                                                    <h3 class="h4 mb-1"><a class="link-dark text-decoration-none" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $document['employer_user_id'] ?>"><?= e($document['company_name']) ?></a></h3>
+                                                    <p class="text-secondary mb-3"><?= e($document['name']) ?> <span aria-hidden="true">·</span> <?= e($document['email']) ?></p>
+                                                    <dl class="admin-document-meta mb-3">
+                                                        <div><dt>ส่งเอกสารเมื่อ</dt><dd><?= date('d/m/Y H:i', strtotime($document['submitted_at'])) ?></dd></div>
+                                                        <div><dt>สถานะ</dt><dd><?= e($meta['label']) ?></dd></div>
+                                                    </dl>
+                                                    <div class="d-flex flex-wrap gap-2">
+                                                        <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/admin/employer.php?id=<?= $document['employer_user_id'] ?>">ดูข้อมูลผู้ว่าจ้าง</a>
+                                                        <?php if ($document['document_file_path']): ?><a class="btn btn-sm btn-outline-primary" target="_blank" rel="noopener" href="<?= BASE_URL ?>/download.php?type=employer_document&id=<?= $document['employer_document_id'] ?>">เปิดเอกสาร <span aria-hidden="true">↗</span></a><?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-xl-6">
+                                            <form class="admin-document-review" method="post">
+                                                <?= csrf_field() ?>
+                                                <input type="hidden" name="employer_document_id" value="<?= $document['employer_document_id'] ?>">
+                                                <div class="d-flex align-items-center gap-2 mb-3"><span class="admin-review-number" aria-hidden="true">2</span><div><h4 class="h6 mb-0">บันทึกผลการตรวจ</h4><p class="small text-secondary mb-0">ระบบจะแจ้งผลให้ผู้ว่าจ้างโดยอัตโนมัติ</p></div></div>
+                                                <div class="row g-2">
+                                                    <div class="col-md-7">
+                                                        <label class="form-label small fw-semibold" for="<?= $statusId ?>">ผลการตรวจ</label>
+                                                        <select class="form-select" id="<?= $statusId ?>" name="status">
+                                                            <option value="approved">อนุมัติเอกสาร</option>
+                                                            <option value="resubmit">ขอเอกสารเพิ่มเติม</option>
+                                                            <option value="rejected">ไม่ผ่านการตรวจ</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-5 d-flex align-items-end"><button class="btn btn-primary w-100" type="submit">ยืนยันผลตรวจ</button></div>
+                                                    <div class="col-12">
+                                                        <label class="form-label small fw-semibold" for="<?= $noteId ?>">หมายเหตุถึงผู้ว่าจ้าง <span class="text-secondary fw-normal">(ไม่บังคับ)</span></label>
+                                                        <textarea class="form-control" id="<?= $noteId ?>" name="review_note" rows="2" placeholder="เช่น กรุณาแนบหนังสือรับรองบริษัทฉบับล่าสุด"><?= e($document['review_note'] ?? '') ?></textarea>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php else: ?>
+                <div class="card border-0 admin-documents-empty">
+                    <div class="card-body text-center p-5">
+                        <span class="admin-documents-empty-icon" aria-hidden="true"><?= $query !== '' ? '⌕' : '✓' ?></span>
+                        <h3 class="h4 mt-3"><?= $query !== '' ? 'ไม่พบเอกสารที่ตรงกับการค้นหา' : 'ไม่มีเอกสารที่รอตรวจสอบ' ?></h3>
+                        <p class="text-secondary mb-4"><?= $query !== '' ? 'ลองเปลี่ยนคำค้นหา หรือกลับไปดูรายการเอกสารทั้งหมด' : 'รายการเอกสารได้รับการจัดการครบถ้วนในขณะนี้' ?></p>
+                        <?php if ($query !== ''): ?><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/documents.php">ดูเอกสารทั้งหมด</a><?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
+        </section>
     </div>
 </main>
 

@@ -46,22 +46,21 @@ $accountLinks = match ($role) {
         ['icon' => '✦', 'label' => 'คำเชิญสมัครงาน', 'path' => 'worker/invitations.php'],
     ],
     'employer' => [
-        ['icon' => '⌂', 'label' => 'ภาพรวมของฉัน', 'path' => $accountOverviewPath],
         ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและบริษัท', 'path' => 'employer/editprofile.php'],
         ['icon' => '＋', 'label' => 'สร้างประกาศงาน', 'path' => 'employer/jobpost.php'],
         ['icon' => '▣', 'label' => 'จัดการประกาศงาน', 'path' => 'employer/dashboard.php'],
         ['icon' => '◎', 'label' => 'ค้นหาผู้หางาน', 'path' => 'employer/candidates.php'],
     ],
     'admin' => [
-        ['icon' => '⌂', 'label' => 'ภาพรวมของฉัน', 'path' => $accountOverviewPath],
-        ['icon' => '▣', 'label' => 'ตรวจสอบเอกสาร', 'path' => 'admin/documents.php'],
-        ['icon' => '◉', 'label' => 'จัดการประกาศงาน', 'path' => 'admin/jobs.php'],
-        ['icon' => '◉', 'label' => 'จัดการบัญชีผู้ใช้', 'path' => 'admin/users.php'],
+        ['icon' => '⌂', 'label' => 'ภาพรวมระบบ', 'path' => 'admin/dashboard.php'],
+        ['icon' => '▤', 'label' => 'ตรวจเอกสาร', 'path' => 'admin/documents.php'],
+        ['icon' => '◷', 'label' => 'จัดการประกาศ', 'path' => 'admin/jobs.php'],
+        ['icon' => '◎', 'label' => 'จัดการบัญชี', 'path' => 'admin/users.php'],
     ],
     default => [],
 };
 
-$styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
+$styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-shell'] : [], $pageStyles ?? [], ['theme']);
 ?>
 <!doctype html>
 <html lang="th">
@@ -84,7 +83,7 @@ $styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
     <?php endforeach ?>
 </head>
 
-<body>
+<body class="<?= $role === 'admin' ? 'admin-mode' : '' ?>">
     <header class="site-header">
         <a class="brand" href="<?= BASE_URL ?>/<?= $brandPath ?>">
             <span class="brand-mark">F</span>FLEX<span>JOB</span>
@@ -99,7 +98,9 @@ $styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
             <?php else: ?>
                 <a href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a>
                 <?php if ($role === 'employer'): ?><a href="<?= BASE_URL ?>/employer/candidates.php">ค้นหาผู้หางาน</a><?php endif ?>
-                <a href="<?= BASE_URL ?>/index.php<?= $currentUser ? '?scroll=how' : '' ?>#how" id="howItWorksLink">วิธีใช้งาน</a>
+                <?php if ($role !== 'employer'): ?>
+                    <a href="<?= BASE_URL ?>/index.php<?= $currentUser ? '?scroll=how' : '' ?>#how" id="howItWorksLink">วิธีใช้งาน</a>
+                <?php endif; ?>
                 <?php if (!$currentUser || $role !== 'worker'): ?>
                     <a href="<?= BASE_URL ?>/employer/dashboard.php">สำหรับผู้ว่าจ้าง</a>
                 <?php endif ?>
@@ -163,10 +164,28 @@ $styles = array_merge(['header', 'header-theme'], $pageStyles ?? [], ['theme']);
                 </details>
             <?php else: ?>
                 <a class="text-link" href="<?= BASE_URL ?>/auth/login.php">เข้าสู่ระบบ</a>
-                <a class="btn btn-light btn-sm fw-semibold px-3" href="<?= BASE_URL ?>/auth/register.php">สมัครใช้งาน</a>
+                <a class="text-link signup-link" href="<?= BASE_URL ?>/auth/register.php">สมัครใช้งาน</a>
             <?php endif ?>
         </div>
     </header>
+<?php if ($role === 'admin'):
+    $currentAdminPage = basename((string) (parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: ''));
+    $currentAdminNavPage = match ($currentAdminPage) {
+        'jobdelete.php' => 'jobs.php',
+        'employer.php' => 'users.php',
+        default => $currentAdminPage,
+    };
+?>
+    <aside class="admin-sidebar" aria-label="เมนูผู้ดูแลระบบ">
+        <p class="admin-sidebar-label">ADMIN MENU</p>
+        <nav>
+            <a class="<?= $currentAdminNavPage === 'dashboard.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/dashboard.php"><span aria-hidden="true">⌂</span>ภาพรวมระบบ</a>
+            <a class="<?= $currentAdminNavPage === 'documents.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/documents.php"><span aria-hidden="true">▤</span>ตรวจเอกสาร</a>
+            <a class="<?= $currentAdminNavPage === 'jobs.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/jobs.php"><span aria-hidden="true">◷</span>จัดการประกาศ</a>
+            <a class="<?= $currentAdminNavPage === 'users.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/users.php"><span aria-hidden="true">◎</span>จัดการบัญชี</a>
+        </nav>
+    </aside>
+<?php endif; ?>
 
     <?php if ($message = flash('success')): ?>
         <div class="flash alert alert-success" role="alert"><?= e($message) ?></div>

@@ -53,6 +53,16 @@ footer {
 .site-header .text-link:hover {
   color: #0052cc !important;
 }
+.site-header .text-link.signup-link {
+  border-color: #00a3ff !important;
+  background: #00a3ff;
+  color: #ffffff !important;
+}
+.site-header .text-link.signup-link:hover {
+  border-color: #ffffff !important;
+  background: #ffffff;
+  color: #0052cc !important;
+}
 .site-header .btn-light {
   color: #0052cc !important;
 }

@@ -1,0 +1,210 @@
+/* Employer applicant list: Bootstrap supplies the responsive structure. */
+.employer-applicants-page {
+    max-inline-size: 1240px;
+}
+
+.employer-applicants-back {
+    color: #0052cc;
+    font-size: .9rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.employer-applicants-back:hover {
+    color: #003f9e;
+    text-decoration: underline;
+    text-underline-offset: .2em;
+}
+
+.employer-applicants-hero {
+    overflow: clip;
+    border-radius: 1.35rem;
+    background:
+        radial-gradient(circle at 91% 16%, rgb(255 255 255 / 82%) 0 6%, transparent 6.2%),
+        radial-gradient(circle at 82% 112%, rgb(0 127 255 / 14%) 0 27%, transparent 27.3%),
+        linear-gradient(120deg, #edf6ff, #f9fcff 60%, #e8f4ff);
+}
+
+.employer-applicants-eyebrow {
+    color: #0052cc;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .11em;
+}
+
+.employer-applicants-total {
+    display: grid;
+    min-inline-size: 8.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 1rem;
+    background: rgb(255 255 255 / 74%);
+    text-align: center;
+}
+
+.employer-applicants-total strong {
+    color: #0052cc;
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.employer-applicants-total span {
+    color: #64748b;
+    font-size: .75rem;
+}
+
+.employer-applicant-stat {
+    border-radius: 1rem;
+    transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.employer-applicant-stat:hover {
+    transform: translateY(-.15rem);
+    box-shadow: 0 .8rem 1.6rem rgb(15 23 42 / 9%) !important;
+}
+
+.employer-applicant-stat p {
+    font-size: .78rem;
+}
+
+.employer-applicant-stat strong {
+    color: #0052cc;
+}
+
+.employer-applicant-card {
+    overflow: clip;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 1.125rem;
+    box-shadow: 0 .5rem 1.25rem rgb(15 23 42 / 5%) !important;
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.employer-applicant-card:hover {
+    border-color: #93c5fd !important;
+    box-shadow: 0 1.1rem 2rem rgb(0 82 204 / 13%) !important;
+    transform: translateY(-.25rem);
+}
+
+.employer-applicant-avatar {
+    flex: 0 0 auto;
+    inline-size: 4rem;
+    block-size: 4rem;
+    border: 2px solid #fff;
+    border-radius: 1rem;
+    box-shadow: 0 .35rem .8rem rgb(15 23 42 / 11%);
+    object-fit: cover;
+}
+
+.employer-applicant-avatar-fallback {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #0052cc, #00a3ff);
+    color: #fff;
+    font-size: 1.45rem;
+    font-weight: 700;
+}
+
+.employer-applicant-meta {
+    margin-inline: 0;
+}
+
+.employer-applicant-meta > .col {
+    padding: .55rem .7rem;
+    border-radius: .75rem;
+    background: #f8fbff;
+}
+
+.employer-applicant-meta dt {
+    margin-bottom: .15rem;
+    color: #64748b;
+    font-size: .68rem;
+    font-weight: 700;
+}
+
+.employer-applicant-meta dd {
+    color: #475569;
+    font-size: .75rem;
+}
+
+.employer-applicant-skill {
+    padding: .4rem .6rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #0052cc;
+    font-size: .7rem;
+    font-weight: 600;
+}
+
+.employer-applicant-summary {
+    display: -webkit-box;
+    overflow: clip;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    line-height: 1.65;
+}
+
+.employer-applicant-card .border-top {
+    border-color: #e2e8f0 !important;
+}
+
+.employer-applicant-card .form-select {
+    min-block-size: 2.35rem;
+    border-color: #cbd5e1;
+    font-size: .82rem;
+}
+
+.employer-status-save {
+    min-block-size: 2.35rem;
+}
+
+.employer-applicants-empty {
+    border-radius: 1.1rem;
+}
+
+.employer-applicants-empty-icon {
+    display: grid;
+    inline-size: 3.5rem;
+    block-size: 3.5rem;
+    margin-inline: auto;
+    border-radius: 1rem;
+    place-items: center;
+    background: #eaf3ff;
+    color: #0052cc;
+    font-size: 1.7rem;
+    font-weight: 800;
+}
+
+@media (max-width: 575.98px) {
+    .employer-applicants-hero,
+    .employer-applicant-card,
+    .employer-applicants-empty {
+        border-radius: 1rem;
+    }
+
+    .employer-applicants-hero .card-body {
+        padding: 1.25rem !important;
+    }
+
+    .employer-applicants-total {
+        inline-size: 100%;
+    }
+
+    .employer-applicant-avatar {
+        inline-size: 3.25rem;
+        block-size: 3.25rem;
+        border-radius: .85rem;
+    }
+
+    .employer-applicant-card .card-body {
+        padding: 1.25rem !important;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .employer-applicant-stat,
+    .employer-applicant-card {
+        transition: none;
+    }
+}

@@ -1,91 +1,52 @@
-/* Bootstrap handles layout, spacing, cards, buttons and responsive columns.
-These rules keep only the FLEXJOB-specific appearance. */
-.worker-home {
-  padding-top: 52px;
-  padding-bottom: 80px;
-}
+/* Bootstrap handles the grid, cards, buttons, spacing and progress bars.
+   These rules only define Worker Home branding and card details. */
+.worker-home { padding-block: clamp(2rem, 4vw, 4.5rem) 0; }
+.worker-home-intro { position: relative; isolation: isolate; padding: clamp(1.5rem, 3vw, 2.5rem); overflow: hidden; border: 1px solid #dbeafe; border-radius: 1.5rem; background: linear-gradient(118deg, #f8fbff 0%, #eef6ff 60%, #e0f2fe 100%); }
+.worker-home-intro::after { position: absolute; z-index: -1; inset: -7rem -3rem auto auto; inline-size: 16rem; aspect-ratio: 1; border: 2rem solid rgb(0 163 255 / 13%); border-radius: 50%; content: ''; }
+.worker-home-intro .eyebrow { color: #0052cc; }
+.worker-home-intro h1 { color: #1e293b; letter-spacing: -.045em; line-height: 1.08; }
+.worker-home-intro .lead { max-inline-size: 40rem; font-size: 1rem; line-height: 1.75; }
+.worker-profile-glance { border: 1px solid #bfdbfe !important; border-radius: 1.125rem; background: rgb(255 255 255 / 78%); }
+.worker-profile-glance .text-uppercase { color: #0052cc; font-size: .68rem; letter-spacing: .1em; }
+.worker-profile-glance b { color: #0052cc; font-size: 1.5rem; line-height: 1; }
+.worker-profile-glance .progress { block-size: .55rem; background: #dbeafe; }
+.worker-profile-glance .progress-bar { background: linear-gradient(90deg, #0052cc, #00a3ff); }
+.worker-home .profile-guide-banner { min-block-size: 18rem; margin-bottom: 0; border: 1px solid #bfdbfe; border-radius: 1.5rem; background: #eff6ff; box-shadow: 0 1rem 2rem rgb(0 82 204 / 8%); }
+.worker-home .profile-guide-banner::after { position: absolute; inset: 0; background: linear-gradient(90deg, #eff6ff 0%, rgb(239 246 255 / 94%) 35%, rgb(239 246 255 / 10%) 69%); content: ''; }
+.worker-home .profile-guide-copy { z-index: 2; padding: clamp(1.75rem, 4vw, 3rem); }
+.worker-home .profile-guide-copy .eyebrow { color: #0052cc; }
+.worker-home .profile-guide-copy h2 { color: #1e293b; }
+.worker-home .profile-guide-copy p:not(.eyebrow) { color: #526d96; }
+.worker-action-card { margin-top: 1rem; border: 1px solid #dbeafe !important; border-radius: 1.125rem; box-shadow: 0 .65rem 1.5rem rgb(15 23 42 / 4%) !important; }
+.worker-action-card .progress { block-size: .55rem; border-radius: 999px; background: #e7f0ff; }
+.worker-action-card .progress-bar { border-radius: inherit; }
+.worker-recommended, .worker-latest { margin-top: clamp(3.5rem, 6vw, 5rem) !important; }
+.worker-recommended > .d-flex, .worker-latest > .d-flex { padding-left: 1rem; border-left: .25rem solid #00a3ff; }
+.worker-recommended h2, .worker-latest h2 { margin: .2rem 0 0; color: #1e293b; font-size: clamp(1.65rem, 2.4vw, 2rem); letter-spacing: -.03em; }
+.worker-recommended .eyebrow, .worker-latest .eyebrow { color: #0052cc; }
+.worker-recommended .btn-link, .worker-latest .btn-link { color: #0052cc; font-weight: 700; }
+.worker-latest { padding: clamp(1.25rem, 3vw, 2.25rem); border: 1px solid #dbeafe; border-radius: 1.5rem; background: linear-gradient(145deg, #eff6ff 0%, #fff 56%); }
+.worker-job-card { container-type: inline-size; overflow: hidden; color: inherit; text-decoration: none; border: 1px solid #e2e8f0 !important; border-radius: 1.125rem; box-shadow: 0 .5rem 1.25rem rgb(15 23 42 / 5%); transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.worker-job-card:hover { color: inherit; border-color: #93c5fd !important; box-shadow: 0 1.1rem 2rem rgb(0 82 204 / 13%); transform: translateY(-.3rem); }
+.worker-job-card:focus-visible { outline: 3px solid #00a3ff; outline-offset: 3px; }
+.worker-job-image { display: block; inline-size: 100%; block-size: 12rem; object-fit: cover; background: #e0f2fe; }
+.worker-job-fallback { display: grid; place-items: center; color: #0052cc; font-size: 2.45rem; }
+.worker-job-body { padding: 1.2rem 1.25rem 1.15rem; }
+.worker-job-body h3 { margin: 0; color: #1e293b; font-size: 1.05rem; line-height: 1.45; }
+.worker-job-body p { margin: .4rem 0; color: #64748b; font-size: .8rem; }
+.worker-job-meta { margin-top: .85rem !important; line-height: 1.85; }
+.worker-job-body .company-logo { inline-size: 1.35rem; block-size: 1.35rem; margin-right: .35rem; border-radius: 50%; object-fit: cover; vertical-align: middle; }
+.worker-job-card .match-summary { display: grid; gap: .45rem; margin: .2rem 0 .9rem; }
+.worker-job-card .match-summary .badge { inline-size: fit-content; background: #0f9d68 !important; }
+.worker-job-bottom { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-top: .8rem; border-top: 1px solid #e2e8f0; }
+.worker-job-bottom strong { color: #0052cc; font-size: .86rem; }
+.worker-job-bottom span { padding: .34rem .55rem; border-radius: 999px; background: #eff6ff; color: #475569; font-size: .68rem; white-space: nowrap; }
+@container (max-width: 22rem) { .worker-job-bottom { align-items: flex-start; flex-direction: column; } }
+@media (max-width: 991.98px) { .worker-profile-glance { max-inline-size: 34rem; } }
+@media (max-width: 575.98px) { .worker-home { padding-block: 1.5rem 0; } .worker-home-intro, .worker-latest { border-radius: 1.125rem; } .worker-home .profile-guide-banner { min-block-size: 25rem; } .worker-home .profile-guide-banner::after { background: linear-gradient(180deg, rgb(239 246 255 / 0%) 0%, rgb(239 246 255 / 94%) 46%, #eff6ff 65%); } .worker-home .profile-guide-copy { width: 100%; padding: 12.6rem 1.4rem 1.4rem; } .worker-job-image { block-size: 11.875rem; } }
 
-.worker-welcome p {
-  margin: 6px 0 0;
-  color: var(--muted);
-  font-size: 14px;
-}
-.worker-welcome .btn-success {
-  --bs-btn-bg: #177657;
-  --bs-btn-border-color: #177657;
-  --bs-btn-hover-bg: #105e45;
-  --bs-btn-hover-border-color: #105e45;
-  font-weight: 700;
-}
-
-.worker-job-card {
-  overflow: hidden;
-  border-color: var(--line);
-  color: inherit;
-  text-decoration: none;
-  transition:
-    border-color 0.2s,
-    box-shadow 0.2s,
-    transform 0.2s;
-}
-.worker-job-card:hover {
-  border-color: #9bc8b4;
-  box-shadow: 0 8px 24px #123a2c12;
-  color: inherit;
-  transform: translateY(-3px);
-}
-.worker-job-image {
-  display: block;
-  width: 100%;
-  height: 160px;
-  object-fit: cover;
-  background: #dcefe0;
-}
-.worker-job-fallback {
-  display: grid;
-  place-items: center;
-  color: #176b54;
-  font-size: 38px;
-}
-.worker-job-body h3 {
-  margin: 0;
-  font-size: 16px;
-  line-height: 1.4;
-}
-.worker-job-body p {
-  margin: 5px 0;
-  color: var(--muted);
-  font-size: 12px;
-}
-.worker-job-meta {
-  margin-top: 14px !important;
-  line-height: 1.8;
-}
-.worker-job-bottom {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid #eef1ef;
-}
-.worker-job-bottom strong {
-  color: var(--green);
-  font-size: 13px;
-}
-.worker-job-bottom span {
-  padding: 6px 9px;
-  border-radius: 6px;
-  background: #edf2ef;
-  color: #52635b;
-  font-size: 10px;
-}
-
-@media (max-width: 575.98px) {
-  .worker-home {
-    padding-top: 35px;
-  }
-  .worker-job-image {
-    height: 185px;
-  }
-}
+.worker-employer-rating { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; margin: .2rem 0 .7rem; }
+.worker-employer-rating .rating-summary { gap: .25rem; font-size: .74rem; }
+.worker-employer-rating .rating-summary-stars { font-size: 1rem; }
+.worker-employer-rating .rating-summary strong { font-size: .82rem; }
+.worker-employer-rating small { color: #64748b; font-size: .7rem; }

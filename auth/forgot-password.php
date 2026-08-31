@@ -20,7 +20,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 // สร้าง Token ใหม่สำหรับการรีเซ็ต (มีอายุ 1 ชั่วโมง)
                 $token = bin2hex(random_bytes(32));
-                $pdo->prepare('INSERT INTO password_resets (user_id, token, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 1 HOUR))')
+                $pdo->prepare("INSERT INTO auth_tokens (user_id,token,token_type,expires_at) VALUES (?,?,'password_reset',DATE_ADD(NOW(), INTERVAL 1 HOUR))")
                     ->execute([$u['user_id'], $token]);
                 $resetId = (int) $pdo->lastInsertId();
 
@@ -35,10 +35,10 @@ HTML;
                 $body .= email_btn($resetUrl, '🔑 ตั้งรหัสผ่านใหม่');
 
                 if (send_mail($email, $u['name'], 'ตั้งรหัสผ่านใหม่สำหรับบัญชี FLEXJOB', $body)) {
-                    $pdo->prepare('UPDATE password_resets SET used_at=NOW() WHERE user_id=? AND id<>? AND used_at IS NULL')->execute([$u['user_id'], $resetId]);
+                    $pdo->prepare("UPDATE auth_tokens SET used_at=NOW() WHERE user_id=? AND auth_token_id<>? AND token_type='password_reset' AND used_at IS NULL")->execute([$u['user_id'], $resetId]);
                     flash('success', 'ส่งลิงก์สำหรับตั้งรหัสผ่านใหม่ไปยัง ' . $email . ' เรียบร้อยแล้ว กรุณาตรวจสอบกล่องจดหมายของคุณ');
                 } else {
-                    $pdo->prepare('UPDATE password_resets SET used_at=NOW() WHERE id=?')->execute([$resetId]);
+                    $pdo->prepare('UPDATE auth_tokens SET used_at=NOW() WHERE auth_token_id=?')->execute([$resetId]);
                     flash('error', 'ไม่สามารถส่งอีเมลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง');
                 }
             }

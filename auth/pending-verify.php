@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$u || $u['account_status'] !== 'pending') throw new RuntimeException('ไม่พบบัญชีที่รอการยืนยัน หรืออีเมลนี้ยืนยันแล้ว');
 
         $token = bin2hex(random_bytes(32));
-        $pdo->prepare('INSERT INTO email_verifications (user_id,token,expires_at) VALUES (?,?,DATE_ADD(NOW(), INTERVAL 24 HOUR))')
+        $pdo->prepare("INSERT INTO auth_tokens (user_id,token,token_type,expires_at) VALUES (?,?,'email_verification',DATE_ADD(NOW(), INTERVAL 24 HOUR))")
             ->execute([$u['user_id'], $token]);
         $verificationId = (int) $pdo->lastInsertId();
         $verifyUrl = 'http://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/auth/verify.php?token=' . $token;
@@ -30,10 +30,10 @@ HTML;
         $body .= email_btn($verifyUrl, '✅ ยืนยันอีเมลของฉัน');
 
         if (send_mail($email, $u['name'], 'ลิงก์ยืนยันอีเมล (ใหม่) — FLEXJOB', $body)) {
-            $pdo->prepare('UPDATE email_verifications SET used_at=NOW() WHERE user_id=? AND id<>? AND used_at IS NULL')->execute([$u['user_id'], $verificationId]);
+            $pdo->prepare("UPDATE auth_tokens SET used_at=NOW() WHERE user_id=? AND auth_token_id<>? AND token_type='email_verification' AND used_at IS NULL")->execute([$u['user_id'], $verificationId]);
             flash('success', 'ส่งลิงก์ยืนยันใหม่ไปที่ ' . $email . ' แล้ว');
         } else {
-            $pdo->prepare('UPDATE email_verifications SET used_at=NOW() WHERE id=?')->execute([$verificationId]);
+            $pdo->prepare('UPDATE auth_tokens SET used_at=NOW() WHERE auth_token_id=?')->execute([$verificationId]);
             throw new RuntimeException('ส่งอีเมลไม่สำเร็จ กรุณาตรวจสอบการตั้งค่า SMTP หรือลองใหม่ภายหลัง');
         }
     } catch (Throwable $e) {

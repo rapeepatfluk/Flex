@@ -12,9 +12,10 @@ if ($token === '') {
     $pdo = db();
     $stmt = $pdo->prepare(
         "SELECT r.*, u.first_name, u.last_name, u.email
-         FROM password_resets r
+         FROM auth_tokens r
          JOIN users u ON u.user_id = r.user_id
          WHERE r.token = ?
+           AND r.token_type = 'password_reset'
            AND r.used_at IS NULL
            AND r.expires_at >= NOW()
          LIMIT 1"
@@ -45,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errorMsg) {
             ->execute([$passwordHash, $u['user_id']]);
 
         // ทำเครื่องหมายว่า Token นี้ถูกใช้แล้ว
-        $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE id = ?')
-            ->execute([$u['id']]);
+        $pdo->prepare('UPDATE auth_tokens SET used_at = NOW() WHERE auth_token_id = ?')
+            ->execute([$u['auth_token_id']]);
 
         flash('success', 'ตั้งรหัสผ่านใหม่สำเร็จแล้ว! กรุณาเข้าสู่ระบบด้วยรหัสผ่านใหม่');
         redirect('auth/login.php');

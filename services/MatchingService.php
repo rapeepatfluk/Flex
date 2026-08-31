@@ -17,12 +17,131 @@ function matching_parse_skills(string $input): array
     return array_values($skills);
 }
 
-function matching_skill_id(PDO $pdo, string $name): int
+function matching_skill_id(PDO $pdo, string $name, bool $isCustom = false): int
 {
-    $pdo->prepare('INSERT IGNORE INTO skills (skill_name) VALUES (?)')->execute([$name]);
+    $pdo->prepare('INSERT INTO skills (skill_name,is_custom,is_active) VALUES (?,?,1) ON DUPLICATE KEY UPDATE skill_id=LAST_INSERT_ID(skill_id),is_active=1')
+        ->execute([$name, $isCustom ? 1 : 0]);
     $statement = $pdo->prepare('SELECT skill_id FROM skills WHERE skill_name=?');
     $statement->execute([$name]);
     return (int) $statement->fetchColumn();
+}
+
+function matching_skill_catalog(PDO $pdo, array $selectedSkillIds = []): array
+{
+    $statement = $pdo->query('SELECT c.skill_category_id,c.category_name,c.category_slug,s.skill_id,s.skill_name FROM skill_categories c LEFT JOIN skills s ON s.skill_category_id=c.skill_category_id AND s.is_active=1 WHERE c.is_active=1 ORDER BY c.sort_order,c.category_name,s.skill_name');
+    $catalog = [];
+    foreach ($statement->fetchAll() as $row) {
+        $categoryId = (int) $row['skill_category_id'];
+        if (!isset($catalog[$categoryId])) {
+            $catalog[$categoryId] = ['name' => $row['category_name'], 'slug' => $row['category_slug'], 'skills' => []];
+        }
+        if ($row['skill_id'] !== null) {
+            $catalog[$categoryId]['skills'][] = ['id' => (int) $row['skill_id'], 'name' => $row['skill_name']];
+        }
+    }
+
+    $selectedSkillIds = array_values(array_unique(array_filter(array_map('intval', $selectedSkillIds), fn(int $id): bool => $id > 0)));
+    if ($selectedSkillIds) {
+        $placeholders = implode(',', array_fill(0, count($selectedSkillIds), '?'));
+        $customStatement = $pdo->prepare("SELECT skill_id,skill_name FROM skills WHERE skill_category_id IS NULL AND skill_id IN ({$placeholders}) ORDER BY skill_name");
+        $customStatement->execute($selectedSkillIds);
+        $customSkills = $customStatement->fetchAll();
+        if ($customSkills) {
+            $catalog['custom'] = ['name' => 'อื่น ๆ ที่เพิ่มเอง', 'slug' => 'custom', 'skills' => array_map(fn(array $skill): array => ['id' => (int) $skill['skill_id'], 'name' => $skill['skill_name']], $customSkills)];
+        }
+    }
+    return $catalog;
+}
+
+function matching_selected_skill_ids(PDO $pdo, array $rawSkillIds, string $customInput = '', int $limit = 20): array
+{
+    $skillIds = array_values(array_unique(array_filter(array_map('intval', $rawSkillIds), fn(int $id): bool => $id > 0)));
+    if (count($skillIds) > $limit) throw new RuntimeException("เลือกทักษะได้สูงสุด {$limit} รายการ");
+
+    if ($skillIds) {
+        $placeholders = implode(',', array_fill(0, count($skillIds), '?'));
+        $statement = $pdo->prepare("SELECT skill_id FROM skills WHERE is_active=1 AND skill_id IN ({$placeholders})");
+        $statement->execute($skillIds);
+        $validIds = array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
+        if (count($validIds) !== count($skillIds)) throw new RuntimeException('มีทักษะที่เลือกไม่ถูกต้อง');
+        $skillIds = $validIds;
+    }
+
+    $customSkills = matching_parse_skills($customInput);
+    $existingNames = [];
+    if ($skillIds) {
+        $placeholders = implode(',', array_fill(0, count($skillIds), '?'));
+        $statement = $pdo->prepare("SELECT skill_name FROM skills WHERE skill_id IN ({$placeholders})");
+        $statement->execute($skillIds);
+        $existingNames = array_map(fn(string $name): string => mb_strtolower($name, 'UTF-8'), $statement->fetchAll(PDO::FETCH_COLUMN));
+    }
+    foreach ($customSkills as $name) {
+        if (in_array(mb_strtolower($name, 'UTF-8'), $existingNames, true)) continue;
+        $skillIds[] = matching_skill_id($pdo, $name, true);
+        $existingNames[] = mb_strtolower($name, 'UTF-8');
+    }
+    $skillIds = array_values(array_unique($skillIds));
+    if (count($skillIds) > $limit) throw new RuntimeException("เลือกทักษะได้สูงสุด {$limit} รายการ");
+    return $skillIds;
+}
+
+function matching_skill_names(PDO $pdo, array $skillIds): array
+{
+    if (!$skillIds) return [];
+    $placeholders = implode(',', array_fill(0, count($skillIds), '?'));
+    $statement = $pdo->prepare("SELECT skill_id,skill_name FROM skills WHERE skill_id IN ({$placeholders})");
+    $statement->execute($skillIds);
+    $namesById = [];
+    foreach ($statement->fetchAll() as $row) $namesById[(int) $row['skill_id']] = $row['skill_name'];
+    return array_values(array_filter(array_map(fn(int $id): ?string => $namesById[$id] ?? null, $skillIds)));
+}
+
+function matching_sync_job_skill_assignments(PDO $pdo, int $jobId, array $skillIds, array $importanceBySkill, string $customSkills = '', string $customImportance = 'required'): void
+{
+    $selectedIds = matching_selected_skill_ids($pdo, $skillIds);
+    $customIds = matching_selected_skill_ids($pdo, [], $customSkills);
+    $requiredIds = [];
+    $preferredIds = [];
+
+    foreach ($selectedIds as $skillId) {
+        if (($importanceBySkill[$skillId] ?? 'required') === 'preferred') {
+            $preferredIds[] = $skillId;
+        } else {
+            $requiredIds[] = $skillId;
+        }
+    }
+    foreach ($customIds as $skillId) {
+        if ($customImportance === 'required') {
+            $requiredIds[] = $skillId;
+        } else {
+            $preferredIds[] = $skillId;
+        }
+    }
+
+    $requiredIds = array_values(array_unique($requiredIds));
+    $preferredIds = array_values(array_diff(array_unique($preferredIds), $requiredIds));
+    matching_sync_job_skill_selection($pdo, $jobId, $requiredIds, '', $preferredIds, '');
+}
+
+function matching_sync_worker_skill_selection(PDO $pdo, int $workerId, array $skillIds, string $customInput = ''): array
+{
+    $skillIds = matching_selected_skill_ids($pdo, $skillIds, $customInput);
+    $pdo->prepare('DELETE FROM worker_skills WHERE worker_user_id=?')->execute([$workerId]);
+    $insert = $pdo->prepare('INSERT INTO worker_skills (worker_user_id,skill_id) VALUES (?,?)');
+    foreach ($skillIds as $skillId) $insert->execute([$workerId, $skillId]);
+    return matching_skill_names($pdo, $skillIds);
+}
+
+function matching_sync_job_skill_selection(PDO $pdo, int $jobId, array $requiredIds, string $customRequired, array $preferredIds, string $customPreferred): void
+{
+    $requiredIds = matching_selected_skill_ids($pdo, $requiredIds, $customRequired);
+    $preferredIds = array_values(array_diff(matching_selected_skill_ids($pdo, $preferredIds, $customPreferred), $requiredIds));
+    if (count($requiredIds) + count($preferredIds) > 20) throw new RuntimeException('เลือกทักษะรวมได้สูงสุด 20 รายการ');
+
+    $pdo->prepare('DELETE FROM job_skills WHERE job_id=?')->execute([$jobId]);
+    $insert = $pdo->prepare('INSERT INTO job_skills (job_id,skill_id,importance) VALUES (?,?,?)');
+    foreach ($requiredIds as $skillId) $insert->execute([$jobId, $skillId, 'required']);
+    foreach ($preferredIds as $skillId) $insert->execute([$jobId, $skillId, 'preferred']);
 }
 
 function matching_sync_worker_skills(PDO $pdo, int $workerId, string $input): void
@@ -196,6 +315,8 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
     $jobsStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.job_title AS title,
         jc.category_slug AS job_type,j.work_location AS location,j.work_province,j.work_schedule AS work_date,
         j.work_mode,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path AS company_logo,
+        (SELECT ROUND(AVG(a.rating_by_worker), 1) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_average,
+        (SELECT COUNT(a.rating_by_worker) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_count,
         (SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,
         (SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order,ji.job_image_id LIMIT 1) cover_image,
         GROUP_CONCAT(DISTINCT IF(js.importance='required',s.skill_id,NULL) ORDER BY s.skill_id) required_skill_ids,

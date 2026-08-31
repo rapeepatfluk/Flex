@@ -1,0 +1,249 @@
+/* Applicant profile detail: Bootstrap handles the grid, cards and buttons. */
+.applicant-detail-page {
+    max-inline-size: 1240px;
+}
+
+.applicant-detail-back {
+    color: #0052cc;
+    font-size: .9rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.applicant-detail-back:hover {
+    color: #003f9e;
+    text-decoration: underline;
+    text-underline-offset: .2em;
+}
+
+.applicant-profile-hero {
+    overflow: clip;
+    border-radius: 1.35rem;
+    background:
+        radial-gradient(circle at 90% 12%, rgb(255 255 255 / 80%) 0 6%, transparent 6.2%),
+        radial-gradient(circle at 83% 115%, rgb(0 127 255 / 14%) 0 27%, transparent 27.3%),
+        linear-gradient(120deg, #edf6ff, #f9fcff 60%, #e8f4ff);
+}
+
+.applicant-detail-eyebrow {
+    color: #0052cc;
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .11em;
+}
+
+.applicant-profile-avatar {
+    flex: 0 0 auto;
+    inline-size: 6rem;
+    block-size: 6rem;
+    border: 4px solid #fff;
+    border-radius: 1.25rem;
+    box-shadow: 0 .45rem 1rem rgb(15 23 42 / 13%);
+    object-fit: cover;
+}
+
+.applicant-profile-avatar-fallback {
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #0052cc, #00a3ff);
+    color: #fff;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.applicant-status-badge {
+    padding: .65rem .9rem;
+    font-size: .8rem;
+}
+
+.applicant-detail-card {
+    border-radius: 1.1rem;
+}
+
+.applicant-contact-item {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .85rem;
+    background: #f8fbff;
+}
+
+.applicant-contact-item dt {
+    margin-bottom: .35rem;
+    color: #64748b;
+    font-size: .75rem;
+    font-weight: 600;
+}
+
+.applicant-contact-item dd {
+    color: #1e293b;
+    font-size: .9rem;
+    font-weight: 600;
+}
+
+.applicant-skill-badge {
+    padding: .48rem .72rem;
+    border: 1px solid #bfdbfe;
+    border-radius: 999px;
+    background: #eff6ff;
+    color: #0052cc;
+    font-size: .78rem;
+    font-weight: 600;
+}
+
+.applicant-detail-copy {
+    line-height: 1.85;
+}
+
+.applicant-cover-note {
+    margin: 0;
+    padding: 1rem 1.1rem;
+    border-inline-start: 4px solid #0d6efd;
+    border-radius: 0 .75rem .75rem 0;
+    background: #f7fbff;
+    color: #475569;
+    font-size: .95rem;
+    line-height: 1.85;
+}
+
+.applicant-status-card {
+    position: sticky;
+    inset-block-start: 1.25rem;
+}
+
+.applicant-status-option {
+    display: flex;
+    align-items: safe center;
+    gap: .75rem;
+    padding: .75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .85rem;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+
+.applicant-status-option:hover {
+    border-color: #93c5fd;
+    background: #f8fbff;
+}
+
+.applicant-status-option:has(.form-check-input:checked) {
+    border-color: #0d6efd;
+    background: #eff6ff;
+    box-shadow: 0 .3rem .85rem rgb(13 110 253 / 9%);
+}
+
+.applicant-status-option:has(.form-check-input:focus-visible) {
+    outline: 3px solid #7dd3fc;
+    outline-offset: 2px;
+}
+
+.applicant-status-option .form-check-input {
+    flex: 0 0 auto;
+}
+
+.applicant-status-option-icon {
+    display: grid;
+    flex: 0 0 auto;
+    inline-size: 2rem;
+    block-size: 2rem;
+    border-radius: .65rem;
+    place-items: center;
+    background: #eaf3ff;
+    color: #0052cc;
+    font-weight: 800;
+}
+
+.applicant-status-option-copy {
+    display: grid;
+    gap: .1rem;
+    min-inline-size: 0;
+}
+
+.applicant-status-option-copy strong {
+    color: #1e293b;
+    font-size: .84rem;
+}
+
+.applicant-status-option-copy small {
+    color: #64748b;
+    font-size: .72rem;
+    line-height: 1.35;
+}
+
+.applicant-status-option.tone-success:has(.form-check-input:checked) {
+    border-color: #86efac;
+    background: #f0fdf4;
+}
+
+.applicant-status-option.tone-success .applicant-status-option-icon {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.applicant-status-option.tone-danger:has(.form-check-input:checked) {
+    border-color: #fecaca;
+    background: #fff7f7;
+}
+
+.applicant-status-option.tone-danger .applicant-status-option-icon {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.applicant-status-option.tone-warning:has(.form-check-input:checked) {
+    border-color: #fde68a;
+    background: #fffbeb;
+}
+
+.applicant-status-option.tone-warning .applicant-status-option-icon {
+    background: #fef3c7;
+    color: #a16207;
+}
+
+.applicant-status-option.tone-info:has(.form-check-input:checked) {
+    border-color: #bae6fd;
+    background: #f0f9ff;
+}
+
+.applicant-status-option.tone-info .applicant-status-option-icon {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+@media (max-width: 991.98px) {
+    .applicant-status-card {
+        position: static;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .applicant-profile-hero,
+    .applicant-detail-card {
+        border-radius: 1rem;
+    }
+
+    .applicant-profile-avatar {
+        inline-size: 4.5rem;
+        block-size: 4.5rem;
+        border-radius: 1rem;
+    }
+
+    .applicant-profile-avatar-fallback {
+        font-size: 1.5rem;
+    }
+
+    .applicant-profile-hero .card-body {
+        padding: 1.25rem !important;
+    }
+
+    .applicant-contact-item {
+        padding: .85rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .applicant-status-option {
+        transition: none;
+    }
+}

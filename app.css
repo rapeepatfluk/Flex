@@ -1179,6 +1179,14 @@ blockquote {
   background:#e0f3e4;
   color:#19663f
 }
+.status.interview_passed,.status-lg.interview_passed {
+  background:#d1fae5;
+  color:#047857
+}
+.status.completed,.status-lg.completed {
+  background:#e8f1ff;
+  color:#0052cc
+}
 .status.not_selected,.status-lg.not_selected {
   background:#fee3df;
   color:var(--red)
@@ -1267,6 +1275,8 @@ blockquote {
 .status-radio:hover{border-color:var(--green);background:#f3faf5}
 .status-radio.active{border-color:var(--green);background:#ecf7f0}
 .status-radio.eligible.active{border-color:#19663f;background:#e0f3e4}
+.status-radio.interview-passed.active{border-color:#047857;background:#d1fae5}
+.status-radio.completed.active{border-color:#0052cc;background:#e8f1ff}
 .status-radio.not-selected-opt.active{border-color:var(--red);background:#fee3df}
 .status-radio input[type=radio]{accent-color:var(--green)}
 .status-radio-content{display:flex;gap:10px;align-items:center}

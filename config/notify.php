@@ -30,13 +30,17 @@ function notify_worker_status(int $appId): void
         if (!$row) return;
 
         $statusLabel = [
-            'eligible'     => 'มีสิทธิ์สัมภาษณ์ 🎉',
+            'eligible'          => 'มีสิทธิ์สัมภาษณ์ 🎉',
+            'interview_passed'  => 'ผ่านสัมภาษณ์แล้ว 🎉',
+            'completed'         => 'งานเสร็จสิ้น — ให้คะแนนได้',
             'not_selected' => 'ไม่ผ่านการคัดเลือก',
             'submitted'    => 'รอพิจารณา',
         ][$row['status']] ?? $row['status'];
 
         $statusColor = match($row['status']) {
-            'eligible'     => '#19663f',
+            'eligible'          => '#19663f',
+            'interview_passed'  => '#047857',
+            'completed'         => '#0052cc',
             'not_selected' => '#bd4d3d',
             default        => '#8a6100',
         };

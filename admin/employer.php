@@ -30,10 +30,11 @@ $documentLabels = [
 ];
 
 $pageTitle = 'ข้อมูลผู้ว่าจ้าง | FLEXJOB';
+$pageStyles = ['admin-employer'];
 require APP_ROOT . '/partials/header.php';
 ?>
 
-<main class="container py-5">
+<main id="content" class="container py-5 admin-employer" tabindex="-1">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
         <div>
             <p class="eyebrow">EMPLOYER PROFILE</p>
@@ -43,29 +44,36 @@ require APP_ROOT . '/partials/header.php';
         <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/users.php?role=employer">กลับไปจัดการบัญชี</a>
     </div>
 
-    <section class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-4 p-md-5">
-            <div class="d-flex flex-column flex-sm-row align-items-sm-start gap-4">
-                <?php if ($employer['company_logo_path']): ?>
-                    <img class="rounded border bg-white object-fit-contain p-2" width="88" height="88" src="<?= BASE_URL . '/' . e($employer['company_logo_path']) ?>" alt="โลโก้ <?= e($employer['company_name']) ?>">
-                <?php else: ?>
-                    <div class="rounded bg-primary text-white d-flex align-items-center justify-content-center" style="width:88px;height:88px;font-size:2rem"><?= e(mb_substr($employer['company_name'], 0, 1)) ?></div>
-                <?php endif; ?>
-                <div class="flex-grow-1">
-                    <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
-                        <div><h2 class="h3 mb-1"><?= e($employer['company_name']) ?></h2><p class="text-secondary mb-3"><?= e($employer['company_description'] ?: 'ยังไม่มีรายละเอียดบริษัท') ?></p></div>
-                        <span class="badge align-self-md-start <?= $employer['account_status'] === 'active' ? 'text-bg-success' : 'text-bg-danger' ?>"><?= $employer['account_status'] === 'active' ? 'บัญชีใช้งานอยู่' : 'บัญชีถูกระงับ' ?></span>
+    <section class="card border-0 shadow-sm mb-4 admin-employer-profile-card">
+        <div class="card-body p-4 p-lg-5">
+            <div class="admin-employer-profile-layout">
+                <div class="admin-employer-company-logo" aria-hidden="<?= $employer['company_logo_path'] ? 'false' : 'true' ?>">
+                    <?php if ($employer['company_logo_path']): ?>
+                        <img src="<?= BASE_URL . '/' . e($employer['company_logo_path']) ?>" alt="โลโก้ <?= e($employer['company_name']) ?>">
+                    <?php else: ?>
+                        <span><?= e(mb_substr($employer['company_name'], 0, 1)) ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="admin-employer-profile-content">
+                    <div class="admin-employer-profile-heading">
+                        <div>
+                            <p class="admin-employer-profile-label mb-2">COMPANY PROFILE</p>
+                            <h2 class="h3 mb-2"><?= e($employer['company_name']) ?></h2>
+                            <p class="admin-employer-profile-description mb-0"><?= e($employer['company_description'] ?: 'ยังไม่มีรายละเอียดบริษัท') ?></p>
+                        </div>
+                        <span class="admin-employer-profile-status <?= $employer['account_status'] === 'active' ? 'is-active' : 'is-suspended' ?>"><span aria-hidden="true"><?= $employer['account_status'] === 'active' ? '✓' : '!' ?></span><?= $employer['account_status'] === 'active' ? 'บัญชีใช้งานอยู่' : 'บัญชีถูกระงับ' ?></span>
                     </div>
-                    <dl class="row small mb-0">
-                        <dt class="col-sm-3 text-secondary fw-normal">ผู้ติดต่อ</dt><dd class="col-sm-9"><?= e($employer['first_name'] . ' ' . $employer['last_name']) ?></dd>
-                        <dt class="col-sm-3 text-secondary fw-normal">อีเมล</dt><dd class="col-sm-9"><?= e($employer['email']) ?></dd>
-                        <dt class="col-sm-3 text-secondary fw-normal">เบอร์โทรศัพท์</dt><dd class="col-sm-9"><?= e($employer['phone'] ?: '-') ?></dd>
-                        <dt class="col-sm-3 text-secondary fw-normal">ที่อยู่บริษัท</dt><dd class="col-sm-9 mb-0"><?= e($employer['company_address'] ?: '-') ?></dd>
+                    <dl class="admin-employer-contact-grid mb-0">
+                        <div class="admin-employer-contact-item"><dt>ผู้ติดต่อ</dt><dd><?= e($employer['first_name'] . ' ' . $employer['last_name']) ?></dd></div>
+                        <div class="admin-employer-contact-item"><dt>อีเมล</dt><dd><a href="mailto:<?= e($employer['email']) ?>"><?= e($employer['email']) ?></a></dd></div>
+                        <div class="admin-employer-contact-item"><dt>เบอร์โทรศัพท์</dt><dd><?= e($employer['phone'] ?: '-') ?></dd></div>
+                        <div class="admin-employer-contact-item admin-employer-contact-address"><dt>ที่อยู่บริษัท</dt><dd><?= e($employer['company_address'] ?: '-') ?></dd></div>
                     </dl>
                 </div>
             </div>
         </div>
     </section>
+
 
     <div class="row g-4">
         <div class="col-lg-5">

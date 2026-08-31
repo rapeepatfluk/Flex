@@ -25,7 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $allowedCategories = ['part_time', 'event', 'freelance'];
         $preferences = array_values(array_intersect($allowedCategories, array_map('strval', (array) ($_POST['job_preferences'] ?? []))));
         $selectedWorkInterestIds = array_values(array_unique(array_filter(array_map('intval', (array) ($_POST['work_interests'] ?? [])), fn(int $id): bool => $id > 0)));
-        $skillsInput = trim((string) ($_POST['skills'] ?? ''));
+        $selectedSkillInputIds = (array) ($_POST['skill_ids'] ?? []);
+        $customSkillsInput = trim((string) ($_POST['custom_skills'] ?? ''));
         $workMode = (string) ($_POST['preferred_work_mode'] ?? '');
         $availableFrom = trim((string) ($_POST['available_from'] ?? ''));
         // A missing checkbox is the private option. Unknown values also fail closed.
@@ -34,7 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$selectedWorkInterestIds) throw new RuntimeException('กรุณาเลือกงานที่สนใจอย่างน้อย 1 หมวด');
         if (count($selectedWorkInterestIds) > 5) throw new RuntimeException('เลือกงานที่สนใจได้ไม่เกิน 5 หมวด');
         if (!$preferences) throw new RuntimeException('กรุณาเลือกรูปแบบการจ้างที่สนใจอย่างน้อย 1 ประเภท');
-        if (!matching_parse_skills($skillsInput)) throw new RuntimeException('กรุณาระบุทักษะอย่างน้อย 1 รายการ');
+        if (!$selectedSkillInputIds && !matching_parse_skills($customSkillsInput)) throw new RuntimeException('กรุณาเลือกหรือระบุทักษะอย่างน้อย 1 รายการ');
         if (!in_array($workMode, ['any', 'onsite', 'remote', 'hybrid'], true)) throw new RuntimeException('กรุณาเลือกรูปแบบงานที่ต้องการ');
         if ($availableFrom !== '') {
             $date = DateTimeImmutable::createFromFormat('!Y-m-d', $availableFrom);
@@ -42,9 +43,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $pdo->beginTransaction();
-        $pdo->prepare('INSERT INTO worker_profiles (user_id,skills,work_province,preferred_work_mode,available_from,profile_visibility) VALUES (?,?,?,?,?,?) ON DUPLICATE KEY UPDATE skills=VALUES(skills),work_province=VALUES(work_province),preferred_work_mode=VALUES(preferred_work_mode),available_from=VALUES(available_from),profile_visibility=VALUES(profile_visibility)')
-            ->execute([$workerId, $skillsInput, FLEXJOB_PROVINCE, $workMode, $availableFrom ?: null, $visibility]);
-        matching_sync_worker_skills($pdo, $workerId, $skillsInput);
+        matching_sync_worker_skill_selection($pdo, $workerId, $selectedSkillInputIds, $customSkillsInput);
+        $pdo->prepare('INSERT INTO worker_profiles (user_id,work_province,preferred_work_mode,available_from,profile_visibility) VALUES (?,?,?,?,?) ON DUPLICATE KEY UPDATE work_province=VALUES(work_province),preferred_work_mode=VALUES(preferred_work_mode),available_from=VALUES(available_from),profile_visibility=VALUES(profile_visibility)')
+            ->execute([$workerId, FLEXJOB_PROVINCE, $workMode, $availableFrom ?: null, $visibility]);
         matching_sync_worker_preferences($pdo, $workerId, $preferences);
         matching_sync_worker_work_interests($pdo, $workerId, $selectedWorkInterestIds);
         $pdo->commit();
@@ -57,12 +58,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$profileStatement = $pdo->prepare('SELECT skills,preferred_work_mode,available_from,profile_visibility FROM worker_profiles WHERE user_id=?');
+$profileStatement = $pdo->prepare('SELECT preferred_work_mode,available_from,profile_visibility FROM worker_profiles WHERE user_id=?');
 $profileStatement->execute([$workerId]);
 $profile = $profileStatement->fetch() ?: [];
-$skillStatement = $pdo->prepare("SELECT GROUP_CONCAT(s.skill_name ORDER BY s.skill_name SEPARATOR ', ') FROM worker_skills ws JOIN skills s ON s.skill_id=ws.skill_id WHERE ws.worker_user_id=?");
-$skillStatement->execute([$workerId]);
-$profile['skills'] = $skillStatement->fetchColumn() ?: ($profile['skills'] ?? '');
+$selectedSkillStatement = $pdo->prepare('SELECT skill_id FROM worker_skills WHERE worker_user_id=? ORDER BY skill_id');
+$selectedSkillStatement->execute([$workerId]);
+$selectedSkillIds = array_map('intval', $selectedSkillStatement->fetchAll(PDO::FETCH_COLUMN));
+$skillCategories = matching_skill_catalog($pdo, $selectedSkillIds);
+require_once APP_ROOT . '/partials/skill-selector.php';
 $preferenceStatement = $pdo->prepare('SELECT jc.category_slug FROM worker_job_preferences wjp JOIN job_categories jc ON jc.job_category_id=wjp.job_category_id WHERE wjp.worker_user_id=?');
 $preferenceStatement->execute([$workerId]);
 $selectedPreferences = $preferenceStatement->fetchAll(PDO::FETCH_COLUMN);
@@ -71,7 +74,6 @@ $workInterestStatement->execute([$workerId]);
 $selectedWorkInterestIds = array_map('intval', $workInterestStatement->fetchAll(PDO::FETCH_COLUMN));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error) {
-    $profile['skills'] = trim((string) ($_POST['skills'] ?? ''));
     $profile['preferred_work_mode'] = (string) ($_POST['preferred_work_mode'] ?? 'any');
     $profile['available_from'] = trim((string) ($_POST['available_from'] ?? ''));
     $profile['profile_visibility'] = (string) ($_POST['profile_visibility'] ?? 'application_only');
@@ -80,11 +82,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $error) {
 }
 
 $pageTitle = 'แบบสำรวจ Matching | FLEXJOB';
-$pageStyles = ['matching', 'matching-survey'];
+$pageStyles = ['matching', 'matching-survey', 'skill-selector'];
 require APP_ROOT . '/partials/header.php';
 ?>
-<main class="container py-5 survey-page">
-    <div class="row justify-content-center"><div class="col-lg-9 col-xl-8">
+<main class="container-fluid px-lg-5 py-5 survey-page">
+    <div class="row justify-content-center"><div class="col-xl-11 col-xxl-10">
         <div class="d-flex flex-column flex-sm-row justify-content-between align-items-sm-start gap-3 mb-4">
             <div><p class="eyebrow mb-2">JOB MATCHING SURVEY</p><h1 class="h2 mb-2">บอกเราว่างานแบบไหนเหมาะกับคุณ</h1><p class="text-secondary mb-0">ใช้เวลาประมาณ 1–2 นาที คำตอบแก้ไขภายหลังได้ และใช้แนะนำงานในจังหวัด<?= e(FLEXJOB_PROVINCE) ?>เท่านั้น</p></div>
             <a class="btn btn-link text-decoration-none px-0 flex-shrink-0" href="<?= BASE_URL ?>/worker/index.php">ไว้ทำภายหลัง</a>
@@ -106,7 +108,7 @@ require APP_ROOT . '/partials/header.php';
                 </section>
                 <section class="survey-step" data-survey-step="2">
                     <p class="eyebrow">STEP 3</p><h2 class="h4">คุณมีทักษะหรือความสามารถอะไรบ้าง?</h2><p class="text-secondary">ระบุเฉพาะสิ่งที่ทำได้จริง เช่น การขาย, Excel, Canva หรือถ่ายภาพ</p>
-                    <label class="form-label mt-3" for="surveySkills">ทักษะของคุณ</label><textarea class="form-control" id="surveySkills" name="skills" rows="4" placeholder="เช่น การสื่อสาร, Excel, Canva" required><?= e($profile['skills'] ?? '') ?></textarea><div class="form-text">คั่นแต่ละทักษะด้วยเครื่องหมายจุลภาค ระบบรับสูงสุด 30 ทักษะ</div>
+                    <?php render_skill_selector('surveySkills', 'ทักษะของคุณ', 'เลือกสิ่งที่ทำได้จริง ระบบจะใช้แนะนำงานที่เหมาะกับคุณ', $skillCategories, $selectedSkillIds, 'skill_ids[]', 'custom_skills', true); ?>
                 </section>
                 <section class="survey-step" data-survey-step="3">
                     <p class="eyebrow">STEP 4</p><h2 class="h4">คุณต้องการทำงานรูปแบบใด?</h2><p class="text-secondary">ทุกงานอยู่ในขอบเขตจังหวัด<?= e(FLEXJOB_PROVINCE) ?> ส่วน “ออนไลน์” หมายถึงทำงานจากที่ใดก็ได้โดยไม่ต้องเข้าสถานที่ทำงาน</p>

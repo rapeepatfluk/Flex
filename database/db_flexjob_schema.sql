@@ -13,8 +13,9 @@ CREATE TABLE users (
   password_hash VARCHAR(255) NOT NULL,
   role ENUM('admin', 'employer', 'worker') NOT NULL,
   phone VARCHAR(30) NULL,
-  account_status ENUM('active', 'suspended') NOT NULL DEFAULT 'active',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  account_status ENUM('active', 'suspended', 'pending') NOT NULL DEFAULT 'active',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  email_verified_at TIMESTAMP NULL DEFAULT NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE employer_profiles (
@@ -33,7 +34,6 @@ CREATE TABLE worker_profiles (
   professional_headline VARCHAR(180) NULL,
   biography TEXT NULL,
   profile_image_path VARCHAR(255) NULL,
-  skills TEXT NULL,
   resume_file_path VARCHAR(255) NULL,
   portfolio_file_path VARCHAR(255) NULL,
   portfolio_url VARCHAR(500) NULL,
@@ -129,14 +129,19 @@ CREATE TABLE applications (
   worker_user_id INT UNSIGNED NOT NULL,
   resume_file_path VARCHAR(255) NULL,
   cover_note TEXT NULL,
-  application_status ENUM('submitted', 'eligible', 'not_selected', 'withdrawn') NOT NULL DEFAULT 'submitted',
+  application_status ENUM('submitted', 'eligible', 'interview_passed', 'completed', 'not_selected', 'withdrawn') NOT NULL DEFAULT 'submitted',
   withdrawn_at DATETIME NULL,
+  rating_by_worker TINYINT UNSIGNED NULL,
+  rated_by_worker_at TIMESTAMP NULL DEFAULT NULL,
+  rating_by_employer TINYINT UNSIGNED NULL,
+  rated_by_employer_at TIMESTAMP NULL DEFAULT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_application_job FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE,
   CONSTRAINT fk_application_worker FOREIGN KEY (worker_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   CONSTRAINT uq_application_job_worker UNIQUE (job_id, worker_user_id),
   INDEX idx_application_worker (worker_user_id, application_status)
 ) ENGINE=InnoDB;
+
 
 CREATE TABLE notifications (
   notification_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -150,11 +155,49 @@ CREATE TABLE notifications (
   INDEX idx_notification_inbox (user_id, is_read, created_at)
 ) ENGINE=InnoDB;
 
-CREATE TABLE skills (
-  skill_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  skill_name VARCHAR(100) NOT NULL UNIQUE,
+CREATE TABLE skill_categories (
+  skill_category_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  category_name VARCHAR(100) NOT NULL,
+  category_slug VARCHAR(100) NOT NULL UNIQUE,
+  sort_order SMALLINT UNSIGNED NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
+
+CREATE TABLE skills (
+  skill_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  skill_category_id INT UNSIGNED NULL,
+  skill_name VARCHAR(100) NOT NULL UNIQUE,
+  is_custom TINYINT(1) NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_skill_category FOREIGN KEY (skill_category_id) REFERENCES skill_categories(skill_category_id) ON DELETE SET NULL,
+  INDEX idx_skill_catalog (skill_category_id, is_active)
+) ENGINE=InnoDB;
+INSERT INTO skill_categories (category_name, category_slug, sort_order) VALUES
+  ('งานบริการและร้านค้า', 'service-retail', 10),
+  ('งานอีเวนต์', 'event', 20),
+  ('ขายและการตลาด', 'sales-marketing', 30),
+  ('ครีเอทีฟและดิจิทัล', 'creative-digital', 40),
+  ('งานสำนักงาน', 'office', 50),
+  ('เทคโนโลยีและการออกแบบ', 'technology-design', 60),
+  ('ขนส่งและงานทั่วไป', 'logistics-general', 70)
+ON DUPLICATE KEY UPDATE category_name=VALUES(category_name), sort_order=VALUES(sort_order), is_active=1;
+
+INSERT INTO skills (skill_name, skill_category_id, is_custom, is_active)
+SELECT seed.skill_name, category.skill_category_id, 0, 1
+FROM (
+  SELECT 'บริการลูกค้า' AS skill_name, 'service-retail' AS category_slug UNION ALL SELECT 'รับออเดอร์', 'service-retail' UNION ALL SELECT 'แคชเชียร์', 'service-retail' UNION ALL SELECT 'ชงกาแฟ', 'service-retail' UNION ALL SELECT 'จัดเรียงสินค้า', 'service-retail' UNION ALL SELECT 'ใช้ระบบ POS', 'service-retail' UNION ALL SELECT 'ทำอาหาร', 'service-retail' UNION ALL SELECT 'ตอบแชตลูกค้า', 'service-retail' UNION ALL
+  SELECT 'ลงทะเบียนหน้างาน', 'event' UNION ALL SELECT 'ดูแลบูธ', 'event' UNION ALL SELECT 'ประสานงาน', 'event' UNION ALL SELECT 'จัดสถานที่', 'event' UNION ALL SELECT 'MC / พิธีกร', 'event' UNION ALL SELECT 'ดูแลเครื่องเสียง', 'event' UNION ALL SELECT 'ถ่ายภาพหน้างาน', 'event' UNION ALL SELECT 'ควบคุมคิว', 'event' UNION ALL
+  SELECT 'การขาย', 'sales-marketing' UNION ALL SELECT 'ปิดการขาย', 'sales-marketing' UNION ALL SELECT 'Live ขายสินค้า', 'sales-marketing' UNION ALL SELECT 'Canva', 'sales-marketing' UNION ALL SELECT 'ดูแลโซเชียลมีเดีย', 'sales-marketing' UNION ALL SELECT 'ยิงโฆษณาออนไลน์', 'sales-marketing' UNION ALL SELECT 'ทำคอนเทนต์', 'sales-marketing' UNION ALL SELECT 'วิเคราะห์ลูกค้า', 'sales-marketing' UNION ALL
+  SELECT 'Photoshop', 'creative-digital' UNION ALL SELECT 'Illustrator', 'creative-digital' UNION ALL SELECT 'ตัดต่อวิดีโอ', 'creative-digital' UNION ALL SELECT 'ถ่ายภาพ', 'creative-digital' UNION ALL SELECT 'เขียนคอนเทนต์', 'creative-digital' UNION ALL SELECT 'Motion Graphic', 'creative-digital' UNION ALL SELECT '3D Design', 'creative-digital' UNION ALL SELECT 'CapCut', 'creative-digital' UNION ALL
+  SELECT 'Microsoft Excel', 'office' UNION ALL SELECT 'Google Workspace', 'office' UNION ALL SELECT 'คีย์ข้อมูล', 'office' UNION ALL SELECT 'จัดเอกสาร', 'office' UNION ALL SELECT 'พิมพ์เอกสาร', 'office' UNION ALL SELECT 'จัดตารางนัดหมาย', 'office' UNION ALL SELECT 'รับโทรศัพท์', 'office' UNION ALL SELECT 'ธุรการ', 'office' UNION ALL
+  SELECT 'HTML / CSS', 'technology-design' UNION ALL SELECT 'JavaScript', 'technology-design' UNION ALL SELECT 'PHP', 'technology-design' UNION ALL SELECT 'MySQL / Database', 'technology-design' UNION ALL SELECT 'Front-end Development', 'technology-design' UNION ALL SELECT 'Back-end Development', 'technology-design' UNION ALL SELECT 'Full-stack Development', 'technology-design' UNION ALL SELECT 'WordPress', 'technology-design' UNION ALL SELECT 'UI / UX Design', 'technology-design' UNION ALL SELECT 'Figma', 'technology-design' UNION ALL SELECT 'Web Design', 'technology-design' UNION ALL SELECT 'Graphic Design', 'technology-design' UNION ALL
+  SELECT 'ขับรถยนต์', 'logistics-general' UNION ALL SELECT 'ขับมอเตอร์ไซค์', 'logistics-general' UNION ALL SELECT 'แพ็กสินค้า', 'logistics-general' UNION ALL SELECT 'ยกของ', 'logistics-general' UNION ALL SELECT 'ใช้เครื่องมือช่าง', 'logistics-general' UNION ALL SELECT 'ติดตั้งอุปกรณ์', 'logistics-general' UNION ALL SELECT 'ตรวจนับสินค้า', 'logistics-general' UNION ALL SELECT 'จัดส่งสินค้า', 'logistics-general'
+) AS seed
+JOIN skill_categories AS category ON category.category_slug = seed.category_slug
+ON DUPLICATE KEY UPDATE skill_category_id = COALESCE(skills.skill_category_id, VALUES(skill_category_id)), is_active = 1;
+
 
 CREATE TABLE worker_skills (
   worker_user_id INT UNSIGNED NOT NULL,
@@ -206,4 +249,27 @@ CREATE TABLE job_invitations (
   CONSTRAINT fk_job_invitation_worker FOREIGN KEY (worker_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
   UNIQUE KEY uq_job_invitation_worker (job_id, worker_user_id),
   INDEX idx_worker_invitation_inbox (worker_user_id, invitation_status, created_at)
+) ENGINE=InnoDB;
+
+-- Tokens for email verification and password recovery
+CREATE TABLE auth_tokens (
+  auth_token_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id INT UNSIGNED NOT NULL,
+  token CHAR(64) NOT NULL UNIQUE,
+  token_type ENUM('email_verification', 'password_reset') NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at TIMESTAMP NULL DEFAULT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_auth_token_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  INDEX idx_auth_token_lookup (user_id, token_type, used_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE email_log (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  to_email VARCHAR(190) NOT NULL,
+  subject VARCHAR(255) NOT NULL,
+  status ENUM('sent', 'failed') NOT NULL DEFAULT 'sent',
+  error_msg TEXT NULL,
+  sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_email_log_recipient (to_email)
 ) ENGINE=InnoDB;

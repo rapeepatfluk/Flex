@@ -1,0 +1,35 @@
+/* Bootstrap handles layout and spacing. These rules provide the Worker dashboard identity. */
+.worker-dashboard { background: #f8fafc; }
+.application-hero { color: #fff; background: linear-gradient(120deg, #0052cc, #006ee6 60%, #00a3ff); box-shadow: 0 18px 38px rgb(0 82 204 / 17%); }
+.application-hero .eyebrow { color: #dceeff; }
+.application-hero h1 { color: #fff; }
+.application-hero p:not(.eyebrow) { color: #e6f3ff; }
+.application-summary { border-radius: 18px; }
+.application-summary .card-body { display: grid; gap: .2rem; }
+.application-summary span, .application-summary small { color: #64748b; font-size: .82rem; }
+.application-summary strong { color: #1e293b; font-size: clamp(1.8rem, 3vw, 2.35rem); line-height: 1.1; }
+.application-summary-highlight { background: #eff6ff; outline: 1px solid #bfdbfe; }
+.application-summary-highlight strong { color: #0052cc; }
+.application-list-panel { border: 1px solid #e2e8f0; }
+.application-list-panel .eyebrow { color: #0052cc; }
+.application-card { color: inherit; border-color: #e2e8f0 !important; border-radius: 16px; text-decoration: none; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+.application-card:hover { color: inherit; border-color: #93c5fd !important; box-shadow: 0 12px 24px rgb(0 82 204 / 10%); transform: translateY(-2px); }
+.application-card:focus-visible { outline: 3px solid #00a3ff; outline-offset: 3px; }
+.application-company-mark { display: grid; place-items: center; inline-size: 3.25rem; block-size: 3.25rem; overflow: hidden; border-radius: 14px; background: #eff6ff; color: #0052cc; font-size: 1.2rem; font-weight: 700; }
+.application-company-mark img { inline-size: 100%; block-size: 100%; object-fit: cover; }
+.application-company { color: #475569; font-size: .9rem; }
+.application-meta { color: #64748b; font-size: .8rem; }
+.application-card-side { min-inline-size: 9rem; }
+.application-card-side small { color: #64748b; font-size: .75rem; }
+.application-status { display: inline-block; padding: .42rem .7rem; border-radius: 999px; font-size: .75rem; font-weight: 700; }
+.application-status.submitted { color: #a16207; background: #fef3c7; }
+.application-status.eligible { color: #047857; background: #d1fae5; }
+.application-status.interview_passed { color: #047857; background: #d1fae5; }
+.application-status.completed { color: #0052cc; background: #e8f1ff; }
+.application-status.not_selected { color: #b91c1c; background: #fee2e2; }
+.application-status.withdrawn { color: #475569; background: #e2e8f0; }
+.application-detail-link { display: inline-block; margin-top: .7rem; color: #0052cc; font-size: .8rem; font-weight: 700; }
+.application-empty { border: 1px dashed #bfdbfe; border-radius: 16px; background: #f8fbff; }
+.application-empty > div { color: #00a3ff; font-size: 2.4rem; }
+@media (max-width: 767.98px) { .worker-dashboard { padding-top: 2rem !important; } .application-card-side { min-inline-size: 0; text-align: start !important; } .application-detail-link { margin-top: .35rem; } }
+@supports (container-type: inline-size) { .application-list-panel { container: inline-size / applications; } @container applications (max-width: 430px) { .application-company-mark { inline-size: 2.75rem; block-size: 2.75rem; border-radius: 12px; } .application-meta { display: grid; } } }

@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Create verification token (expires in 24h)
         $token = bin2hex(random_bytes(32));
-        $pdo->prepare('INSERT INTO email_verifications (user_id,token,expires_at) VALUES (?,?,DATE_ADD(NOW(), INTERVAL 24 HOUR))')
+        $pdo->prepare("INSERT INTO auth_tokens (user_id,token,token_type,expires_at) VALUES (?,?,'email_verification',DATE_ADD(NOW(), INTERVAL 24 HOUR))")
             ->execute([$id, $token]);
 
         $pdo->commit();

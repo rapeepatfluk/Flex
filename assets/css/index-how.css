@@ -6,7 +6,7 @@
   column-gap: clamp(52px, 8vw, 132px);
   margin-top: 72px;
   padding: 88px clamp(32px, 5vw, 80px);
-  background: #e7f4e6;
+  background: #eef5ff;
 }
 
 .how-visual {
@@ -23,11 +23,12 @@
 
 .how-content .eyebrow {
   margin: 0 0 16px;
+  color: #0052cc;
 }
 
 .how-content h2 {
   margin: 0;
-  color: #10231e;
+  color: #172d51;
   font-size: clamp(36px, 3.4vw, 48px);
   line-height: 1.2;
   letter-spacing: -1.8px;
@@ -53,6 +54,10 @@
 .how-content li > div {
   min-width: 0;
 }
+.how-content li > span {
+  color: #0052cc;
+  font-weight: 700;
+}
 .how-content li b {
   display: block;
   font-size: 17px;
@@ -60,6 +65,7 @@
 }
 .how-content li p {
   margin: 5px 0 0;
+  color: #334e75;
   font-size: 14px;
   line-height: 1.65;
 }
@@ -98,3 +104,8 @@
     font-size: 31px;
   }
 }
+
+/* Shared phone illustration colors for the homepage and Worker page. */
+.how-section .phone { box-shadow: 17px 18px #8ec3fb; }
+.how-section .phone > b, .how-section .phone div small { color: #0052cc; }
+.how-section .phone div { background: #eef6ff; }

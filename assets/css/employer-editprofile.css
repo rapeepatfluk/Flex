@@ -1,0 +1,29 @@
+/* Employer profile */
+.employer-profile-page { min-height:calc(100vh - 12rem); background:radial-gradient(circle at 6% 20%,rgb(42 144 246 / 11%) 0,transparent 20rem),radial-gradient(circle at 94% 36%,rgb(42 144 246 / 8%) 0,transparent 22rem),linear-gradient(#f8fbff,#eff6ff); color:#102a4c; }
+.employer-profile-hero { display:flex; align-items:center; justify-content:space-between; gap:1.5rem; padding:1.8rem 2rem; border:1px solid #cde3fa; border-radius:1.4rem; background:linear-gradient(120deg,#eaf5ff,#fff 70%); box-shadow:0 1rem 2.6rem rgb(35 102 183 / 9%); }
+.employer-profile-identity { display:flex; min-inline-size:0; align-items:center; gap:1.1rem; }
+.employer-profile-logo { display:grid; flex:0 0 auto; width:5rem; height:5rem; place-items:center; overflow:hidden; border:1px solid #b7daf8; border-radius:1.25rem; background:linear-gradient(135deg,#0965d5,#10a4ed); box-shadow:0 .65rem 1.2rem rgb(12 106 205 / 18%); color:#fff; font-size:2rem; font-weight:800; }
+.employer-profile-logo img { width:100%; height:100%; object-fit:cover; }
+.employer-profile-hero h1 { overflow-wrap:anywhere; font-size:clamp(1.65rem,3vw,2.3rem); font-weight:750; letter-spacing:-.03em; }
+.employer-profile-eyebrow { color:#0762cf; font-size:.71rem; font-weight:800; letter-spacing:.12em; }
+.employer-profile-back { min-block-size:44px; white-space:nowrap; }
+.employer-profile-section,.employer-logo-card { border:1px solid #d2e4f6 !important; border-radius:1.25rem; box-shadow:0 .75rem 2rem rgb(34 83 137 / 8%) !important; background:rgb(255 255 255 / 94%); }
+.employer-profile-section-heading { display:flex; align-items:flex-start; gap:1rem; margin-block-end:1.7rem; padding-block-end:1.15rem; border-block-end:1px solid #e1edf9; }
+.employer-profile-section-heading h2 { color:#102a4c; font-weight:700; }
+.employer-profile-step { display:grid; flex:0 0 2.45rem; width:2.45rem; height:2.45rem; place-items:center; border-radius:50%; background:#e6f1ff; color:#0665d2; font-size:.84rem; font-weight:800; }
+.employer-profile-form .form-label { margin-block-end:.45rem; color:#294566; font-size:.92rem; font-weight:700; }
+.employer-profile-form .form-control { min-block-size:48px; border-color:#c9dcef; border-radius:.75rem; background:#fcfdff; box-shadow:none; }
+.employer-profile-form textarea.form-control { min-block-size:7rem; padding-block-start:.8rem; resize:vertical; }
+.employer-profile-form .form-control:focus { border-color:#1887ec; box-shadow:0 0 0 .22rem rgb(24 135 236 / 14%); }
+.employer-profile-form .form-control:user-invalid { border-color:#d9534f; }
+.employer-logo-card { position:sticky; inset-block-start:1rem; }
+.employer-logo-preview { display:grid; min-block-size:10rem; place-items:center; overflow:hidden; border:1px dashed #a8ccf1; border-radius:1rem; background:linear-gradient(135deg,#f2f9ff,#fff); color:#0870d9; }
+.employer-logo-preview img { width:100%; height:10rem; object-fit:contain; background:#fff; }
+.employer-logo-preview>span { display:grid; width:4.5rem; height:4.5rem; place-items:center; border-radius:1.15rem; background:linear-gradient(135deg,#0965d5,#10a4ed); color:#fff; font-size:1.85rem; font-weight:800; }
+.employer-logo-preview small { margin-block-start:-1.75rem; color:#7890aa; }
+.employer-profile-tip { display:grid; gap:.35rem; padding:1rem 1.1rem; border:1px solid #bde1ff; border-radius:1rem; background:#ebf7ff; color:#496b8d; font-size:.87rem; line-height:1.55; }
+.employer-profile-tip strong { color:#0762c7; }
+.employer-profile-save-bar { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.25rem; border:1px solid #c7e0f8; border-radius:1rem; background:#fff; box-shadow:0 .75rem 1.8rem rgb(27 84 143 / 7%); }
+.employer-profile-save { min-block-size:48px; padding-inline:1.35rem; border-radius:.75rem; font-weight:700; white-space:nowrap; }
+@media (max-width:991.98px) { .employer-logo-card { position:static; } }
+@media (max-width:575.98px) { .employer-profile-hero { align-items:stretch; flex-direction:column; padding:1.35rem; border-radius:1.15rem; } .employer-profile-back,.employer-profile-save { width:100%; } .employer-profile-section .card-body,.employer-logo-card .card-body { padding:1.25rem !important; } .employer-profile-save-bar { align-items:stretch; flex-direction:column; } .employer-profile-logo { width:4rem; height:4rem; border-radius:1rem; } }

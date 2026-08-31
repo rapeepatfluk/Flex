@@ -1,5 +1,5 @@
 .home-recommendations {
-  background: #f7f8f4;
+  background: #f8fafc;
 }
 
 .home-job-controls {
@@ -84,7 +84,7 @@
 
 .home-job-row:hover {
   border-color: #bfdbfe;
-  box-shadow: 0 8px 24px #123a2c12;
+  box-shadow: 0 8px 24px rgb(0 82 204 / 10%);
   transform: translateY(-3px);
 }
 
@@ -94,8 +94,8 @@
   width: 84px;
   height: 78px;
   border-radius: 10px;
-  background: #d8f0d8;
-  color: #194f40;
+  background: #e0f2fe;
+  color: #0052cc;
   font-size: 30px;
 }
 
@@ -108,7 +108,7 @@
 }
 
 .home-job-icon.part_time {
-  background: #d8eed7;
+  background: #dbeafe;
 }
 
 .home-job-info h3 {
@@ -245,19 +245,59 @@
 }
 
 .ad-banner {
-  max-width: 920px;
-  margin: 30px auto;
+  max-width: 900px;
+  margin: 42px auto 58px;
   overflow: hidden;
-  border: 1px solid #bfdbfe;
-  border-radius: 18px;
-  background: #eff6ff;
-  box-shadow: 0 12px 28px rgb(0 82 204 / 10%);
+  background: transparent;
 }
 
 .ad-banner img {
   display: block;
   width: 100%;
   height: auto;
+}
+
+.ad-banner .carousel-item {
+  background: transparent;
+}
+
+.ad-banner .carousel-item img {
+  aspect-ratio: 2 / 1;
+  object-fit: contain;
+}
+
+.ad-banner .carousel-indicators {
+  margin-bottom: 8px;
+}
+
+.ad-banner .carousel-indicators [data-bs-target] {
+  width: 8px;
+  height: 8px;
+  margin: 0 4px;
+  border: 0;
+  border-radius: 50%;
+  background-color: #0052cc;
+  opacity: 0.35;
+}
+
+.ad-banner .carousel-indicators .active {
+  background-color: #00a3ff;
+  opacity: 1;
+}
+
+.ad-banner .carousel-control-prev,
+.ad-banner .carousel-control-next {
+  width: 11%;
+  opacity: 0.8;
+}
+
+.ad-banner .carousel-control-prev-icon,
+.ad-banner .carousel-control-next-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: rgb(0 82 204 / 80%);
+  background-size: 45%;
 }
 
 .advertisement-modal .modal-dialog {
@@ -305,7 +345,7 @@
   margin: 70px max(24px, 7vw);
   padding: 45px 52px;
   border-radius: 18px;
-  background: #176b54;
+  background: #0052cc;
   color: #fff;
 }
 
@@ -319,7 +359,7 @@
 }
 
 .worker-cta p:not(.eyebrow) {
-  color: #c9dfd5;
+  color: #dbeafe;
   font-size: 14px;
 }
 
@@ -509,3 +549,234 @@
     padding: 13px 19px;
   }
 }
+
+/* Homepage job-board illustration */
+.hero-visual {
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 42% 58% 46% 54%;
+}
+
+.hero-visual::before,
+.hero-visual::after {
+  position: absolute;
+  z-index: 0;
+  width: 112px;
+  height: 112px;
+  border: 1px solid #93c5fd;
+  border-radius: 50%;
+  content: '';
+  opacity: 0.65;
+}
+
+.hero-visual::before {
+  top: -42px;
+  right: 24%;
+}
+
+.hero-visual::after {
+  bottom: -54px;
+  left: 19%;
+}
+
+.job-board {
+  position: absolute;
+  z-index: 2;
+  bottom: 28px;
+  left: 50%;
+  display: flex;
+  width: min(310px, 58%);
+  min-height: 246px;
+  flex-direction: column;
+  gap: 14px;
+  padding: 17px;
+  border: 1px solid #bfdbfe;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 94%);
+  box-shadow: 0 18px 38px rgb(0 82 204 / 18%);
+  transform: translateX(-50%) rotate(-3deg);
+}
+
+.job-board-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #1e3a8a;
+  font-size: 12px;
+}
+
+.job-board-header b {
+  flex: 1;
+}
+
+.job-board-header i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.job-board-mark {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 8px;
+  background: #0052cc;
+  color: #fff;
+  font: 700 13px/1 "DM Sans", sans-serif;
+}
+
+.job-board-search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fbff;
+  color: #0052cc;
+  font-size: 13px;
+}
+
+.job-board-search span {
+  flex: 1;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.job-board-search em {
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #00a3ff;
+  color: #fff;
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 700;
+}
+
+.job-board-list {
+  display: grid;
+  gap: 8px;
+}
+
+.job-board-list > div {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px;
+  border: 1px solid #e0ecff;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.job-board-icon {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 8px;
+  background: #dbeafe;
+  color: #0052cc;
+  font-size: 13px;
+}
+
+.job-board-icon.part-time {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.job-board-icon.freelance {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.job-board-list p {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.job-board-list p b {
+  overflow: hidden;
+  color: #1e293b;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-board-list p small {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 9px;
+}
+
+.job-board-list strong {
+  color: #008a63;
+  font: 700 10px "DM Sans", sans-serif;
+}
+
+@media (max-width: 780px) {
+  .job-board {
+    bottom: 22px;
+    width: min(278px, 62%);
+    min-height: 222px;
+    padding: 13px;
+    gap: 10px;
+  }
+
+  .job-board-list > div {
+    padding: 7px;
+  }
+
+  .job-board-list > div:last-child {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .job-board {
+    left: 52%;
+    width: 230px;
+  }
+
+  .top-card {
+    top: 28px;
+    right: 8px;
+  }
+
+  .bottom-card {
+    bottom: 19px;
+    left: 8px;
+  }
+}
+/* Landing page refresh: Bootstrap controls the grid, buttons, cards and spacing. */
+.landing-hero { position: relative; overflow: clip; background: linear-gradient(180deg, #f8fbff 0%, #fff 100%); }
+.landing-hero h1 { color: #1e293b; letter-spacing: -.055em; line-height: 1.08; }
+.landing-hero .lead { max-inline-size: 36rem; color: #64748b; line-height: 1.8; }
+.landing-search { border: 1px solid #bfdbfe; background: #fff; box-shadow: 0 1rem 2rem rgb(0 82 204 / 10%); }
+.landing-search .form-control, .landing-search .form-select { min-block-size: 2.85rem; color: #1e293b; box-shadow: none; }
+.landing-search .form-control:focus, .landing-search .form-select:focus { box-shadow: 0 0 0 .22rem rgb(0 163 255 / 17%); }
+.landing-search .btn { min-block-size: 2.85rem; }
+.landing-popular { color: #64748b; font-size: .78rem; }
+.landing-popular a { padding: .32rem .6rem; border: 1px solid #dbeafe; border-radius: 999px; background: #fff; color: #0052cc; text-decoration: none; }
+.landing-popular a:hover { border-color: #60a5fa; background: #eff6ff; }
+.landing-hero-visual { min-block-size: 24rem; border-radius: 2rem; box-shadow: inset 0 0 0 1px #bfdbfe; }
+.landing-explore { background: #f8fafc; }
+.landing-explore h2 { color: #1e293b; letter-spacing: -.035em; }
+.landing-category-card { inline-size: 100%; color: #1e293b; transition: transform .2s ease, box-shadow .2s ease, background-color .2s ease; }
+.landing-category-card:hover, .landing-category-card.active { background: #eff6ff; box-shadow: 0 .9rem 1.8rem rgb(0 82 204 / 11%) !important; transform: translateY(-.25rem); }
+.landing-category-card:focus-visible { outline: 3px solid #00a3ff; outline-offset: 3px; }
+.landing-category-card i { display: grid; inline-size: 2.5rem; aspect-ratio: 1; place-items: center; margin-bottom: 1rem; border-radius: .8rem; background: #dbeafe; color: #0052cc; font-size: 1.2rem; font-style: normal; }
+.landing-category-card b, .landing-category-card small { display: block; }
+.landing-category-card b { font-size: 1rem; }
+.landing-category-card small { margin-top: .35rem; color: #64748b; font-size: .78rem; }
+@media (max-width: 767.98px) { .landing-hero { padding-block: 2.25rem !important; } .landing-hero-visual { min-block-size: 20rem; } }
+@media (max-width: 575.98px) { .landing-hero h1 { font-size: clamp(2.35rem, 12vw, 3.25rem); } .landing-search { padding: .6rem !important; } .landing-hero-visual { min-block-size: 18rem; border-radius: 1.45rem; } .landing-category-card { padding: 1.15rem !important; } }
+.landing-cta .row { color: #fff; background: linear-gradient(120deg, #0052cc, #006ee6 60%, #00a3ff); box-shadow: 0 1rem 2.3rem rgb(0 82 204 / 16%); }
+.landing-cta .eyebrow { color: #d9edff; }
+.landing-cta h2 { color: #fff; letter-spacing: -.035em; }
+.landing-cta p:not(.eyebrow) { color: #e5f2ff; }
+@media (max-width: 991.98px) { .landing-cta .row { text-align: center; } }
