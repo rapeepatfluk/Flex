@@ -41,6 +41,7 @@ try {
 
     $ratingColumn = $role === 'worker' ? 'rating_by_worker' : 'rating_by_employer';
     $ratedAtColumn = $role === 'worker' ? 'rated_by_worker_at' : 'rated_by_employer_at';
+    $pdo->beginTransaction();
     $update = $pdo->prepare("UPDATE applications SET {$ratingColumn}=?, {$ratedAtColumn}=NOW() WHERE application_id=? AND {$ratingColumn} IS NULL");
     $update->execute([$rating, $applicationId]);
     if (!$update->rowCount()) {
@@ -50,12 +51,14 @@ try {
     $notificationUrl = $role === 'worker'
         ? 'employer/applicant-detail.php?id=' . $applicationId . '&job=' . $application['job_id']
         : 'worker/application-detail.php?id=' . $applicationId;
-    $pdo->prepare('INSERT INTO notifications (user_id,notification_title,notification_message,notification_url) VALUES (?,?,?,?)')
-        ->execute([$ratedUserId, 'ได้รับคะแนนใหม่', user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว หลังจบงาน', $notificationUrl]);
+    notification_create($pdo, $ratedUserId, 'ได้รับคะแนนใหม่', user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว หลังจบงาน', $notificationUrl);
+    $pdo->commit();
     flash('success', 'บันทึกคะแนน ' . $rating . ' ดาวเรียบร้อยแล้ว');
 } catch (PDOException $exception) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     flash('error', 'ไม่สามารถบันทึกคะแนนได้ กรุณาลองใหม่');
 } catch (RuntimeException $exception) {
+    if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     flash('error', $exception->getMessage());
 }
 

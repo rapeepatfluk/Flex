@@ -141,6 +141,7 @@ function upload_file(string $field, array $allowed, string $folder): ?string
 
 // Auto-load email helpers (fail-safe — won't break if SMTP not configured)
 require_once __DIR__ . '/mailer.php';
+require_once APP_ROOT . '/services/NotificationService.php';
 require_once __DIR__ . '/notify.php';
 require_once APP_ROOT . '/services/ApplicationService.php';
 require_once APP_ROOT . '/services/MatchingService.php';

@@ -37,21 +37,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $slipPath = upload_file('payment_slip', ['jpg', 'jpeg', 'png', 'webp', 'pdf'], 'payment-slips');
             if (!$slipPath) throw new RuntimeException('กรุณาเลือกไฟล์สลิปการชำระเงิน');
 
+            $pdo->beginTransaction();
             $pdo->prepare("UPDATE job_promotions SET promotion_status='pending_verification',payment_slip_path=?,payment_reference=?,payment_submitted_at=NOW(),reviewed_by_user_id=NULL,reviewed_at=NULL,review_note=NULL WHERE promotion_id=?")
                 ->execute([$slipPath, $reference ?: null, $promotionId]);
             $adminStatement = $pdo->query("SELECT user_id FROM users WHERE role='admin' AND account_status='active'");
-            $notify = $pdo->prepare('INSERT INTO notifications (user_id,notification_title,notification_message,notification_url) VALUES (?,?,?,?)');
             foreach ($adminStatement->fetchAll(PDO::FETCH_COLUMN) as $adminId) {
-                $notify->execute([(int) $adminId, 'มีสลิปโปรโมตรอตรวจ', $job['company_name'] . ' ส่งสลิปโปรโมตงาน: ' . $job['job_title'], 'admin/promotions.php']);
+                notification_create($pdo, (int) $adminId, 'มีสลิปโปรโมตรอตรวจ', $job['company_name'] . ' ส่งสลิปโปรโมตงาน: ' . $job['job_title'], 'admin/promotions.php');
             }
+            $pdo->commit();
             flash('success', 'ส่งสลิปแล้ว กรุณารอผู้ดูแลตรวจสอบ');
             redirect('employer/promote.php?job=' . $jobId . '&promotion=' . $promotionId);
         }
 
         throw new RuntimeException('คำขอไม่ถูกต้อง');
     } catch (RuntimeException $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
     } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('Promotion order failed: ' . $e->getMessage());
         flash('error', 'ไม่สามารถดำเนินการโปรโมตได้ กรุณาลองใหม่');
     }

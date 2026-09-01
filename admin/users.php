@@ -15,10 +15,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $accountStmt->execute([$userId]);
         if (!$accountStmt->fetch()) throw new RuntimeException('ไม่สามารถจัดการบัญชีนี้ได้');
 
+        $pdo->beginTransaction();
         $pdo->prepare('UPDATE users SET account_status=? WHERE user_id=?')->execute([$status, $userId]);
         admin_notify_user($pdo, $userId, 'สถานะบัญชี FLEXJOB', $status === 'active' ? 'บัญชีของคุณเปิดใช้งานแล้ว' : 'บัญชีของคุณถูกระงับการใช้งาน');
+        $pdo->commit();
         flash('success', $status === 'active' ? 'เปิดใช้งานบัญชีแล้ว' : 'ระงับบัญชีแล้ว');
     } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
     }
     redirect('admin/users.php');

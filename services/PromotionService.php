@@ -50,7 +50,29 @@ function promotion_promptpay_payload(string $promptPayId, float $amount): string
 
 function promotion_sync_expired(PDO $pdo): void
 {
-    $pdo->exec("UPDATE job_promotions SET promotion_status='expired' WHERE promotion_status='active' AND ends_at<=NOW()");
+    $ownsTransaction = !$pdo->inTransaction();
+    if ($ownsTransaction) $pdo->beginTransaction();
+    try {
+        $statement = $pdo->query("SELECT jp.promotion_id,jp.employer_user_id,jp.job_id,j.job_title
+            FROM job_promotions jp JOIN jobs j ON j.job_id=jp.job_id
+            WHERE jp.promotion_status='active' AND jp.ends_at<=NOW() FOR UPDATE");
+        $update = $pdo->prepare("UPDATE job_promotions SET promotion_status='expired' WHERE promotion_id=? AND promotion_status='active'");
+        foreach ($statement->fetchAll() as $promotion) {
+            $update->execute([$promotion['promotion_id']]);
+            if (!$update->rowCount()) continue;
+            notification_create(
+                $pdo,
+                (int) $promotion['employer_user_id'],
+                'โปรโมชันหมดอายุแล้ว',
+                'การโปรโมตงาน “' . $promotion['job_title'] . '” สิ้นสุดแล้ว',
+                'employer/promote.php?job=' . $promotion['job_id'] . '&promotion=' . $promotion['promotion_id']
+            );
+        }
+        if ($ownsTransaction) $pdo->commit();
+    } catch (Throwable $e) {
+        if ($ownsTransaction && $pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
 }
 
 function promotion_attach_to_jobs(PDO $pdo, array $jobs): array

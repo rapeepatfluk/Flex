@@ -17,12 +17,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $employerId = (int) $ownerStmt->fetchColumn();
         if (!$employerId) throw new RuntimeException('ไม่พบเอกสารผู้ว่าจ้าง');
 
+        $pdo->beginTransaction();
         $pdo->prepare('UPDATE employer_documents SET document_status=?, review_note=?, reviewed_by_user_id=?, reviewed_at=NOW() WHERE employer_document_id=?')
             ->execute([$status, $note ?: null, user()['id'], $documentId]);
         $statusText = ['approved' => 'ผ่านการตรวจสอบ', 'rejected' => 'ไม่ผ่านการตรวจสอบ', 'resubmit' => 'ต้องส่งเอกสารเพิ่มเติม'][$status];
         admin_notify_user($pdo, $employerId, 'ผลการตรวจเอกสารผู้ว่าจ้าง', 'เอกสารของคุณ' . $statusText . ($note ? ' — ' . $note : ''));
+        $pdo->commit();
         flash('success', 'บันทึกผลการตรวจเอกสารและส่งการแจ้งเตือนแล้ว');
     } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
     }
     redirect('admin/documents.php');

@@ -6,7 +6,7 @@ require_once __DIR__ . '/../config/config.php';
 
 $pdo = db();
 $workerId = (int) $pdo->query("SELECT user_id FROM users WHERE role='worker' AND account_status='active' ORDER BY user_id LIMIT 1")->fetchColumn();
-$jobStatement = $pdo->prepare("SELECT job_id,employer_user_id,work_province,job_category_id FROM jobs WHERE job_status='published' AND work_province=? ORDER BY job_id LIMIT 1");
+$jobStatement = $pdo->prepare("SELECT job_id,employer_user_id,work_province,job_category_id FROM jobs WHERE job_status='published' AND work_province=? AND (application_deadline IS NULL OR application_deadline>=CURDATE()) ORDER BY job_id LIMIT 1");
 $jobStatement->execute([FLEXJOB_PROVINCE]);
 $job = $jobStatement->fetch();
 

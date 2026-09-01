@@ -15,6 +15,7 @@ function notify_worker_status(int $appId): void
         $s = db()->prepare("
             SELECT
                 a.application_status AS status,
+                a.worker_user_id,
                 j.job_title AS title,
                 ep.company_name,
                 CONCAT(u.first_name,' ',u.last_name) AS worker_name,
@@ -47,6 +48,14 @@ function notify_worker_status(int $appId): void
 
         $dashboardUrl = BASE_URL . '/worker/application-detail.php?id=' . $appId;
         $appUrl = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $dashboardUrl;
+
+        notification_create(
+            db(),
+            (int) $row['worker_user_id'],
+            'อัปเดตสถานะใบสมัคร',
+            'งาน “' . $row['title'] . '” เปลี่ยนสถานะเป็น ' . $statusLabel,
+            'worker/application-detail.php?id=' . $appId
+        );
 
         $btnHtml = $row['status'] !== 'submitted'
             ? email_btn($appUrl, 'ดูรายละเอียดการสมัคร')

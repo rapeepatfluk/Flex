@@ -43,8 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = 'ปฏิเสธสลิปและแจ้งเหตุผลแล้ว';
         }
 
-        $pdo->prepare('INSERT INTO notifications (user_id,notification_title,notification_message,notification_url) VALUES (?,?,?,?)')
-            ->execute([(int) $promotion['employer_user_id'], 'ผลตรวจสลิปโปรโมต', $message, 'employer/promote.php?job=' . $promotion['job_id'] . '&promotion=' . $promotionId]);
+        notification_create($pdo, (int) $promotion['employer_user_id'], 'ผลตรวจสลิปโปรโมต', $message, 'employer/promote.php?job=' . $promotion['job_id'] . '&promotion=' . $promotionId);
         $pdo->commit();
         flash('success', $success);
     } catch (RuntimeException $e) {

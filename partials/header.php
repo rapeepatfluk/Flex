@@ -17,10 +17,8 @@ $unreadNotifications = 0;
 $accountAvatarPath = null;
 
 if ($currentUser) {
-    $notificationStmt = db()->prepare('SELECT notification_id, notification_title, notification_message, notification_url, is_read, created_at FROM notifications WHERE user_id=? ORDER BY created_at DESC LIMIT 8');
-    $notificationStmt->execute([$currentUser['id']]);
-    $notifications = $notificationStmt->fetchAll();
-    $unreadNotifications = count(array_filter($notifications, fn(array $notification): bool => !(bool) $notification['is_read']));
+    $notifications = notification_latest(db(), (int) $currentUser['id']);
+    $unreadNotifications = notification_unread_count(db(), (int) $currentUser['id']);
 
     if ($role === 'worker') {
         $avatarStmt = db()->prepare('SELECT profile_image_path FROM worker_profiles WHERE user_id=?');
@@ -112,16 +110,16 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
 
         <div class="header-actions">
             <?php if ($currentUser): ?>
-                <details class="notification-menu">
+                <details class="notification-menu" id="notificationMenu" data-feed-url="<?= BASE_URL ?>/notifications-feed.php">
                     <summary aria-label="การแจ้งเตือน">
                         <span class="notification-bell">
                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
-                            <?php if ($unreadNotifications): ?><span class="notification-count"><?= $unreadNotifications > 9 ? '9+' : $unreadNotifications ?></span><?php endif; ?>
+                            <span class="notification-count" id="notificationCount" <?= $unreadNotifications ? '' : 'hidden' ?>><?= $unreadNotifications > 9 ? '9+' : $unreadNotifications ?></span>
                         </span>
                     </summary>
                     <div class="notification-panel">
                         <strong>การแจ้งเตือน</strong>
-                        <?php foreach ($notifications as $notification): ?>
+                        <div id="notificationList"><?php foreach ($notifications as $notification): ?>
                             <a class="notification-item <?= $notification['is_read'] ? 'is-read' : '' ?>" href="<?= BASE_URL ?>/notification.php?id=<?= $notification['notification_id'] ?>">
                                 <b><?= e($notification['notification_title']) ?></b>
                                 <span><?= e($notification['notification_message']) ?></span>
@@ -129,7 +127,8 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
                             </a>
                         <?php endforeach; ?>
                         <?php if (!$notifications): ?><p class="notification-empty">ยังไม่มีการแจ้งเตือน</p><?php endif; ?>
-                        <?php if ($notifications): ?><form class="notification-clear" method="post" action="<?= BASE_URL ?>/notification-clear.php"><?= csrf_field() ?><input type="hidden" name="return_path" value="<?= e(ltrim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '', '/')) ?>"><button type="submit">ล้างการแจ้งเตือนทั้งหมด</button></form><?php endif; ?>
+                        </div>
+                        <div class="notification-panel-actions"><a href="<?= BASE_URL ?>/notifications.php">ดูการแจ้งเตือนทั้งหมด</a></div>
                     </div>
                 </details>
                 <details class="account-menu">

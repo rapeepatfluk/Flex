@@ -12,17 +12,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? '';
         if (!in_array($status, ['accepted', 'declined'], true)) throw new RuntimeException('สถานะคำเชิญไม่ถูกต้อง');
 
-        if ($status === 'accepted') {
-            $openStatement = $pdo->prepare("SELECT 1 FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id WHERE ji.job_invitation_id=? AND ji.worker_user_id=? AND j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())");
-            $openStatement->execute([$invitationId, $workerId, FLEXJOB_PROVINCE]);
-            if (!$openStatement->fetchColumn()) throw new RuntimeException('งานนี้ปิดรับสมัครแล้ว');
-        }
+        $pdo->beginTransaction();
+        $invitationStatement = $pdo->prepare("SELECT ji.job_invitation_id,ji.invitation_status,j.job_id,j.job_title,j.employer_user_id,
+            (j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())) is_open
+            FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id
+            WHERE ji.job_invitation_id=? AND ji.worker_user_id=? FOR UPDATE");
+        $invitationStatement->execute([FLEXJOB_PROVINCE, $invitationId, $workerId]);
+        $invitation = $invitationStatement->fetch();
+        if (!$invitation || !in_array($invitation['invitation_status'], ['sent', 'viewed'], true)) throw new RuntimeException('ไม่สามารถอัปเดตคำเชิญได้');
+        if ($status === 'accepted' && !$invitation['is_open']) throw new RuntimeException('งานนี้ปิดรับสมัครแล้ว');
 
-        $statement = $pdo->prepare("UPDATE job_invitations SET invitation_status=?,responded_at=NOW() WHERE job_invitation_id=? AND worker_user_id=? AND invitation_status IN ('sent','viewed')");
-        $statement->execute([$status, $invitationId, $workerId]);
-        if (!$statement->rowCount()) throw new RuntimeException('ไม่สามารถอัปเดตคำเชิญได้');
+        $statement = $pdo->prepare('UPDATE job_invitations SET invitation_status=?,responded_at=NOW() WHERE job_invitation_id=?');
+        $statement->execute([$status, $invitationId]);
+        notification_create(
+            $pdo,
+            (int) $invitation['employer_user_id'],
+            $status === 'accepted' ? 'ผู้หางานตอบรับคำเชิญ' : 'ผู้หางานปฏิเสธคำเชิญ',
+            user()['name'] . ($status === 'accepted' ? ' สนใจคำเชิญสมัครงาน: ' : ' ไม่สนใจคำเชิญสมัครงาน: ') . $invitation['job_title'],
+            'employer/candidates.php?job=' . $invitation['job_id']
+        );
+        $pdo->commit();
         flash('success', $status === 'accepted' ? 'ตอบรับคำเชิญแล้ว คุณสามารถตรวจสอบและสมัครงานได้' : 'ปฏิเสธคำเชิญแล้ว');
     } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
     }
     redirect('worker/invitations.php');

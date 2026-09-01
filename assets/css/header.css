@@ -127,12 +127,13 @@
   font-size: 12px;
 }
 
-.notification-clear {
+.notification-panel-actions {
   padding: 10px;
   border-top: 1px solid #e6edf3;
 }
 
-.notification-clear button {
+.notification-panel-actions a {
+  display: block;
   width: 100%;
   padding: 8px;
   border: 0;
@@ -142,9 +143,10 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  text-align: center;
 }
 
-.notification-clear button:hover {
+.notification-panel-actions a:hover {
   background: #dbeafe;
 }
 .account-menu summary {

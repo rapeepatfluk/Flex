@@ -2,6 +2,7 @@
     <p>งานที่ใช่ ในเวลาที่ยืดหยุ่น</p><span>© 2026 FLEXJOB</span>
 </footer>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<?php if (user()): ?><script src="<?= BASE_URL ?>/assets/js/notifications.js?v=<?= filemtime(APP_ROOT . '/assets/js/notifications.js') ?>"></script><?php endif; ?>
 <script>
 (function () {
     var link = document.getElementById('howItWorksLink');

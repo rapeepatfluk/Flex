@@ -20,11 +20,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reason = trim($_POST['reason'] ?? '');
         if ($reason === '') throw new RuntimeException('กรุณาระบุเหตุผลในการลบประกาศ');
 
+        $pdo->beginTransaction();
         $pdo->prepare('DELETE FROM jobs WHERE job_id=?')->execute([$jobId]);
         admin_notify_user($pdo, (int) $job['employer_user_id'], 'ประกาศงานถูกลบ', 'ประกาศ “' . $job['job_title'] . '” ถูกลบออกจากระบบ — เหตุผล: ' . $reason);
+        $pdo->commit();
         flash('success', 'ลบประกาศงานแล้วและแจ้งเหตุผลให้ผู้ว่าจ้างแล้ว');
         redirect('admin/jobs.php');
     } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
     }
 }

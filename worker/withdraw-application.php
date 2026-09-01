@@ -18,8 +18,7 @@ try {
 
     $pdo->prepare("UPDATE applications SET application_status='withdrawn',withdrawn_at=NOW() WHERE application_id=? AND worker_user_id=? AND application_status='submitted'")
         ->execute([$applicationId, user()['id']]);
-    $pdo->prepare('INSERT INTO notifications (user_id,notification_title,notification_message,notification_url) VALUES (?,?,?,?)')
-        ->execute([(int) $application['employer_user_id'], 'ผู้สมัครถอนใบสมัคร', user()['name'] . ' ถอนใบสมัครงาน: ' . $application['job_title'], 'employer/applicants.php?job=' . $application['job_id']]);
+    notification_create($pdo, (int) $application['employer_user_id'], 'ผู้สมัครถอนใบสมัคร', user()['name'] . ' ถอนใบสมัครงาน: ' . $application['job_title'], 'employer/applicants.php?job=' . $application['job_id']);
     $pdo->commit();
     flash('success', 'ถอนใบสมัครเรียบร้อยแล้ว');
 } catch (RuntimeException $e) {

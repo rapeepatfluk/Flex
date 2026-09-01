@@ -413,8 +413,7 @@ function matching_send_invitation(PDO $pdo, int $employerId, int $jobId, int $wo
     try {
         $pdo->prepare('INSERT INTO job_invitations (job_id,worker_user_id,invitation_message) VALUES (?,?,?)')
             ->execute([$jobId, $workerId, trim($message) ?: null]);
-        $pdo->prepare('INSERT INTO notifications (user_id,notification_title,notification_message,notification_url) VALUES (?,?,?,?)')
-            ->execute([$workerId, 'คำเชิญสมัครงานใหม่', 'ผู้ว่าจ้างเชิญคุณสมัครงาน: ' . $jobTitle, 'worker/invitations.php']);
+        notification_create($pdo, $workerId, 'คำเชิญสมัครงานใหม่', 'ผู้ว่าจ้างเชิญคุณสมัครงาน: ' . $jobTitle, 'worker/invitations.php');
         $pdo->commit();
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
