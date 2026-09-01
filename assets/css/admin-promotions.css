@@ -1,0 +1,125 @@
+.admin-promotions {
+    min-block-size: calc(100dvb - 4.75rem);
+    padding-block: 2rem 4rem;
+    background: linear-gradient(180deg, #f6faff, #f8fafc)
+}
+
+.admin-promotions-hero {
+    overflow: hidden;
+    border: 1px solid #d3e6ff;
+    border-radius: 1.25rem;
+    background: radial-gradient(circle at 90% 15%, rgb(0 163 255/15%), transparent 16rem), linear-gradient(120deg, #fff, #eef7ff)
+}
+
+.admin-promotions-eyebrow {
+    color: #075dcc;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .12em
+}
+
+.admin-promotions-count {
+    display: grid;
+    min-inline-size: 11rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid #bcdcff;
+    border-radius: 1rem;
+    background: #fff
+}
+
+.admin-promotions-count strong {
+    color: #075dcc;
+    font-size: 1.8rem
+}
+
+.admin-promotions-count span {
+    color: #64748b;
+    font-size: .8rem
+}
+
+.admin-promotions-tabs {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto
+}
+
+.admin-promotions-tabs a {
+    padding: .65rem .9rem;
+    border: 1px solid #d7e5f4;
+    border-radius: .7rem;
+    background: #fff;
+    color: #45617f;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap
+}
+
+.admin-promotions-tabs a.is-active {
+    border-color: #075dcc;
+    background: #075dcc;
+    color: #fff
+}
+
+.admin-promotion-card {
+    border: 1px solid #dce9f8 !important;
+    border-radius: 1rem;
+    box-shadow: 0 .6rem 1.6rem rgb(15 50 91/6%)
+}
+
+.admin-promotion-amount {
+    color: #075dcc;
+    font-size: 1.65rem
+}
+
+.admin-promotion-meta {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: .7rem;
+    margin-block: 1rem
+}
+
+.admin-promotion-meta div {
+    padding: .8rem;
+    border: 1px solid #e1ebf6;
+    border-radius: .7rem;
+    background: #f9fbfe
+}
+
+.admin-promotion-meta dt {
+    color: #7890aa;
+    font-size: .7rem
+}
+
+.admin-promotion-meta dd {
+    margin: 0;
+    color: #294b70;
+    font-size: .85rem;
+    font-weight: 700
+}
+
+.admin-promotion-review {
+    padding: 1rem;
+    border: 1px solid #dce9f7;
+    border-radius: .9rem;
+    background: #f8fbff
+}
+
+.admin-promotion-active {
+    display: grid;
+    gap: .4rem;
+    padding: 1.2rem;
+    border: 1px solid #b9ebcf;
+    border-radius: .9rem;
+    background: #effbf4;
+    color: #087747
+}
+
+@media(max-width:767.98px) {
+    .admin-promotion-meta {
+        grid-template-columns: 1fr
+    }
+
+    .admin-promotions-count {
+        min-inline-size: 0
+    }
+}

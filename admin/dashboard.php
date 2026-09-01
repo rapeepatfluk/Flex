@@ -8,6 +8,7 @@ $stats = [
     'workers' => (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role='worker'")->fetchColumn(),
     'jobs' => (int) $pdo->query("SELECT COUNT(*) FROM jobs WHERE job_status='published'")->fetchColumn(),
     'pending' => (int) $pdo->query("SELECT COUNT(*) FROM employer_documents WHERE document_status IN ('pending','resubmit')")->fetchColumn(),
+    'promotion_pending' => (int) $pdo->query("SELECT COUNT(*) FROM job_promotions WHERE promotion_status='pending_verification'")->fetchColumn(),
 ];
 $pendingDocuments = $pdo->query("SELECT ed.employer_user_id,ed.document_status,ed.submitted_at,ep.company_name,CONCAT(u.first_name,' ',u.last_name) contact_name FROM employer_documents ed JOIN employer_profiles ep ON ep.user_id=ed.employer_user_id JOIN users u ON u.user_id=ed.employer_user_id WHERE ed.document_status IN ('pending','resubmit') ORDER BY ed.submitted_at DESC LIMIT 4")->fetchAll();
 $recentJobs = $pdo->query("SELECT j.job_id,j.job_status,j.job_title,j.created_at,ep.company_name,wi.interest_name work_interest_name FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id ORDER BY j.created_at DESC LIMIT 4")->fetchAll();
@@ -31,6 +32,7 @@ require APP_ROOT . '/partials/header.php';
                     </div>
                     <div class="col-lg-auto"><div class="admin-dashboard-hero-actions">
                         <a class="btn btn-primary" href="<?= BASE_URL ?>/admin/documents.php">ตรวจเอกสารผู้ว่าจ้าง</a>
+                        <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/promotions.php">ตรวจสอบการชำระเงิน<?= $stats['promotion_pending'] ? ' (' . number_format($stats['promotion_pending']) . ')' : '' ?></a>
                         <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/users.php">จัดการบัญชี</a>
                     </div></div>
                 </div>
@@ -64,6 +66,7 @@ require APP_ROOT . '/partials/header.php';
             <div class="row g-3">
                 <?php foreach ([
                     ['documents.php', '▤', 'VERIFICATION', 'เอกสารผู้ว่าจ้าง', 'อนุมัติ ขอเอกสารเพิ่ม หรือแจ้งผลการตรวจสอบให้ผู้ว่าจ้างทราบ', 'ตรวจสอบเอกสาร'],
+                    ['promotions.php', '✦', 'PROMOTION PAYMENTS', 'การโปรโมตประกาศ', 'ตรวจสอบสลิป อนุมัติการชำระเงิน และติดตามระยะเวลาโปรโมต', 'ตรวจสอบการชำระเงิน'],
                     ['jobs.php', '◷', 'JOB MODERATION', 'ประกาศงาน', 'ตรวจสอบเนื้อหา ซ่อน ปิดรับสมัคร หรือลบประกาศที่ไม่เหมาะสม', 'จัดการประกาศ'],
                     ['users.php', '◎', 'ACCOUNT MANAGEMENT', 'บัญชีผู้ใช้', 'ค้นหา ตรวจสอบสถานะ และเปิดหรือระงับบัญชีผู้ใช้งาน', 'จัดการบัญชี'],
                 ] as [$path, $icon, $eyebrow, $title, $description, $action]): ?>

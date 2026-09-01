@@ -26,22 +26,27 @@ $statusOptions = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array((string) ($_POST['status'] ?? ''), ['submitted', 'eligible', 'interview_passed', 'completed', 'not_selected'], true)) {
     try {
         verify_csrf();
+        $updatedAppId = (int) ($_POST['application_id'] ?? 0);
+        $statusChanged = application_update_status_by_employer(
+            $pdo,
+            (int) user()['id'],
+            $jobId,
+            $updatedAppId,
+            (string) $_POST['status']
+        );
+
+        if ($statusChanged) {
+            notify_worker_status($updatedAppId);
+            flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
+        } else {
+            flash('success', 'สถานะผู้สมัครไม่มีการเปลี่ยนแปลง');
+        }
     } catch (RuntimeException $e) {
         flash('error', $e->getMessage());
-        redirect('employer/applicants.php?job=' . $jobId);
+    } catch (Throwable $e) {
+        error_log('Application status update failed: ' . $e->getMessage());
+        flash('error', 'ไม่สามารถอัปเดตสถานะผู้สมัครได้ กรุณาลองใหม่อีกครั้ง');
     }
-
-    $updatedAppId = (int) ($_POST['application_id'] ?? 0);
-    $update = $pdo->prepare("UPDATE applications SET application_status=? WHERE application_id=? AND job_id=? AND application_status<>'withdrawn'");
-    $update->execute([$_POST['status'], $updatedAppId, $jobId]);
-
-    if ($update->rowCount()) {
-        notify_worker_status($updatedAppId);
-        flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
-    } else {
-        flash('error', 'ไม่สามารถเปลี่ยนสถานะใบสมัครที่ผู้หางานถอนแล้ว');
-    }
-
     redirect('employer/applicants.php?job=' . $jobId);
 }
 

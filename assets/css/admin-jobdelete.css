@@ -1,1 +1,215 @@
-.admin-jobdelete{min-block-size:calc(100dvb - 4.75rem);padding-block:2rem 4rem;background:radial-gradient(circle at 80% 5%,rgb(255 104 104 / 10%),transparent 20rem),linear-gradient(180deg,#f8fafc,#fff7f7 100%)}.admin-jobdelete-back{display:inline-flex;align-items:center;gap:.45rem;margin-block-end:1rem;color:#48698d;font-size:.9rem;font-weight:700;text-decoration:none}.admin-jobdelete-back:hover{color:#b3261e;text-decoration:underline}.admin-jobdelete-card{overflow:hidden;border:1px solid #f1d4d4;border-radius:1.25rem;box-shadow:0 1rem 2.6rem rgb(110 20 20 / 8%)}.admin-jobdelete-heading{display:flex;align-items:flex-start;gap:1rem;margin-block-end:1.75rem}.admin-jobdelete-icon{display:grid;place-items:center;flex:0 0 auto;inline-size:3.25rem;block-size:3.25rem;border-radius:1rem;background:#ffe1e1;color:#b3261e;font-size:1.35rem;font-weight:900}.admin-jobdelete-eyebrow,.admin-jobdelete-target-label{color:#b3261e;font-size:.7rem;font-weight:800;letter-spacing:.13em}.admin-jobdelete h1,.admin-jobdelete h2{color:#4b1f27;font-weight:750;letter-spacing:-.025em}.admin-jobdelete-heading .text-secondary{max-inline-size:44rem;line-height:1.65}.admin-jobdelete-target{padding:1.15rem 1.25rem;margin-block-end:1rem;border:1px solid #f0d5d7;border-radius:1rem;background:linear-gradient(135deg,#fffafa,#fff)}.admin-jobdelete-target h2{overflow-wrap:anywhere}.admin-jobdelete-target p{color:#6d6670;font-size:.9rem}.admin-jobdelete-warning{display:flex;align-items:flex-start;gap:.8rem;padding:1rem 1.1rem;margin-block-end:1.5rem;border:1px solid #f5cc82;border-radius:1rem;background:#fff9e9;color:#754e00}.admin-jobdelete-warning>span{display:grid;place-items:center;flex:0 0 auto;inline-size:1.8rem;block-size:1.8rem;border-radius:50%;background:#ffebbd;color:#976100;font-size:.82rem;font-weight:900}.admin-jobdelete-warning strong{display:block;margin-block-end:.2rem;font-size:.9rem}.admin-jobdelete-warning p{font-size:.84rem;line-height:1.6}.admin-jobdelete-form{padding:0;margin:0;border:0}.admin-jobdelete-form legend{margin-block-end:.25rem;color:#3c2930;font-size:1rem;font-weight:750}.admin-jobdelete-form>p{margin-block-end:.65rem;color:#718096;font-size:.82rem}.admin-jobdelete-form .form-control{min-block-size:7.25rem;border-color:#d9c9cd;resize:vertical}.admin-jobdelete-form .form-control:focus{border-color:#dc6464;box-shadow:0 0 0 .2rem rgb(220 100 100 / 15%)}.admin-jobdelete-form .form-control:user-invalid{border-color:#b3261e}.admin-jobdelete-actions{display:flex;justify-content:flex-end;gap:.7rem;margin-block-start:1.5rem}.admin-jobdelete-actions .btn{min-block-size:2.75rem;padding-inline:1.15rem;border-radius:.75rem;font-weight:750}.admin-jobdelete-actions .btn-danger{border-color:#b3261e;background:linear-gradient(135deg,#c93333,#e54949);box-shadow:0 .55rem 1.1rem rgb(179 38 30 / 18%)}.admin-jobdelete a:focus-visible,.admin-jobdelete button:focus-visible{outline:3px solid #ff7b7b;outline-offset:3px}@media (max-width:575.98px){.admin-jobdelete{padding-block:1.25rem 3rem}.admin-jobdelete-card{border-radius:1rem}.admin-jobdelete-heading{gap:.75rem}.admin-jobdelete-icon{inline-size:2.75rem;block-size:2.75rem;border-radius:.85rem}.admin-jobdelete-actions{flex-direction:column-reverse}.admin-jobdelete-actions .btn{inline-size:100%}}@media (prefers-reduced-motion:reduce){.admin-jobdelete *{scroll-behavior:auto}}
+.admin-jobdelete {
+    min-block-size: calc(100dvb - 4.75rem);
+    padding-block: 2rem 4rem;
+    background: radial-gradient(circle at 80% 5%, rgb(255 104 104 / 10%), transparent 20rem), linear-gradient(180deg, #f8fafc, #fff7f7 100%)
+}
+
+.admin-jobdelete-back {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    margin-block-end: 1rem;
+    color: #48698d;
+    font-size: .9rem;
+    font-weight: 700;
+    text-decoration: none
+}
+
+.admin-jobdelete-back:hover {
+    color: #b3261e;
+    text-decoration: underline
+}
+
+.admin-jobdelete-card {
+    overflow: hidden;
+    border: 1px solid #f1d4d4;
+    border-radius: 1.25rem;
+    box-shadow: 0 1rem 2.6rem rgb(110 20 20 / 8%)
+}
+
+.admin-jobdelete-heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-block-end: 1.75rem
+}
+
+.admin-jobdelete-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    inline-size: 3.25rem;
+    block-size: 3.25rem;
+    border-radius: 1rem;
+    background: #ffe1e1;
+    color: #b3261e;
+    font-size: 1.35rem;
+    font-weight: 900
+}
+
+.admin-jobdelete-eyebrow,
+.admin-jobdelete-target-label {
+    color: #b3261e;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .13em
+}
+
+.admin-jobdelete h1,
+.admin-jobdelete h2 {
+    color: #4b1f27;
+    font-weight: 750;
+    letter-spacing: -.025em
+}
+
+.admin-jobdelete-heading .text-secondary {
+    max-inline-size: 44rem;
+    line-height: 1.65
+}
+
+.admin-jobdelete-target {
+    padding: 1.15rem 1.25rem;
+    margin-block-end: 1rem;
+    border: 1px solid #f0d5d7;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, #fffafa, #fff)
+}
+
+.admin-jobdelete-target h2 {
+    overflow-wrap: anywhere
+}
+
+.admin-jobdelete-target p {
+    color: #6d6670;
+    font-size: .9rem
+}
+
+.admin-jobdelete-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: .8rem;
+    padding: 1rem 1.1rem;
+    margin-block-end: 1.5rem;
+    border: 1px solid #f5cc82;
+    border-radius: 1rem;
+    background: #fff9e9;
+    color: #754e00
+}
+
+.admin-jobdelete-warning>span {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    inline-size: 1.8rem;
+    block-size: 1.8rem;
+    border-radius: 50%;
+    background: #ffebbd;
+    color: #976100;
+    font-size: .82rem;
+    font-weight: 900
+}
+
+.admin-jobdelete-warning strong {
+    display: block;
+    margin-block-end: .2rem;
+    font-size: .9rem
+}
+
+.admin-jobdelete-warning p {
+    font-size: .84rem;
+    line-height: 1.6
+}
+
+.admin-jobdelete-form {
+    padding: 0;
+    margin: 0;
+    border: 0
+}
+
+.admin-jobdelete-form legend {
+    margin-block-end: .25rem;
+    color: #3c2930;
+    font-size: 1rem;
+    font-weight: 750
+}
+
+.admin-jobdelete-form>p {
+    margin-block-end: .65rem;
+    color: #718096;
+    font-size: .82rem
+}
+
+.admin-jobdelete-form .form-control {
+    min-block-size: 7.25rem;
+    border-color: #d9c9cd;
+    resize: vertical
+}
+
+.admin-jobdelete-form .form-control:focus {
+    border-color: #dc6464;
+    box-shadow: 0 0 0 .2rem rgb(220 100 100 / 15%)
+}
+
+.admin-jobdelete-form .form-control:user-invalid {
+    border-color: #b3261e
+}
+
+.admin-jobdelete-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: .7rem;
+    margin-block-start: 1.5rem
+}
+
+.admin-jobdelete-actions .btn {
+    min-block-size: 2.75rem;
+    padding-inline: 1.15rem;
+    border-radius: .75rem;
+    font-weight: 750
+}
+
+.admin-jobdelete-actions .btn-danger {
+    border-color: #b3261e;
+    background: linear-gradient(135deg, #c93333, #e54949);
+    box-shadow: 0 .55rem 1.1rem rgb(179 38 30 / 18%)
+}
+
+.admin-jobdelete a:focus-visible,
+.admin-jobdelete button:focus-visible {
+    outline: 3px solid #ff7b7b;
+    outline-offset: 3px
+}
+
+@media (max-width:575.98px) {
+    .admin-jobdelete {
+        padding-block: 1.25rem 3rem
+    }
+
+    .admin-jobdelete-card {
+        border-radius: 1rem
+    }
+
+    .admin-jobdelete-heading {
+        gap: .75rem
+    }
+
+    .admin-jobdelete-icon {
+        inline-size: 2.75rem;
+        block-size: 2.75rem;
+        border-radius: .85rem
+    }
+
+    .admin-jobdelete-actions {
+        flex-direction: column-reverse
+    }
+
+    .admin-jobdelete-actions .btn {
+        inline-size: 100%
+    }
+}
+
+@media (prefers-reduced-motion:reduce) {
+    .admin-jobdelete * {
+        scroll-behavior: auto
+    }
+}

@@ -1,1 +1,73 @@
-.survey-page{min-height:calc(100vh - 180px)}.survey-progress{max-width:100%}.survey-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.85rem}.survey-option{display:flex;align-items:flex-start;gap:.8rem;padding:1rem;border:1px solid #d9e2ea;border-radius:.85rem;background:#fff;cursor:pointer;transition:border-color .15s,box-shadow .15s,background .15s}.survey-option:hover{border-color:#52a979}.survey-option:has(input:checked){border-color:#198754;background:#f1faf5;box-shadow:0 0 0 2px rgba(25,135,84,.08)}.survey-option input{margin-top:.2rem;flex:0 0 auto}.survey-option span{display:flex;flex-direction:column;gap:.2rem}.survey-option small{color:#66736d;line-height:1.45}.survey-step textarea{resize:vertical}.survey-actions .btn{min-width:130px}@media(max-width:575px){.survey-options{grid-template-columns:1fr}.survey-page{padding-top:2rem!important}.survey-actions .btn{width:100%}}
+.survey-page {
+    min-height: calc(100vh - 180px)
+}
+
+.survey-progress {
+    max-width: 100%
+}
+
+.survey-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: .85rem
+}
+
+.survey-option {
+    display: flex;
+    align-items: flex-start;
+    gap: .8rem;
+    padding: 1rem;
+    border: 1px solid #d9e2ea;
+    border-radius: .85rem;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, background .15s
+}
+
+.survey-option:hover {
+    border-color: #52a979
+}
+
+.survey-option:has(input:checked) {
+    border-color: #198754;
+    background: #f1faf5;
+    box-shadow: 0 0 0 2px rgba(25, 135, 84, .08)
+}
+
+.survey-option input {
+    margin-top: .2rem;
+    flex: 0 0 auto
+}
+
+.survey-option span {
+    display: flex;
+    flex-direction: column;
+    gap: .2rem
+}
+
+.survey-option small {
+    color: #66736d;
+    line-height: 1.45
+}
+
+.survey-step textarea {
+    resize: vertical
+}
+
+.survey-actions .btn {
+    min-width: 130px
+}
+
+@media(max-width:575px) {
+    .survey-options {
+        grid-template-columns: 1fr
+    }
+
+    .survey-page {
+        padding-top: 2rem !important
+    }
+
+    .survey-actions .btn {
+        width: 100%
+    }
+}

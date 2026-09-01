@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/config.php';
 
 require_login('employer');
 $pdo = db();
+promotion_sync_expired($pdo);
 
 $profileStmt = $pdo->prepare("SELECT ep.*, COALESCE((SELECT ed.document_status FROM employer_documents ed WHERE ed.employer_user_id=ep.user_id ORDER BY ed.submitted_at DESC LIMIT 1),'not_submitted') AS verification_status FROM employer_profiles ep WHERE ep.user_id=?");
 $profileStmt->execute([user()['id']]);
@@ -41,6 +42,8 @@ $jobsStmt = $pdo->prepare("SELECT
     j.open_positions,
     j.job_status AS status,
     j.created_at,
+    (SELECT jp.promotion_status FROM job_promotions jp WHERE jp.job_id=j.job_id ORDER BY jp.created_at DESC,jp.promotion_id DESC LIMIT 1) AS promotion_status,
+    (SELECT jp.ends_at FROM job_promotions jp WHERE jp.job_id=j.job_id AND jp.promotion_status='active' ORDER BY jp.starts_at DESC LIMIT 1) AS promotion_ends_at,
     COUNT(DISTINCT a.application_id) AS applicants,
     COUNT(DISTINCT js.skill_id) AS matching_skills,
     (SELECT ji.image_file_path
@@ -76,6 +79,12 @@ $jobStatusMeta = [
     'published' => ['เผยแพร่แล้ว', 'success'],
     'hidden' => ['ซ่อนประกาศ', 'secondary'],
     'closed' => ['ปิดรับสมัคร', 'dark'],
+];
+$promotionStatusMeta = [
+    'pending_payment' => ['รอชำระ', 'warning'],
+    'pending_verification' => ['รอตรวจสลิป', 'info'],
+    'active' => ['✦ กำลังโปรโมต', 'primary'],
+    'rejected' => ['สลิปไม่ผ่าน', 'danger'],
 ];
 
 $pageTitle = 'Dashboard ผู้ว่าจ้าง | FLEXJOB';
@@ -197,6 +206,7 @@ require APP_ROOT . '/partials/header.php';
                                     <small class="text-secondary text-nowrap"><?= date('d/m/Y', strtotime($job['created_at'])) ?></small>
                                 </div>
                                 <h3 class="h5 mb-2"><?= e($job['title']) ?></h3>
+                                <?php if (isset($promotionStatusMeta[$job['promotion_status']])): $promotionMeta = $promotionStatusMeta[$job['promotion_status']]; ?><span class="badge rounded-pill text-bg-<?= e($promotionMeta[1]) ?> mb-2"><?= e($promotionMeta[0]) ?></span><?php endif; ?>
                                 <p class="small text-secondary mb-3"><?= e($job['work_location'] ?: 'ยังไม่ได้ระบุสถานที่') ?> · <?= e($job['work_schedule'] ?: 'ยังไม่ได้ระบุเวลา') ?></p>
                                 <div class="d-flex justify-content-between align-items-center border-top pt-3 mt-auto">
                                     <strong class="text-primary"><?= pay_text($job) ?></strong>
@@ -205,6 +215,7 @@ require APP_ROOT . '/partials/header.php';
                                 <div class="d-flex flex-wrap gap-2 mt-3">
                                     <a class="btn btn-primary btn-sm flex-grow-1" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $job['id'] ?>">ดูผู้สมัคร</a>
                                     <a class="btn btn-outline-primary btn-sm" href="<?= BASE_URL ?>/employer/candidates.php?job=<?= $job['id'] ?>" aria-label="ค้นหาคนที่เหมาะกับ <?= e($job['title']) ?>">ค้นหาคน</a>
+                                    <?php if ($job['status'] === 'published'): ?><a class="btn btn-outline-success btn-sm" href="<?= BASE_URL ?>/employer/promote.php?job=<?= $job['id'] ?>">✦ โปรโมต</a><?php endif; ?>
                                 </div>
                             </div>
                         </article>
@@ -245,6 +256,7 @@ require APP_ROOT . '/partials/header.php';
                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                         <h3 class="h5 mb-0"><?= e($job['title']) ?></h3>
                                         <span class="badge rounded-pill text-bg-<?= e($status[1]) ?>"><?= e($status[0]) ?></span>
+                                        <?php if (isset($promotionStatusMeta[$job['promotion_status']])): $promotionMeta = $promotionStatusMeta[$job['promotion_status']]; ?><span class="badge rounded-pill text-bg-<?= e($promotionMeta[1]) ?>"><?= e($promotionMeta[0]) ?></span><?php endif; ?>
                                     </div>
                                     <p class="mb-1 text-secondary"><?= job_type($job['job_type']) ?> · <?= e($job['work_interest_name'] ?: 'ยังไม่ได้เลือกหมวดงาน') ?></p>
                                     <p class="small text-secondary mb-0"><?= e($job['work_location'] ?: 'ยังไม่ได้ระบุสถานที่') ?> · <?= e($job['work_schedule'] ?: 'ยังไม่ได้ระบุเวลา') ?> · <?= pay_text($job) ?></p>
@@ -263,6 +275,7 @@ require APP_ROOT . '/partials/header.php';
                                         <a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $job['id'] ?>">ผู้สมัคร</a>
                                         <a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/employer/candidates.php?job=<?= $job['id'] ?>">ค้นหาคน</a>
                                         <a class="btn btn-sm btn-secondary" href="<?= BASE_URL ?>/employer/jobedit.php?id=<?= $job['id'] ?>">แก้ไข</a>
+                                        <?php if ($job['status'] === 'published'): ?><a class="btn btn-sm btn-outline-success" href="<?= BASE_URL ?>/employer/promote.php?job=<?= $job['id'] ?>">✦ โปรโมต</a><?php endif; ?>
                                         <form method="post" action="<?= BASE_URL ?>/employer/jobdelete.php" onsubmit="return confirm('ยืนยันการลบประกาศงานนี้? ข้อมูลผู้สมัครของประกาศนี้จะถูกลบด้วย');">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="job_id" value="<?= $job['id'] ?>">

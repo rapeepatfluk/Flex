@@ -9,6 +9,16 @@ $statement->execute([$applicationId, user()['id']]);
 $application = $statement->fetch();
 if (!$application) redirect('worker/dashboard.php');
 
+$employerEmailComposeUrl = null;
+if ($application['employer_email'] && filter_var($application['employer_email'], FILTER_VALIDATE_EMAIL)) {
+    $emailSubject = rawurlencode('สอบถามเกี่ยวกับงาน: ' . $application['title']);
+    $emailBody = rawurlencode("สวัสดีครับ/ค่ะ\r\n\r\nขอติดต่อเกี่ยวกับตำแหน่ง " . $application['title'] . "\r\n\r\n");
+    $employerEmailComposeUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to='
+        . rawurlencode($application['employer_email'])
+        . '&su=' . $emailSubject
+        . '&body=' . $emailBody;
+}
+
 $ratingSummaryStatement = $pdo->prepare('SELECT ROUND(AVG(rating_by_worker), 1) AS average, COUNT(rating_by_worker) AS count FROM applications WHERE rating_by_worker IS NOT NULL AND job_id IN (SELECT job_id FROM jobs WHERE employer_user_id=?)');
 $ratingSummaryStatement->execute([$application['employer_user_id']]);
 $employerRatingSummary = $ratingSummaryStatement->fetch() ?: ['average' => null, 'count' => 0];
@@ -70,7 +80,7 @@ require APP_ROOT . '/partials/header.php';
                 </section>
 
                 <?php if (in_array($application['status'], ['eligible', 'interview_passed', 'completed'], true)): ?>
-                    <section class="card border-0 shadow-sm rounded-4 contact-card mt-4"><div class="card-body p-4"><p class="eyebrow mb-2">CONTACT</p><h2 class="h5 mb-3">ติดต่อผู้ว่าจ้าง</h2><p class="text-secondary small">ผู้ว่าจ้างเปิดข้อมูลติดต่อให้คุณแล้ว</p><?php if ($application['employer_email']): ?><a class="contact-link" href="mailto:<?= e($application['employer_email']) ?>">✉ <?= e($application['employer_email']) ?></a><?php endif ?><?php if ($application['employer_phone']): ?><a class="contact-link" href="tel:<?= e($application['employer_phone']) ?>">⌕ <?= e($application['employer_phone']) ?></a><?php endif ?></div></section>
+                    <section class="card border-0 shadow-sm rounded-4 contact-card mt-4"><div class="card-body p-4"><p class="eyebrow mb-2">CONTACT</p><h2 class="h5 mb-3">ติดต่อผู้ว่าจ้าง</h2><p class="text-secondary small">ผู้ว่าจ้างเปิดข้อมูลติดต่อให้คุณแล้ว</p><?php if ($employerEmailComposeUrl): ?><a class="contact-link" href="<?= e($employerEmailComposeUrl) ?>" target="_blank" rel="noopener noreferrer" aria-label="เปิด Gmail ในแท็บใหม่เพื่อติดต่อ <?= e($application['company_name']) ?>">✉ <?= e($application['employer_email']) ?> <span aria-hidden="true">↗</span></a><?php endif ?><?php if ($application['employer_phone']): ?><a class="contact-link" href="tel:<?= e($application['employer_phone']) ?>">⌕ <?= e($application['employer_phone']) ?></a><?php endif ?></div></section>
                 <?php endif ?>
 
                 <?php if ($application['application_resume']): ?>

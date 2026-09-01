@@ -1,7 +1,10 @@
 /config/smtp.local.php
+/config/payment.local.php
 /uploads/resumes/*
 !/uploads/resumes/.htaccess
 /uploads/portfolios/*
 !/uploads/portfolios/.htaccess
 /uploads/verification/*
 !/uploads/verification/.htaccess
+/uploads/payment-slips/*
+!/uploads/payment-slips/.htaccess

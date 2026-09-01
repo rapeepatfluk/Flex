@@ -312,7 +312,7 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
     $workerStatement->execute([$workerId]);
     $worker = $workerStatement->fetch() ?: [];
 
-    $jobsStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.job_title AS title,
+    $jobsStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.job_title AS title,j.created_at,
         jc.category_slug AS job_type,j.work_location AS location,j.work_province,j.work_schedule AS work_date,
         j.work_mode,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path AS company_logo,
         (SELECT ROUND(AVG(a.rating_by_worker), 1) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_average,

@@ -24,6 +24,11 @@ if ($type === 'profile_resume' || $type === 'profile_portfolio') {
     $statement->execute([$id]);
     $file = $statement->fetch();
     if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];
+} elseif ($type === 'promotion_slip') {
+    $statement = $pdo->prepare('SELECT employer_user_id,payment_slip_path file_path FROM job_promotions WHERE promotion_id=?');
+    $statement->execute([$id]);
+    $file = $statement->fetch();
+    if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];
 }
 
 $uploadsRoot = realpath(APP_ROOT . '/uploads');
@@ -42,4 +47,3 @@ header('Content-Disposition: ' . $disposition . '; filename="flexjob-document.' 
 header('X-Content-Type-Options: nosniff');
 readfile($absolutePath);
 exit;
-

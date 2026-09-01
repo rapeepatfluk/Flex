@@ -1,0 +1,164 @@
+.promotion-page {
+    max-inline-size: 1180px
+}
+
+.promotion-back {
+    color: #075dcc;
+    font-weight: 700;
+    text-decoration: none
+}
+
+.promotion-back:hover {
+    text-decoration: underline
+}
+
+.promotion-hero {
+    overflow: hidden;
+    border: 1px solid #cbe2fb !important;
+    border-radius: 1.35rem;
+    background: radial-gradient(circle at 90% 15%, rgb(0 163 255/15%), transparent 16rem), linear-gradient(120deg, #fff, #edf7ff)
+}
+
+.promotion-eyebrow {
+    color: #075dcc;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .12em
+}
+
+.promotion-package {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #d9e8f8 !important;
+    border-radius: 1.1rem
+}
+
+.promotion-package.is-featured {
+    border-color: #81bbfa !important;
+    background: linear-gradient(145deg, #fff, #eef7ff)
+}
+
+.promotion-popular {
+    position: absolute;
+    inset: 1rem 1rem auto auto;
+    padding: .3rem .65rem;
+    border-radius: 99rem;
+    background: #075dcc;
+    color: #fff;
+    font-size: .7rem;
+    font-weight: 800
+}
+
+.promotion-package-price {
+    color: #075dcc;
+    font-size: 2.2rem;
+    letter-spacing: -.04em
+}
+
+.promotion-payment-card {
+    border: 1px solid #cfe3f8 !important;
+    border-radius: 1.1rem
+}
+
+.promotion-payment-layout {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2rem;
+    align-items: center
+}
+
+.promotion-qr-shell {
+    display: grid;
+    gap: .75rem;
+    justify-items: center;
+    padding: 1rem;
+    border: 1px solid #dbeafe;
+    border-radius: 1rem;
+    background: #fff
+}
+
+.promotion-qr-shell canvas,
+.promotion-qr-shell img {
+    display: block;
+    max-inline-size: 100%;
+    block-size: auto
+}
+
+.promotion-qr-shell small {
+    color: #64748b
+}
+
+.promotion-amount-label {
+    display: block;
+    color: #64748b;
+    font-size: .8rem
+}
+
+.promotion-amount {
+    display: block;
+    margin: .2rem 0 1rem;
+    color: #075dcc;
+    font-size: 2.4rem
+}
+
+.promotion-payment-meta {
+    display: grid;
+    gap: .7rem
+}
+
+.promotion-payment-meta div {
+    padding-block-end: .7rem;
+    border-block-end: 1px solid #e5edf6
+}
+
+.promotion-payment-meta dt {
+    color: #7890ab;
+    font-size: .72rem
+}
+
+.promotion-payment-meta dd {
+    margin: 0;
+    color: #284a70;
+    font-weight: 700
+}
+
+.promotion-state {
+    display: grid;
+    justify-items: center;
+    padding: 2.5rem 1rem
+}
+
+.promotion-state>span {
+    display: grid;
+    place-items: center;
+    inline-size: 4rem;
+    block-size: 4rem;
+    margin-block-end: 1rem;
+    border-radius: 50%;
+    background: #e8f3ff;
+    color: #075dcc;
+    font-size: 1.7rem
+}
+
+.promotion-state.is-active>span {
+    background: #dcfce7;
+    color: #15803d
+}
+
+@media(max-width:767.98px) {
+    .promotion-payment-layout {
+        grid-template-columns: 1fr
+    }
+
+    .promotion-qr-shell {
+        inline-size: fit-content;
+        max-inline-size: 100%;
+        margin-inline: auto
+    }
+
+    .promotion-popular {
+        position: static;
+        display: inline-block;
+        margin-block-end: 1rem
+    }
+}

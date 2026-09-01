@@ -1,32 +1,183 @@
 /* Bootstrap supplies the layout, cards, spacing and buttons. These rules are invitation-specific. */
-.worker-invitations-page { background: #f8fafc; }
-.invitation-hero { color: #fff; background: linear-gradient(120deg, #0052cc, #006ee6 58%, #00a3ff); box-shadow: 0 18px 38px rgb(0 82 204 / 17%); }
-.invitation-hero .eyebrow { color: #dceeff; }
-.invitation-hero h1 { color: #fff; }
-.invitation-hero p:not(.eyebrow) { color: #e6f3ff; }
-.invitation-summary { border-radius: 18px; }
-.invitation-summary .card-body { display: grid; gap: .2rem; }
-.invitation-summary span, .invitation-summary small { color: #64748b; font-size: .82rem; }
-.invitation-summary strong { color: #1e293b; font-size: clamp(1.8rem, 3vw, 2.35rem); line-height: 1.1; }
-.invitation-summary-primary { outline: 1px solid #bfdbfe; background: #eff6ff; }
-.invitation-summary-primary strong { color: #0052cc; }
-.invitation-list-panel { border: 1px solid #e2e8f0; }
-.invitation-list-panel .eyebrow { color: #0052cc; }
-.invitation-card { border-color: #e2e8f0 !important; border-radius: 18px; }
-.invitation-card.is-pending { border-color: #93c5fd !important; box-shadow: 0 10px 24px rgb(0 82 204 / 8%); }
-.invitation-company-mark { display: grid; place-items: center; inline-size: 3.35rem; block-size: 3.35rem; overflow: hidden; border-radius: 14px; background: #eff6ff; color: #0052cc; font-size: 1.2rem; font-weight: 700; }
-.invitation-company-mark img { inline-size: 100%; block-size: 100%; object-fit: cover; }
-.invitation-company { color: #475569; font-size: .9rem; }
-.invitation-meta { color: #64748b; font-size: .8rem; }
-.invitation-status { display: inline-block; padding: .38rem .65rem; border-radius: 999px; font-size: .72rem; font-weight: 700; }
-.invitation-status.sent, .invitation-status.viewed { color: #0052cc; background: #dbeafe; }
-.invitation-status.accepted { color: #047857; background: #d1fae5; }
-.invitation-status.declined { color: #64748b; background: #e2e8f0; }
-.invitation-status.closed { color: #b91c1c; background: #fee2e2; }
-.invitation-message { padding: .8rem 1rem; border-inline-start: 3px solid #00a3ff; border-radius: 0 10px 10px 0; background: #f8fbff; color: #475569; font-size: .87rem; line-height: 1.7; }
-.invitation-actions { inline-size: min(100%, 11rem); }
-.invitation-actions .btn { min-block-size: 2.65rem; }
-.invitation-empty { border: 1px dashed #bfdbfe; border-radius: 16px; background: #f8fbff; }
-.invitation-empty > div { color: #00a3ff; font-size: 2.4rem; }
-@media (max-width: 991.98px) { .worker-invitations-page { padding-top: 2rem !important; } .invitation-actions { inline-size: 100%; } }
-@supports (container-type: inline-size) { .invitation-card { container: inline-size / invitation-card; } @container invitation-card (max-width: 440px) { .invitation-meta { display: grid; } .invitation-status { margin-top: .2rem; } } }
+.worker-invitations-page {
+    background: #f8fafc;
+}
+
+.invitation-hero {
+    color: #fff;
+    background: linear-gradient(120deg, #0052cc, #006ee6 58%, #00a3ff);
+    box-shadow: 0 18px 38px rgb(0 82 204 / 17%);
+}
+
+.invitation-hero .eyebrow {
+    color: #dceeff;
+}
+
+.invitation-hero h1 {
+    color: #fff;
+}
+
+.invitation-hero p:not(.eyebrow) {
+    color: #e6f3ff;
+}
+
+.invitation-summary {
+    border-radius: 18px;
+}
+
+.invitation-summary .card-body {
+    display: grid;
+    gap: .2rem;
+}
+
+.invitation-summary span,
+.invitation-summary small {
+    color: #64748b;
+    font-size: .82rem;
+}
+
+.invitation-summary strong {
+    color: #1e293b;
+    font-size: clamp(1.8rem, 3vw, 2.35rem);
+    line-height: 1.1;
+}
+
+.invitation-summary-primary {
+    outline: 1px solid #bfdbfe;
+    background: #eff6ff;
+}
+
+.invitation-summary-primary strong {
+    color: #0052cc;
+}
+
+.invitation-list-panel {
+    border: 1px solid #e2e8f0;
+}
+
+.invitation-list-panel .eyebrow {
+    color: #0052cc;
+}
+
+.invitation-card {
+    border-color: #e2e8f0 !important;
+    border-radius: 18px;
+}
+
+.invitation-card.is-pending {
+    border-color: #93c5fd !important;
+    box-shadow: 0 10px 24px rgb(0 82 204 / 8%);
+}
+
+.invitation-company-mark {
+    display: grid;
+    place-items: center;
+    inline-size: 3.35rem;
+    block-size: 3.35rem;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #eff6ff;
+    color: #0052cc;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.invitation-company-mark img {
+    inline-size: 100%;
+    block-size: 100%;
+    object-fit: cover;
+}
+
+.invitation-company {
+    color: #475569;
+    font-size: .9rem;
+}
+
+.invitation-meta {
+    color: #64748b;
+    font-size: .8rem;
+}
+
+.invitation-status {
+    display: inline-block;
+    padding: .38rem .65rem;
+    border-radius: 999px;
+    font-size: .72rem;
+    font-weight: 700;
+}
+
+.invitation-status.sent,
+.invitation-status.viewed {
+    color: #0052cc;
+    background: #dbeafe;
+}
+
+.invitation-status.accepted {
+    color: #047857;
+    background: #d1fae5;
+}
+
+.invitation-status.declined {
+    color: #64748b;
+    background: #e2e8f0;
+}
+
+.invitation-status.closed {
+    color: #b91c1c;
+    background: #fee2e2;
+}
+
+.invitation-message {
+    padding: .8rem 1rem;
+    border-inline-start: 3px solid #00a3ff;
+    border-radius: 0 10px 10px 0;
+    background: #f8fbff;
+    color: #475569;
+    font-size: .87rem;
+    line-height: 1.7;
+}
+
+.invitation-actions {
+    inline-size: min(100%, 11rem);
+}
+
+.invitation-actions .btn {
+    min-block-size: 2.65rem;
+}
+
+.invitation-empty {
+    border: 1px dashed #bfdbfe;
+    border-radius: 16px;
+    background: #f8fbff;
+}
+
+.invitation-empty>div {
+    color: #00a3ff;
+    font-size: 2.4rem;
+}
+
+@media (max-width: 991.98px) {
+    .worker-invitations-page {
+        padding-top: 2rem !important;
+    }
+
+    .invitation-actions {
+        inline-size: 100%;
+    }
+}
+
+@supports (container-type: inline-size) {
+    .invitation-card {
+        container: inline-size / invitation-card;
+    }
+
+    @container invitation-card (max-width: 440px) {
+        .invitation-meta {
+            display: grid;
+        }
+
+        .invitation-status {
+            margin-top: .2rem;
+        }
+    }
+}

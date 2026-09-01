@@ -28,6 +28,16 @@ define('SMTP_PASS', getenv('FLEXJOB_SMTP_PASS') ?: ($smtpLocalConfig['app_passwo
 const SMTP_FROM_NAME = 'FLEXJOB';
 unset($smtpLocalConfig, $smtpLocalPath, $loadedSmtpConfig);
 
+$paymentLocalConfig = [];
+$paymentLocalPath = __DIR__ . '/payment.local.php';
+if (is_file($paymentLocalPath)) {
+    $loadedPaymentConfig = require $paymentLocalPath;
+    if (is_array($loadedPaymentConfig)) $paymentLocalConfig = $loadedPaymentConfig;
+}
+define('PROMPTPAY_ID', getenv('FLEXJOB_PROMPTPAY_ID') ?: ($paymentLocalConfig['promptpay_id'] ?? ''));
+define('PROMPTPAY_RECIPIENT_NAME', getenv('FLEXJOB_PROMPTPAY_RECIPIENT_NAME') ?: ($paymentLocalConfig['recipient_name'] ?? ''));
+unset($paymentLocalConfig, $paymentLocalPath, $loadedPaymentConfig);
+
 function db(): PDO
 {
     static $pdo;
@@ -132,4 +142,6 @@ function upload_file(string $field, array $allowed, string $folder): ?string
 // Auto-load email helpers (fail-safe — won't break if SMTP not configured)
 require_once __DIR__ . '/mailer.php';
 require_once __DIR__ . '/notify.php';
+require_once APP_ROOT . '/services/ApplicationService.php';
 require_once APP_ROOT . '/services/MatchingService.php';
+require_once APP_ROOT . '/services/PromotionService.php';

@@ -12,7 +12,14 @@ require_once __DIR__ . '/../lib/phpmailer/PHPMailer.php';
 require_once __DIR__ . '/../lib/phpmailer/SMTP.php';
 require_once __DIR__ . '/../lib/phpmailer/Exception.php';
 
-function send_mail(string $toEmail, string $toName, string $subject, string $htmlBody): bool
+function send_mail(
+    string $toEmail,
+    string $toName,
+    string $subject,
+    string $htmlBody,
+    ?string $replyToEmail = null,
+    string $replyToName = ''
+): bool
 {
     if (!mail_is_configured()) {
         try {
@@ -34,6 +41,9 @@ function send_mail(string $toEmail, string $toName, string $subject, string $htm
 
         $mail->setFrom(SMTP_USER, SMTP_FROM_NAME);
         $mail->addAddress($toEmail, $toName);
+        if ($replyToEmail !== null && filter_var($replyToEmail, FILTER_VALIDATE_EMAIL)) {
+            $mail->addReplyTo($replyToEmail, $replyToName);
+        }
         $mail->isHTML(true);
         $mail->Subject = $subject;
         $mail->Body    = email_layout($subject, $htmlBody);
@@ -66,13 +76,14 @@ function mail_is_configured(): bool
  */
 function email_layout(string $title, string $body): string
 {
+    $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
     return <<<HTML
 <!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{$title}</title>
+<title>{$safeTitle}</title>
 </head>
 <body style="margin:0;padding:0;background:#f8fafc;font-family:'Noto Sans Thai',Helvetica,Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f8fafc;padding:40px 20px;">
