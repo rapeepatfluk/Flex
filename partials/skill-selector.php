@@ -22,7 +22,7 @@ if (!function_exists('render_skill_selector')) {
             </div>
 
             <label class="visually-hidden" for="<?= e($selectorId) ?>Search">ค้นหาทักษะ</label>
-            <input class="form-control mb-3" id="<?= e($selectorId) ?>Search" type="search" data-skill-search placeholder="ค้นหาทักษะ เช่น Excel, Front-end, Canva">
+            <input class="form-control mb-3" id="<?= e($selectorId) ?>Search" type="search" data-skill-search placeholder="ค้นหาความสามารถ เช่น พัฒนาเว็บไซต์, บริการลูกค้า, งานอีเวนต์">
 
             <div class="nav nav-pills gap-2 flex-nowrap overflow-auto pb-2 mb-3" data-skill-tabs>
                 <button class="nav-link active flex-shrink-0" type="button" data-skill-tab="all">ทั้งหมด</button>
@@ -75,7 +75,7 @@ if (!function_exists('render_job_skill_assignment_selector')) {
             </div>
 
             <label class="visually-hidden" for="<?= e($selectorId) ?>Search">ค้นหาทักษะ</label>
-            <input class="form-control mb-3" id="<?= e($selectorId) ?>Search" type="search" data-skill-search placeholder="ค้นหาทักษะ เช่น Excel, Front-end, Canva">
+            <input class="form-control mb-3" id="<?= e($selectorId) ?>Search" type="search" data-skill-search placeholder="ค้นหาความสามารถ เช่น พัฒนาเว็บไซต์, บริการลูกค้า, งานอีเวนต์">
 
             <div class="nav nav-pills gap-2 flex-nowrap overflow-auto pb-2 mb-3" data-skill-tabs>
                 <button class="nav-link active flex-shrink-0" type="button" data-skill-tab="all">ทั้งหมด</button>

@@ -28,7 +28,7 @@ function matching_skill_id(PDO $pdo, string $name, bool $isCustom = false): int
 
 function matching_skill_catalog(PDO $pdo, array $selectedSkillIds = []): array
 {
-    $statement = $pdo->query('SELECT c.skill_category_id,c.category_name,c.category_slug,s.skill_id,s.skill_name FROM skill_categories c LEFT JOIN skills s ON s.skill_category_id=c.skill_category_id AND s.is_active=1 WHERE c.is_active=1 ORDER BY c.sort_order,c.category_name,s.skill_name');
+    $statement = $pdo->query('SELECT c.skill_category_id,c.category_name,c.category_slug,s.skill_id,s.skill_name FROM skill_categories c LEFT JOIN skills s ON s.skill_category_id=c.skill_category_id AND s.is_active=1 AND s.is_custom=0 WHERE c.is_active=1 ORDER BY c.sort_order,c.category_name,s.skill_name');
     $catalog = [];
     foreach ($statement->fetchAll() as $row) {
         $categoryId = (int) $row['skill_category_id'];
@@ -43,7 +43,7 @@ function matching_skill_catalog(PDO $pdo, array $selectedSkillIds = []): array
     $selectedSkillIds = array_values(array_unique(array_filter(array_map('intval', $selectedSkillIds), fn(int $id): bool => $id > 0)));
     if ($selectedSkillIds) {
         $placeholders = implode(',', array_fill(0, count($selectedSkillIds), '?'));
-        $customStatement = $pdo->prepare("SELECT skill_id,skill_name FROM skills WHERE skill_category_id IS NULL AND skill_id IN ({$placeholders}) ORDER BY skill_name");
+        $customStatement = $pdo->prepare("SELECT skill_id,skill_name FROM skills WHERE is_custom=1 AND skill_category_id IS NULL AND skill_id IN ({$placeholders}) ORDER BY skill_name");
         $customStatement->execute($selectedSkillIds);
         $customSkills = $customStatement->fetchAll();
         if ($customSkills) {
