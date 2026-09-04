@@ -7,7 +7,7 @@ $appId = (int) ($_GET['id'] ?? 0);
 $jobId = (int) ($_GET['job'] ?? 0);
 $pdo = db();
 
-$jobStatement = $pdo->prepare('SELECT j.job_id,j.job_title,u.email AS employer_email FROM jobs j JOIN users u ON u.user_id=j.employer_user_id WHERE j.job_id=? AND j.employer_user_id=?');
+$jobStatement = $pdo->prepare('SELECT j.job_id,j.job_title,ep.company_name FROM jobs j LEFT JOIN employer_profiles ep ON ep.user_id=j.employer_user_id WHERE j.job_id=? AND j.employer_user_id=?');
 $jobStatement->execute([$jobId, user()['id']]);
 $job = $jobStatement->fetch();
 
@@ -45,66 +45,45 @@ if (!$app) {
     redirect('employer/applicants.php?job=' . $jobId);
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'send_email') {
-    try {
-        verify_csrf();
-        if ($app['status'] === 'withdrawn') {
-            throw new RuntimeException('ไม่สามารถส่งอีเมลถึงผู้หางานที่ถอนใบสมัครแล้ว');
-        }
-        if (!mail_is_configured()) {
-            throw new RuntimeException('ระบบยังไม่พร้อมส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ');
-        }
+$applicantEmailComposeUrl = null;
+if ($app['email'] && filter_var($app['email'], FILTER_VALIDATE_EMAIL)) {
+    $companyName = trim((string) ($job['company_name'] ?? ''));
+    $employerName = trim((string) user()['name']);
+    $signatureLines = array_values(array_filter([$employerName, $companyName], static fn (string $line): bool => $line !== ''));
 
-        $emailSubject = trim((string) ($_POST['email_subject'] ?? ''));
-        $emailMessage = trim((string) ($_POST['email_message'] ?? ''));
-        if ($emailSubject === '' || $emailMessage === '') {
-            throw new RuntimeException('กรุณากรอกหัวข้อและข้อความให้ครบถ้วน');
-        }
-        if (mb_strlen($emailSubject) > 160) {
-            throw new RuntimeException('หัวข้ออีเมลต้องไม่เกิน 160 ตัวอักษร');
-        }
-        if (mb_strlen($emailMessage) > 5000) {
-            throw new RuntimeException('ข้อความอีเมลต้องไม่เกิน 5,000 ตัวอักษร');
-        }
-        if (!filter_var($app['email'], FILTER_VALIDATE_EMAIL)) {
-            throw new RuntimeException('อีเมลของผู้สมัครไม่ถูกต้อง');
-        }
-
-        $safeApplicantName = e($app['name']);
-        $safeEmployerName = e((string) user()['name']);
-        $safeJobTitle = e($job['job_title']);
-        $safeMessage = nl2br(e($emailMessage));
-        $emailBody = <<<HTML
-<h2 style="margin:0 0 8px;font-size:22px;color:#17231f;">ข้อความจากผู้ว่าจ้าง</h2>
-<p style="margin:0 0 20px;color:#697671;">สวัสดี {$safeApplicantName}</p>
-<div style="margin-bottom:22px;padding:18px 20px;border:1px solid #dbeafe;border-radius:12px;background:#f8fbff;color:#334155;line-height:1.8;">{$safeMessage}</div>
-<table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;background:#f8fafc;border-radius:10px;">
-  <tr><td style="padding:16px 18px;color:#64748b;font-size:13px;">ตำแหน่งงาน<br><strong style="color:#1e293b;font-size:15px;">{$safeJobTitle}</strong></td></tr>
-</table>
-<p style="margin:0;color:#64748b;font-size:13px;">ส่งโดย {$safeEmployerName} · สามารถกดตอบกลับอีเมลนี้เพื่อติดต่อผู้ว่าจ้างได้โดยตรง</p>
-HTML;
-
-        $sent = send_mail(
-            $app['email'],
-            $app['name'],
-            $emailSubject,
-            $emailBody,
-            $job['employer_email'],
-            (string) user()['name']
-        );
-        if (!$sent) {
-            throw new RuntimeException('ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-        }
-
-        flash('success', 'ส่งอีเมลถึง ' . $app['email'] . ' เรียบร้อยแล้ว');
-    } catch (RuntimeException $e) {
-        flash('error', $e->getMessage());
-    } catch (Throwable $e) {
-        error_log('Applicant email failed: ' . $e->getMessage());
-        flash('error', 'ไม่สามารถส่งอีเมลได้ กรุณาลองใหม่อีกครั้ง');
+    if ($app['status'] === 'eligible') {
+        $emailSubjectText = 'นัดสัมภาษณ์งาน ตำแหน่ง: ' . $job['job_title'];
+        $emailBodyText = implode("\r\n", [
+            'เรียน คุณ ' . $app['name'],
+            '',
+            'ทาง' . ($companyName !== '' ? 'บริษัท ' . $companyName : 'ผู้ว่าจ้าง') . ' มีความยินดีขอเชิญคุณเข้าร่วมการสัมภาษณ์สำหรับตำแหน่ง ' . $job['job_title'] . ' โดยมีรายละเอียดดังนี้',
+            '',
+            'วันที่: ',
+            'เวลา: ',
+            'รูปแบบการสัมภาษณ์: ออนไลน์ผ่าน Google Meet / Zoom',
+            'ลิงก์เข้าร่วมสัมภาษณ์: ',
+            '',
+            'กรุณาตอบกลับอีเมลนี้เพื่อยืนยันการเข้าร่วม หากวันหรือเวลาดังกล่าวไม่สะดวก สามารถแจ้งช่วงเวลาที่สะดวกกลับมาได้',
+            '',
+            'ขอบคุณครับ/ค่ะ',
+            ...$signatureLines,
+        ]);
+    } else {
+        $emailSubjectText = 'เรื่องใบสมัครงาน: ' . $job['job_title'];
+        $emailBodyText = implode("\r\n", [
+            'สวัสดีครับ/ค่ะ คุณ ' . $app['name'],
+            '',
+            'ขอติดต่อเกี่ยวกับใบสมัครตำแหน่ง ' . $job['job_title'],
+            '',
+            'ขอบคุณครับ/ค่ะ',
+            ...$signatureLines,
+        ]);
     }
 
-    redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId);
+    $applicantEmailComposeUrl = 'https://mail.google.com/mail/?view=cm&fs=1&to='
+        . rawurlencode($app['email'])
+        . '&su=' . rawurlencode($emailSubjectText)
+        . '&body=' . rawurlencode($emailBodyText);
 }
 
 $statusOptions = [
@@ -169,6 +148,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
         } else {
             flash('success', 'สถานะผู้สมัครไม่มีการเปลี่ยนแปลง');
         }
+        if ($requestedStatus === 'eligible') {
+            flash('interview_email_prompt', '1');
+        }
     } catch (RuntimeException $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
@@ -179,6 +161,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
     }
     redirect('employer/applicant-detail.php?id=' . $appId . '&job=' . $jobId);
 }
+
+$showInterviewEmailPrompt = flash('interview_email_prompt') === '1';
 
 $ratingSummaryStatement = $pdo->prepare('SELECT ROUND(AVG(rating_by_employer), 1) AS average, COUNT(rating_by_employer) AS count FROM applications WHERE worker_user_id=? AND rating_by_employer IS NOT NULL');
 $ratingSummaryStatement->execute([$app['worker_user_id']]);
@@ -228,6 +212,16 @@ require APP_ROOT . '/partials/header.php';
             </div>
         </div>
     </section>
+
+    <?php if ($showInterviewEmailPrompt && $applicantEmailComposeUrl): ?>
+        <div class="alert alert-primary border-0 shadow-sm d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3 mb-4" role="status">
+            <div>
+                <strong class="d-block mb-1">ผู้สมัครอยู่ในสถานะ “มีสิทธิ์สัมภาษณ์” แล้ว</strong>
+                <span>ขั้นตอนถัดไป กรุณาส่งอีเมลนัดสัมภาษณ์ พร้อมระบุวัน เวลา และลิงก์ Google Meet หรือ Zoom</span>
+            </div>
+            <a class="btn btn-primary flex-shrink-0" href="<?= e($applicantEmailComposeUrl) ?>" target="_blank" rel="noopener noreferrer">ส่งอีเมลนัดสัมภาษณ์ <span aria-hidden="true">↗</span></a>
+        </div>
+    <?php endif; ?>
 
     <div class="row g-4">
         <div class="col-lg-8">
@@ -379,14 +373,13 @@ require APP_ROOT . '/partials/header.php';
                             <p class="applicant-detail-eyebrow mb-1">QUICK ACTIONS</p>
                             <h2 class="h4 mb-3" id="applicantActionsHeading">ติดต่อผู้สมัคร</h2>
                             <div class="d-grid gap-2">
-                                <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#applicantEmailModal" <?= mail_is_configured() ? '' : 'disabled' ?>>ส่งอีเมล</button>
+                                <?php if ($applicantEmailComposeUrl): ?>
+                                    <a class="btn btn-outline-primary" href="<?= e($applicantEmailComposeUrl) ?>" target="_blank" rel="noopener noreferrer" aria-label="เปิด Gmail ในแท็บใหม่เพื่อส่งอีเมลถึง <?= e($app['name']) ?>"><?= $app['status'] === 'eligible' ? 'ส่งอีเมลนัดสัมภาษณ์' : 'ส่งอีเมล' ?> <span aria-hidden="true">↗</span></a>
+                                <?php endif; ?>
                                 <?php if ($app['phone']): ?>
                                     <a class="btn btn-outline-secondary" href="tel:<?= e($app['phone']) ?>">โทร <?= e($app['phone']) ?></a>
                                 <?php endif; ?>
                             </div>
-                            <?php if (!mail_is_configured()): ?>
-                                <p class="small text-danger mb-0 mt-2">ระบบยังไม่พร้อมส่งอีเมล กรุณาติดต่อผู้ดูแลระบบ</p>
-                            <?php endif; ?>
                         </div>
                     </section>
                 <?php endif; ?>
@@ -394,45 +387,6 @@ require APP_ROOT . '/partials/header.php';
         </aside>
     </div>
 </main>
-
-<?php if ($app['status'] !== 'withdrawn' && mail_is_configured()): ?>
-    <div class="modal fade" id="applicantEmailModal" tabindex="-1" aria-labelledby="applicantEmailModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <form method="post">
-                    <div class="modal-header">
-                        <div>
-                            <p class="applicant-detail-eyebrow mb-1">SEND EMAIL</p>
-                            <h2 class="modal-title fs-5" id="applicantEmailModalLabel">ส่งอีเมลถึง <?= e($app['name']) ?></h2>
-                        </div>
-                        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="ปิด"></button>
-                    </div>
-                    <div class="modal-body">
-                        <?= csrf_field() ?>
-                        <input type="hidden" name="action" value="send_email">
-                        <div class="mb-3">
-                            <label class="form-label" for="applicantEmailRecipient">ผู้รับ</label>
-                            <input class="form-control" id="applicantEmailRecipient" type="email" value="<?= e($app['email']) ?>" disabled>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label" for="applicantEmailSubject">หัวข้อ</label>
-                            <input class="form-control" id="applicantEmailSubject" name="email_subject" type="text" maxlength="160" value="<?= e('เรื่องใบสมัครงาน: ' . $job['job_title']) ?>" required>
-                        </div>
-                        <div>
-                            <label class="form-label" for="applicantEmailMessage">ข้อความ</label>
-                            <textarea class="form-control" id="applicantEmailMessage" name="email_message" rows="7" maxlength="5000" placeholder="เขียนข้อความถึงผู้สมัคร" required></textarea>
-                            <div class="form-text">ผู้สมัครสามารถกด Reply เพื่อตอบกลับอีเมลของคุณได้โดยตรง</div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn btn-light border" type="button" data-bs-dismiss="modal">ยกเลิก</button>
-                        <button class="btn btn-primary" type="submit">ส่งอีเมล</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
 
 <?php if ($app['status'] !== 'withdrawn' && !$employerRatingSubmitted): ?>
     <div class="modal fade applicant-rating-modal" id="completedRatingModal" tabindex="-1" aria-labelledby="completedRatingModalLabel" aria-hidden="true">
