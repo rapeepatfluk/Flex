@@ -1,7 +1,14 @@
 <?php require_once __DIR__ . '/config/config.php';
+require_worker_matching_survey_complete();
 promotion_sync_expired(db());
-$where = ["j.job_status='published'", "j.work_province=?", "(j.application_deadline IS NULL OR j.application_deadline>=CURDATE())"];
-$params = [FLEXJOB_PROVINCE];
+$showAllProvinces = ($_GET['scope'] ?? 'all') !== 'local';
+$where = ["j.job_status='published'", "(j.application_deadline IS NULL OR j.application_deadline>=CURDATE())"];
+$params = [];
+if (!$showAllProvinces) {
+    $where[] = 'j.work_province=?';
+    $params[] = FLEXJOB_PROVINCE;
+}
+$jobAreaLabel = $showAllProvinces ? 'ทุกจังหวัด' : FLEXJOB_PROVINCE;
 if (!empty($_GET['q'])) {
     $where[] = '(j.job_title LIKE ? OR j.job_description LIKE ? OR ep.company_name LIKE ? OR wi.interest_name LIKE ?)';
     $term = '%' . $_GET['q'] . '%';
@@ -35,9 +42,10 @@ require APP_ROOT . '/partials/header.php'; ?>
             <div class="jobs-search-copy">
                 <p class="eyebrow">FIND YOUR NEXT JOB</p>
                 <h1>ค้นหางานที่ยืดหยุ่น<br>สำหรับคุณ</h1>
-                <p>เลือกงานพาร์ทไทม์ งานอีเวนต์ และฟรีแลนซ์ที่เปิดรับในจังหวัด<?= e(FLEXJOB_PROVINCE) ?></p>
+                <p>เลือกงานพาร์ทไทม์ งานอีเวนต์ และฟรีแลนซ์ที่เปิดรับใน<?= e($jobAreaLabel) ?></p>
             </div>
             <form class="jobs-search-form row g-2" method="get">
+                <?php if ($showAllProvinces): ?><input type="hidden" name="scope" value="all"><?php endif ?>
                 <div class="col-12 col-lg-5"><label class="visually-hidden" for="job-search">ชื่อตำแหน่ง หรือบริษัท</label><input id="job-search" class="form-control" name="q" value="<?= e($_GET['q'] ?? '') ?>" placeholder="ค้นหาตำแหน่ง หรือบริษัท"></div>
                 <div class="col-12 col-sm-6 col-lg"><label class="visually-hidden" for="job-work-mode">รูปแบบงาน</label><select id="job-work-mode" class="form-select" name="work_mode"><option value="">ทุกรูปแบบงาน</option><?php foreach (['onsite' => 'ทำงานที่สถานที่', 'remote' => 'ทำงานออนไลน์', 'hybrid' => 'Hybrid'] as $value => $label): ?><option value="<?= $value ?>" <?= ($_GET['work_mode'] ?? '') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></div>
                 <div class="col-12 col-sm-6 col-lg"><label class="visually-hidden" for="job-type">ประเภทงาน</label><select id="job-type" class="form-select" name="type"><option value="">ทุกประเภทงาน</option><?php foreach (['part_time' => 'พาร์ทไทม์', 'event' => 'งานอีเวนต์', 'freelance' => 'ฟรีแลนซ์'] as $value => $label): ?><option value="<?= $value ?>" <?= ($_GET['type'] ?? '') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></div>
@@ -48,7 +56,7 @@ require APP_ROOT . '/partials/header.php'; ?>
         <section class="jobs-results mt-5">
             <div class="jobs-results-heading">
                 <div><p class="eyebrow">AVAILABLE OPPORTUNITIES</p><h2>งานที่เปิดรับสมัคร</h2></div>
-                <div class="jobs-result-count"><b><?= number_format($totalJobs) ?></b><span>ตำแหน่งที่ยังเปิดรับใน<?= e(FLEXJOB_PROVINCE) ?></span></div>
+                <div class="jobs-result-count"><b><?= number_format($totalJobs) ?></b><span>ตำแหน่งที่ยังเปิดรับใน<?= e($jobAreaLabel) ?></span></div>
             </div>
 
             <?php if ($jobs): ?>

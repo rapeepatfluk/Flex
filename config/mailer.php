@@ -21,13 +21,66 @@ function send_mail(
     string $replyToName = ''
 ): bool
 {
+    $pdo = db();
     if (!mail_is_configured()) {
         try {
-            db()->prepare("INSERT INTO email_log (to_email,subject,status,error_msg) VALUES (?,?,'failed',?)")
-                ->execute([$toEmail, $subject, 'SMTP credentials are not configured']);
+            $pdo->prepare("INSERT INTO email_log (to_email,to_name,subject,status,error_msg) VALUES (?,?,?,'failed',?)")
+                ->execute([$toEmail, $toName, $subject, 'SMTP credentials are not configured']);
         } catch (\Throwable) {}
         return false;
     }
+
+    $result = deliver_mail($toEmail, $toName, $subject, $htmlBody, $replyToEmail, $replyToName);
+    try {
+        $pdo->prepare('INSERT INTO email_log (to_email,to_name,subject,status,error_msg,sent_at) VALUES (?,?,?,?,?,?)')
+            ->execute([$toEmail, $toName, $subject, $result['sent'] ? 'sent' : 'failed', $result['error'], $result['sent'] ? date('Y-m-d H:i:s') : null]);
+    } catch (\Throwable) {}
+
+    return $result['sent'];
+}
+
+/**
+ * Add a notification email to the outbox. The queue worker sends it later so
+ * the web request never waits for an SMTP connection or timeout.
+ */
+function queue_mail(
+    string $toEmail,
+    string $toName,
+    string $subject,
+    string $htmlBody,
+    ?string $replyToEmail = null,
+    string $replyToName = ''
+): bool {
+    try {
+        $pdo = db();
+        if (!filter_var($toEmail, FILTER_VALIDATE_EMAIL)) {
+            $pdo->prepare("INSERT INTO email_log (to_email,to_name,subject,status,error_msg) VALUES (?,?,?,'failed',?)")
+                ->execute([$toEmail, $toName, $subject, 'Recipient email is invalid']);
+            return false;
+        }
+        if (!mail_is_configured()) {
+            $pdo->prepare("INSERT INTO email_log (to_email,to_name,subject,status,error_msg) VALUES (?,?,?,'failed',?)")
+                ->execute([$toEmail, $toName, $subject, 'SMTP credentials are not configured']);
+            return false;
+        }
+
+        $pdo->prepare("INSERT INTO email_log (to_email,to_name,subject,html_body,reply_to_email,reply_to_name,status,available_at) VALUES (?,?,?,?,?,?,'queued',NOW())")
+            ->execute([$toEmail, $toName, $subject, $htmlBody, $replyToEmail, $replyToName]);
+        return true;
+    } catch (\Throwable) {
+        return false;
+    }
+}
+
+/** @return array{sent: bool, error: string|null} */
+function deliver_mail(
+    string $toEmail,
+    string $toName,
+    string $subject,
+    string $htmlBody,
+    ?string $replyToEmail = null,
+    string $replyToName = ''
+): array {
     $mail = new PHPMailer(true);
     try {
         $mail->isSMTP();
@@ -50,20 +103,71 @@ function send_mail(
         $mail->AltBody = strip_tags($htmlBody);
 
         $mail->send();
-
-        // Log success
-        db()->prepare("INSERT INTO email_log (to_email, subject, status) VALUES (?,?,'sent')")
-             ->execute([$toEmail, $subject]);
-        return true;
-
+        return ['sent' => true, 'error' => null];
     } catch (MailerException $e) {
-        // Log failure
-        try {
-            db()->prepare("INSERT INTO email_log (to_email, subject, status, error_msg) VALUES (?,?,'failed',?)")
-                 ->execute([$toEmail, $subject, $mail->ErrorInfo]);
-        } catch (\Throwable) {}
-        return false;
+        return ['sent' => false, 'error' => $mail->ErrorInfo ?: $e->getMessage()];
+    } catch (\Throwable $e) {
+        return ['sent' => false, 'error' => $e->getMessage()];
     }
+}
+
+/**
+ * Claim and send a bounded batch of queued emails. This function is intended
+ * for the CLI queue worker and uses row locks so concurrent runs do not send a
+ * message twice.
+ *
+ * @return array{sent: int, retried: int, failed: int}
+ */
+function process_email_queue(PDO $pdo, int $limit = 20): array
+{
+    $limit = max(1, min(100, $limit));
+    $result = ['sent' => 0, 'retried' => 0, 'failed' => 0];
+
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec("UPDATE email_log SET status='queued', locked_at=NULL WHERE status='processing' AND locked_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
+        $statement = $pdo->query("SELECT id,to_email,to_name,subject,html_body,reply_to_email,reply_to_name,attempts FROM email_log WHERE status='queued' AND available_at <= NOW() ORDER BY id ASC LIMIT {$limit} FOR UPDATE");
+        $messages = $statement->fetchAll();
+        if ($messages) {
+            $claim = $pdo->prepare("UPDATE email_log SET status='processing', attempts=attempts+1, locked_at=NOW() WHERE id=?");
+            foreach ($messages as &$message) {
+                $claim->execute([$message['id']]);
+                $message['attempts']++;
+            }
+            unset($message);
+        }
+        $pdo->commit();
+    } catch (\Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $e;
+    }
+
+    foreach ($messages ?? [] as $message) {
+        $delivery = deliver_mail(
+            $message['to_email'],
+            (string) $message['to_name'],
+            $message['subject'],
+            (string) $message['html_body'],
+            $message['reply_to_email'] ?: null,
+            (string) $message['reply_to_name']
+        );
+
+        if ($delivery['sent']) {
+            $pdo->prepare("UPDATE email_log SET status='sent', error_msg=NULL, locked_at=NULL, sent_at=NOW() WHERE id=? AND status='processing'")
+                ->execute([$message['id']]);
+            $result['sent']++;
+            continue;
+        }
+
+        $willRetry = (int) $message['attempts'] < 3;
+        $pdo->prepare($willRetry
+            ? "UPDATE email_log SET status='queued', error_msg=?, locked_at=NULL, available_at=DATE_ADD(NOW(), INTERVAL 5 MINUTE) WHERE id=? AND status='processing'"
+            : "UPDATE email_log SET status='failed', error_msg=?, locked_at=NULL WHERE id=? AND status='processing'")
+            ->execute([$delivery['error'], $message['id']]);
+        $result[$willRetry ? 'retried' : 'failed']++;
+    }
+
+    return $result;
 }
 
 function mail_is_configured(): bool

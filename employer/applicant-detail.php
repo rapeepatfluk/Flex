@@ -110,31 +110,70 @@ HTML;
 $statusOptions = [
     'submitted' => ['label' => 'รอพิจารณา', 'description' => 'ยังไม่ได้ตัดสินใจ', 'tone' => 'warning', 'icon' => '◷'],
     'eligible' => ['label' => 'มีสิทธิ์สัมภาษณ์', 'description' => 'ผ่านการคัดเลือกเบื้องต้น', 'tone' => 'primary', 'icon' => '✓'],
+    'not_selected' => ['label' => 'ไม่ผ่านการคัดเลือก', 'description' => 'ผู้สมัครไม่ผ่านเกณฑ์', 'tone' => 'danger', 'icon' => '×'],
     'interview_passed' => ['label' => 'ผ่านสัมภาษณ์แล้ว', 'description' => 'พร้อมเริ่มต้นขั้นตอนการทำงาน', 'tone' => 'success', 'icon' => '✦'],
     'completed' => ['label' => 'งานเสร็จสิ้น', 'description' => 'เปิดให้ทั้งสองฝ่ายให้คะแนนกันได้', 'tone' => 'info', 'icon' => '★'],
-    'not_selected' => ['label' => 'ไม่ผ่านการคัดเลือก', 'description' => 'ผู้สมัครไม่ผ่านเกณฑ์', 'tone' => 'danger', 'icon' => '×'],
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_POST['status'] ?? '')])) {
     try {
         verify_csrf();
+        $requestedStatus = (string) $_POST['status'];
+        $rating = null;
+        if ($requestedStatus === 'completed' && array_key_exists('rating', $_POST)) {
+            $rating = filter_var(
+                $_POST['rating'],
+                FILTER_VALIDATE_INT,
+                ['options' => ['min_range' => 1, 'max_range' => 5]]
+            );
+            if ($rating === false) {
+                throw new RuntimeException('กรุณาเลือกคะแนน 1–5 ดาว');
+            }
+        }
+
+        $pdo->beginTransaction();
         $statusChanged = application_update_status_by_employer(
             $pdo,
             (int) user()['id'],
             $jobId,
             $appId,
-            (string) $_POST['status']
+            $requestedStatus
         );
+
+        $ratingSaved = false;
+        if ($rating !== null) {
+            $ratingUpdate = $pdo->prepare('UPDATE applications SET rating_by_employer=?, rated_by_employer_at=NOW() WHERE application_id=? AND rating_by_employer IS NULL');
+            $ratingUpdate->execute([$rating, $appId]);
+            if (!$ratingUpdate->rowCount()) {
+                throw new RuntimeException('คุณให้คะแนนสำหรับงานนี้ไปแล้ว');
+            }
+            notification_create(
+                $pdo,
+                (int) $app['worker_user_id'],
+                'ได้รับคะแนนใหม่',
+                user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว หลังจบงาน',
+                'worker/application-detail.php?id=' . $appId
+            );
+            $ratingSaved = true;
+        }
+        $pdo->commit();
 
         if ($statusChanged) {
             notify_worker_status($appId);
+        }
+
+        if ($ratingSaved) {
+            flash('success', 'บันทึกสถานะงานเสร็จสิ้นและคะแนน ' . $rating . ' ดาวเรียบร้อยแล้ว');
+        } elseif ($statusChanged) {
             flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
         } else {
             flash('success', 'สถานะผู้สมัครไม่มีการเปลี่ยนแปลง');
         }
     } catch (RuntimeException $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         flash('error', $e->getMessage());
     } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
         error_log('Application status update failed: ' . $e->getMessage());
         flash('error', 'ไม่สามารถอัปเดตสถานะผู้สมัครได้ กรุณาลองใหม่อีกครั้ง');
     }
@@ -155,6 +194,7 @@ $skills = array_filter(array_map('trim', explode(',', (string) $app['skills'])))
 
 $pageTitle = 'โปรไฟล์ผู้สมัคร | FLEXJOB';
 $pageStyles = ['rating', 'employer-applicant-detail'];
+$pageScripts = ['employer-applicant-detail'];
 require APP_ROOT . '/partials/header.php';
 ?>
 <main class="container applicant-detail-page py-4 py-lg-5">
@@ -229,7 +269,7 @@ require APP_ROOT . '/partials/header.php';
                     <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="applicantSkillsHeading">
                         <div class="card-body p-4">
                             <p class="applicant-detail-eyebrow mb-1">SKILLS</p>
-                            <h2 class="h4 mb-3" id="applicantSkillsHeading">ทักษะ</h2>
+                            <h2 class="h4 mb-3" id="applicantSkillsHeading">ความสามารถ</h2>
                             <ul class="list-unstyled d-flex flex-wrap gap-2 mb-0">
                                 <?php foreach ($skills as $skill): ?>
                                     <li><span class="badge applicant-skill-badge"><?= e($skill) ?></span></li>
@@ -292,7 +332,7 @@ require APP_ROOT . '/partials/header.php';
                         <?php if ($app['status'] === 'withdrawn'): ?>
                             <div class="alert alert-secondary mb-0">ผู้หางานถอนใบสมัครนี้แล้ว จึงไม่สามารถเปลี่ยนสถานะได้</div>
                         <?php else: ?>
-                            <form method="post">
+                            <form id="applicantStatusForm" method="post">
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
                                 <fieldset class="border-0 p-0 m-0">
@@ -387,6 +427,44 @@ require APP_ROOT . '/partials/header.php';
                     <div class="modal-footer">
                         <button class="btn btn-light border" type="button" data-bs-dismiss="modal">ยกเลิก</button>
                         <button class="btn btn-primary" type="submit">ส่งอีเมล</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+<?php endif; ?>
+
+<?php if ($app['status'] !== 'withdrawn' && !$employerRatingSubmitted): ?>
+    <div class="modal fade applicant-rating-modal" id="completedRatingModal" tabindex="-1" aria-labelledby="completedRatingModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <form id="completedRatingForm" method="post">
+                    <?= csrf_field() ?>
+                    <input type="hidden" name="application_id" value="<?= $app['id'] ?>">
+                    <input type="hidden" name="status" value="completed">
+                    <div class="modal-header">
+                        <div>
+                            <p class="applicant-detail-eyebrow mb-1">WORK REVIEW</p>
+                            <h2 class="modal-title fs-5" id="completedRatingModalLabel">ให้คะแนนหลังจบงาน</h2>
+                        </div>
+                        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="ปิด"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="text-secondary mb-4">งานของ <?= e($app['name']) ?> เสร็จสิ้นแล้ว เลือกคะแนนเพื่อบันทึกพร้อมสถานะงาน</p>
+                        <fieldset class="border-0 p-0 m-0">
+                            <legend class="h6 mb-2">คะแนนสำหรับผู้หางาน</legend>
+                            <div class="rating-stars" aria-describedby="completedRatingHint">
+                                <?php for ($score = 5; $score >= 1; $score--): ?>
+                                    <input class="rating-input" id="completed-rating-<?= $app['id'] ?>-<?= $score ?>" type="radio" name="rating" value="<?= $score ?>" required>
+                                    <label class="rating-star" for="completed-rating-<?= $app['id'] ?>-<?= $score ?>"><span class="visually-hidden"><?= $score ?> ดาว</span><span aria-hidden="true">★</span></label>
+                                <?php endfor; ?>
+                            </div>
+                            <p class="form-text mb-0" id="completedRatingHint">เลือกจำนวนดาวจาก 1 ถึง 5 ดาว</p>
+                        </fieldset>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-light border" type="button" data-bs-dismiss="modal">กลับไปเลือกสถานะ</button>
+                        <button class="btn btn-primary" type="submit">บันทึกงานเสร็จสิ้นและคะแนน</button>
                     </div>
                 </form>
             </div>

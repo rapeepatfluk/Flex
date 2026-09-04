@@ -29,29 +29,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 $pageTitle = 'เข้าสู่ระบบ | FLEXJOB';
+$pageStyles = ['auth'];
+$pageScripts = ['auth'];
 require APP_ROOT . '/partials/header.php'; ?>
-<main class="auth-page">
-    <div class="form-card">
-        <p class="eyebrow">WELCOME BACK</p>
-        <h1>เข้าสู่ระบบ</h1>
-        <p>เข้าสู่ FLEXJOB เพื่อจัดการงานของคุณ</p>
+<main class="auth-page auth-experience py-4 py-lg-5">
+    <div class="container">
+        <div class="auth-shell row g-0 mx-auto overflow-hidden">
+            <aside class="auth-aside col-lg-5 d-none d-lg-flex flex-column" aria-label="ข้อมูล FLEXJOB">
+                <div class="auth-aside-glow auth-aside-glow-one"></div><div class="auth-aside-glow auth-aside-glow-two"></div>
+                <div class="position-relative">
+                    <p class="auth-kicker mb-3">FLEXJOB ACCOUNT</p>
+                    <h2>งานที่ใช่<br>เริ่มต้นจากที่นี่</h2>
+                    <p class="mb-0">เข้าสู่ระบบเพื่อค้นหางาน ติดตามใบสมัคร และจัดการทุกโอกาสของคุณในที่เดียว</p>
+                </div>
+                <div class="auth-benefits mt-auto position-relative">
+                    <div><span aria-hidden="true">✓</span><p><b>ค้นหางานที่เปิดรับ</b><small>เลือกโอกาสที่เหมาะกับคุณ</small></p></div>
+                    <div><span aria-hidden="true">✦</span><p><b>ติดตามทุกขั้นตอน</b><small>ดูสถานะใบสมัครได้ง่าย</small></p></div>
+                    <div><span aria-hidden="true">★</span><p><b>สร้างความน่าเชื่อถือ</b><small>สะสมคะแนนรีวิวจากงานจริง</small></p></div>
+                </div>
+            </aside>
 
-        <form method="post">
-            <label for="email">อีเมล</label>
-            <input id="email" type="email" name="email" required autocomplete="email" placeholder="your@email.com">
+            <section class="auth-content col-lg-7">
+                <div class="auth-form-wrap">
+                    <a class="auth-back-link" href="<?= BASE_URL ?>/index.php"><span aria-hidden="true">←</span> กลับหน้าแรก</a>
+                    <div class="auth-mobile-mark d-lg-none" aria-hidden="true"><span>F</span></div>
+                    <p class="eyebrow mb-2">WELCOME BACK</p>
+                    <h1 class="auth-title">ยินดีต้อนรับกลับ</h1>
+                    <p class="auth-subtitle">เข้าสู่ FLEXJOB เพื่อจัดการงานของคุณ</p>
 
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                <label for="password" style="margin-bottom:0">รหัสผ่าน</label>
-                
-            </div>
-            <input id="password" type="password" name="password" required autocomplete="current-password" placeholder="••••••••">
-            <a href="<?= BASE_URL ?>/auth/forgot-password.php" style="font-size:13px; text-decoration:none;">ลืมรหัสผ่าน?</a>
-            <button class="btn btn-primary full-width" style="margin-top:20px" type="submit">เข้าสู่ระบบ</button>
-        </form>
+                    <form method="post" class="auth-form">
+                        <div class="mb-3">
+                            <label class="form-label" for="email">อีเมล</label>
+                            <input class="form-control form-control-lg" id="email" type="email" name="email" required autocomplete="username" inputmode="email" enterkeyhint="next" placeholder="name@example.com">
+                        </div>
+                        <div class="mb-2">
+                            <div class="d-flex align-items-center justify-content-between gap-3"><label class="form-label mb-0" for="current-password">รหัสผ่าน</label><a class="auth-inline-link" href="<?= BASE_URL ?>/auth/forgot-password.php">ลืมรหัสผ่าน?</a></div>
+                            <div class="password-control mt-2"><input class="form-control form-control-lg" id="current-password" type="password" name="password" required autocomplete="current-password" enterkeyhint="done" placeholder="กรอกรหัสผ่าน"><button class="password-toggle" type="button" data-password-toggle aria-controls="current-password" aria-pressed="false"><span>แสดง</span><span class="visually-hidden">รหัสผ่าน</span></button></div>
+                        </div>
+                        <button class="btn btn-primary btn-lg w-100 auth-submit" type="submit">เข้าสู่ระบบ <span aria-hidden="true">→</span></button>
+                    </form>
 
-        <p class="form-note" style="margin-top:16px;font-size:13px">
-            ยังไม่มีบัญชี? <a href="<?= BASE_URL ?>/auth/register.php"><b>สมัครใช้งาน</b></a>
-        </p>
+                    <p class="auth-switch mb-0">ยังไม่มีบัญชี? <a href="<?= BASE_URL ?>/auth/register.php">สมัครใช้งานฟรี</a></p>
+                </div>
+            </section>
+        </div>
     </div>
 </main>
 <?php require APP_ROOT . '/partials/footer.php'; ?>

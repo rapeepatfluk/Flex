@@ -12,6 +12,11 @@ $stats = [
 ];
 $pendingDocuments = $pdo->query("SELECT ed.employer_user_id,ed.document_status,ed.submitted_at,ep.company_name,CONCAT(u.first_name,' ',u.last_name) contact_name FROM employer_documents ed JOIN employer_profiles ep ON ep.user_id=ed.employer_user_id JOIN users u ON u.user_id=ed.employer_user_id WHERE ed.document_status IN ('pending','resubmit') ORDER BY ed.submitted_at DESC LIMIT 4")->fetchAll();
 $recentJobs = $pdo->query("SELECT j.job_id,j.job_status,j.job_title,j.created_at,ep.company_name,wi.interest_name work_interest_name FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id ORDER BY j.created_at DESC LIMIT 4")->fetchAll();
+$jobCategoryStats = $pdo->query("SELECT jc.category_slug,COUNT(DISTINCT j.job_id) AS job_count,COUNT(a.application_id) AS application_count FROM job_categories jc LEFT JOIN jobs j ON j.job_category_id=jc.job_category_id LEFT JOIN applications a ON a.job_id=j.job_id GROUP BY jc.job_category_id,jc.category_slug ORDER BY job_count DESC,jc.category_slug ASC")->fetchAll();
+$jobCategoryTotal = array_sum(array_map(static fn(array $category): int => (int) $category['job_count'], $jobCategoryStats));
+$applicationTotal = array_sum(array_map(static fn(array $category): int => (int) $category['application_count'], $jobCategoryStats));
+$jobCategoryMaximum = max(1, ...array_map(static fn(array $category): int => max((int) $category['job_count'], (int) $category['application_count']), $jobCategoryStats));
+$topJobCategory = $jobCategoryStats[0] ?? null;
 $documentStatus = ['pending' => ['รอตรวจสอบ', 'warning'], 'resubmit' => ['ส่งเอกสารใหม่', 'info']];
 $jobStatus = ['published' => ['เผยแพร่แล้ว', 'success'], 'hidden' => ['ซ่อนประกาศ', 'secondary'], 'closed' => ['ปิดรับสมัคร', 'dark']];
 
@@ -42,6 +47,33 @@ require APP_ROOT . '/partials/header.php';
         <?php if (!mail_is_configured()): ?>
             <aside class="alert admin-smtp-alert mb-4" role="alert"><span class="admin-alert-icon" aria-hidden="true">!</span><div><strong>การส่งอีเมลยังไม่พร้อมใช้งาน</strong><p class="mb-0">การแจ้งเตือนในเว็บไซต์ยังทำงานตามปกติ แต่ต้องตั้งค่า <code>FLEXJOB_SMTP_USER</code> และ <code>FLEXJOB_SMTP_PASS</code> ก่อนส่งอีเมลให้ผู้ใช้</p></div></aside>
         <?php endif; ?>
+
+        <section class="card border-0 admin-job-type-chart mb-4" aria-labelledby="admin-job-type-chart-heading">
+            <div class="card-body p-4 p-lg-5">
+                <div class="d-flex flex-column flex-md-row align-items-md-start justify-content-between gap-3 mb-4">
+                    <div><p class="admin-dashboard-eyebrow mb-1">JOB & APPLICATION INSIGHTS</p><h2 class="h3 mb-1" id="admin-job-type-chart-heading">ประกาศและการสมัคร แยกตามประเภทงาน</h2><p class="text-secondary mb-0">เปรียบเทียบความต้องการของผู้ว่าจ้างกับจำนวนใบสมัครในแต่ละประเภท</p></div>
+                    <?php if ($topJobCategory && (int) $topJobCategory['job_count'] > 0): ?><div class="admin-job-type-highlight"><span>ประเภทที่ลงมากสุด</span><strong><?= e(job_type($topJobCategory['category_slug'])) ?></strong><small><?= number_format((int) $topJobCategory['job_count']) ?> ประกาศ</small></div><?php endif; ?>
+                </div>
+
+                <?php if ($jobCategoryTotal > 0): ?>
+                    <figure class="mb-0">
+                        <div class="admin-job-type-legend mb-3" aria-label="คำอธิบายกราฟ"><span><i class="admin-job-type-legend-post" aria-hidden="true"></i>จำนวนประกาศ</span><span><i class="admin-job-type-legend-application" aria-hidden="true"></i>จำนวนการสมัคร</span></div>
+                        <div class="admin-job-type-columns" role="list">
+                            <?php foreach ($jobCategoryStats as $category): $count = (int) $category['job_count']; $applications = (int) $category['application_count']; $jobHeight = max(0, (int) round($count * 100 / $jobCategoryMaximum)); $applicationHeight = max(0, (int) round($applications * 100 / $jobCategoryMaximum)); ?>
+                                <div class="admin-job-type-column" role="listitem">
+                                    <div class="admin-job-type-plot" aria-hidden="true"><div class="admin-job-type-series"><span class="admin-job-type-bar admin-job-type-bar-post" style="--job-type-height: <?= $jobHeight ?>%" data-value="<?= number_format($count) ?>"></span><span class="admin-job-type-bar admin-job-type-bar-application" style="--job-type-height: <?= $applicationHeight ?>%" data-value="<?= number_format($applications) ?>"></span></div></div>
+                                    <strong><?= e(job_type($category['category_slug'])) ?></strong>
+                                    <span class="admin-job-type-data">ประกาศ <?= number_format($count) ?> · สมัคร <?= number_format($applications) ?></span>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <figcaption class="admin-job-type-caption mt-3">รวม <?= number_format($jobCategoryTotal) ?> ประกาศ และ <?= number_format($applicationTotal) ?> การสมัคร · ความสูงของแท่งเปรียบเทียบจากค่าสูงสุดในกราฟเดียวกัน</figcaption>
+                    </figure>
+                <?php else: ?>
+                    <div class="admin-empty-state text-center py-4"><div aria-hidden="true">◷</div><p class="mb-0">ยังไม่มีข้อมูลประกาศงานสำหรับสร้างกราฟ</p></div>
+                <?php endif; ?>
+            </div>
+        </section>
 
         <section class="mb-4" aria-labelledby="admin-summary-heading">
             <div class="d-flex flex-column flex-sm-row align-items-sm-end justify-content-between gap-2 mb-3"><div><p class="admin-dashboard-eyebrow mb-1">SYSTEM SNAPSHOT</p><h2 class="h3 mb-0" id="admin-summary-heading">สรุปข้อมูลระบบ</h2></div><p class="small text-secondary mb-0">อัปเดตจากฐานข้อมูลปัจจุบัน</p></div>

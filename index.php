@@ -9,6 +9,7 @@ if (user() && user()['role'] === 'admin') {
 $pdo = db();
 promotion_sync_expired($pdo);
 $role = user()['role'] ?? '';
+if ($role === 'worker') require_worker_matching_survey_complete();
 
 // ── ข้อมูลเพิ่มเติมตาม role ──────────────────────────────────────────────────
 if ($role === 'worker') {
@@ -27,22 +28,26 @@ if ($role === 'worker') {
             ?: (int) $b['id'] <=> (int) $a['id'];
     });
     $workerJobs = array_slice($workerJobs, 0, 6);
-    $latestWorkerJobs = array_values(array_filter($workerJobPool, fn(array $job): bool => empty($job['is_promoted'])));
-    usort($latestWorkerJobs, fn(array $a, array $b): int => strcmp((string) $b['created_at'], (string) $a['created_at'])
-        ?: (int) $b['id'] <=> (int) $a['id']);
-    $latestWorkerJobs = array_slice($latestWorkerJobs, 0, 6);
+    $latestWorkerStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,wi.interest_name work_interest_name,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,j.created_at,ep.company_name,ep.company_logo_path AS company_logo,
+        (SELECT ROUND(AVG(a.rating_by_worker), 1) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_average,
+        (SELECT COUNT(a.rating_by_worker) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_count,
+        (SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,
+        (SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order,ji.job_image_id LIMIT 1) cover_image
+        FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id
+        JOIN job_categories jc ON jc.job_category_id=j.job_category_id
+        LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id
+        WHERE j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())
+        ORDER BY j.created_at DESC,j.job_id DESC LIMIT 6");
+    $latestWorkerStatement->execute();
+    $latestWorkerJobs = promotion_attach_to_jobs($pdo, $latestWorkerStatement->fetchAll());
     $hasMatchingProfile = (bool) array_filter($workerJobs, fn(array $job): bool => $job['match']['score'] !== null);
     $profileStmt = $pdo->prepare("SELECT wp.professional_headline,wp.biography,wp.resume_file_path,wp.work_province,COUNT(DISTINCT ws.skill_id) skill_count,COUNT(DISTINCT wjp.job_category_id) preference_count,COUNT(DISTINCT wwi.work_interest_id) work_interest_count FROM worker_profiles wp LEFT JOIN worker_skills ws ON ws.worker_user_id=wp.user_id LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=wp.user_id LEFT JOIN worker_work_interests wwi ON wwi.worker_user_id=wp.user_id WHERE wp.user_id=? GROUP BY wp.user_id");
     $profileStmt->execute([$workerId]);
     $matchingProfile = $profileStmt->fetch() ?: [];
-    $matchingSurveyComplete = (int) ($matchingProfile['skill_count'] ?? 0) > 0
-        && (int) ($matchingProfile['preference_count'] ?? 0) > 0
-        && (int) ($matchingProfile['work_interest_count'] ?? 0) > 0
-        && ($matchingProfile['work_province'] ?? '') === FLEXJOB_PROVINCE;
     $profileChecks = [
         'คำโปรยแนะนำตัวสั้น ๆ' => !empty($matchingProfile['professional_headline']),
         'ข้อมูลแนะนำตัว'       => !empty($matchingProfile['biography']),
-        'ทักษะ'                => (int) ($matchingProfile['skill_count'] ?? 0) > 0,
+        'ความสามารถ'          => (int) ($matchingProfile['skill_count'] ?? 0) > 0,
         'งานที่สนใจ'           => (int) ($matchingProfile['work_interest_count'] ?? 0) > 0,
         'รูปแบบการจ้างที่สนใจ' => (int) ($matchingProfile['preference_count'] ?? 0) > 0,
         'Resume'               => !empty($matchingProfile['resume_file_path']),
@@ -71,9 +76,9 @@ $advertisements = [
 
 $pageTitle  = 'FLEXJOB | งานที่ยืดหยุ่นสำหรับคุณ';
 $pageStyles = match ($role) {
-    'worker'   => ['index', 'index-how', 'worker-index', 'worker-profile-guide', 'matching', 'rating'],
-    'employer' => ['index', 'index-how', 'employer-index', 'worker-index', 'rating'],
-    default    => ['index', 'index-how'],
+    'worker'   => ['index', 'worker-index', 'worker-profile-guide', 'matching', 'rating'],
+    'employer' => ['index', 'employer-index', 'worker-index', 'rating'],
+    default    => ['index'],
 };
 require __DIR__ . '/partials/header.php'; ?>
 
@@ -86,7 +91,7 @@ require __DIR__ . '/partials/header.php'; ?>
                 <div class="col-lg-8">
                     <p class="eyebrow mb-2">FLEXJOB FOR YOU</p>
                     <h1 class="display-6 fw-bold mb-3">ค้นหางานที่ใช่<br>ในแบบที่เป็นคุณ</h1>
-                    <p class="lead text-secondary mb-4">เติมโปรไฟล์ให้ครบ แล้วเลือกดูงานที่ตรงกับทักษะและรูปแบบงานที่คุณสนใจได้ทันที</p>
+                    <p class="lead text-secondary mb-4">เติมโปรไฟล์ให้ครบ แล้วเลือกดูงานที่ตรงกับความสามารถและรูปแบบงานที่คุณสนใจได้ทันที</p>
                     <div class="d-flex flex-wrap gap-2"><a class="btn btn-primary px-4" href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a><a class="btn btn-outline-primary px-4" href="<?= BASE_URL ?>/worker/dashboard.php#applications">งานที่สมัคร</a></div>
                 </div>
                 <div class="col-lg-4">
@@ -97,7 +102,7 @@ require __DIR__ . '/partials/header.php'; ?>
                             <div class="progress mt-3" role="progressbar" aria-label="ความสมบูรณ์ของโปรไฟล์" aria-valuenow="<?= $profileCompleteness ?>" aria-valuemin="0" aria-valuemax="100">
                                 <div class="progress-bar" style="width:<?= $profileCompleteness ?>%"></div>
                             </div>
-                            <p class="small text-secondary mb-0 mt-3">ทักษะ <?= (int) ($matchingProfile['skill_count'] ?? 0) ?> รายการ · งานที่สนใจ <?= (int) ($matchingProfile['work_interest_count'] ?? 0) ?> รายการ</p>
+                            <p class="small text-secondary mb-0 mt-3">ความสามารถ <?= (int) ($matchingProfile['skill_count'] ?? 0) ?> รายการ · งานที่สนใจ <?= (int) ($matchingProfile['work_interest_count'] ?? 0) ?> รายการ</p>
                         </div>
                     </aside>
                 </div>
@@ -111,17 +116,6 @@ require __DIR__ . '/partials/header.php'; ?>
                     <p>อัปโหลด Resume และ Portfolio โดยรวม Certificate ไว้ใน Portfolio เพื่อเพิ่มโอกาสได้รับการติดต่อ</p><a class="btn btn-primary btn-sm px-3" href="<?= BASE_URL ?>/worker/editprofiles.php">เติมโปรไฟล์ตอนนี้</a>
                 </div>
             </section>
-
-            <?php if (!$matchingSurveyComplete): ?>
-                <section class="card border-0 shadow-sm worker-action-card">
-                    <div class="card-body p-4 d-flex flex-column flex-md-row justify-content-between gap-3 align-items-md-center">
-                        <div><b>ช่วยให้เราแนะนำงานได้ตรงขึ้น</b>
-                            <p class="text-secondary small mb-0 mt-1">ตอบแบบสำรวจ Matching เกี่ยวกับงานที่สนใจ ทักษะ และรูปแบบงาน ใช้เวลาประมาณ 1–2 นาที</p>
-                        </div>
-                        <a class="btn btn-primary flex-shrink-0" href="<?= BASE_URL ?>/worker/matching-survey.php">เริ่มทำแบบสำรวจ</a>
-                    </div>
-                </section>
-            <?php endif ?>
 
             <?php if ($profileCompleteness < 100): ?>
                 <section class="card border-0 shadow-sm worker-action-card mt-3">
@@ -157,7 +151,7 @@ require __DIR__ . '/partials/header.php'; ?>
                 <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3 mb-4">
                     <div>
                         <p class="eyebrow">JUST FOR YOU</p>
-                        <h2 id="recommended-jobs-title">งานแนะนำสำหรับคุณ</h2><?php if (!$hasMatchingProfile): ?><p class="text-secondary mb-0">เพิ่มทักษะ รูปแบบงาน และประเภทงานที่สนใจเพื่อรับคำแนะนำที่ตรงขึ้น</p><?php endif ?>
+                        <h2 id="recommended-jobs-title">งานแนะนำสำหรับคุณ</h2><?php if (!$hasMatchingProfile): ?><p class="text-secondary mb-0">เพิ่มความสามารถ รูปแบบงาน และประเภทงานที่สนใจเพื่อรับคำแนะนำที่ตรงขึ้น</p><?php endif ?>
                     </div>
                     <a class="btn btn-link text-decoration-none px-0" href="<?= BASE_URL ?>/jobs.php">ดูงานทั้งหมด <span aria-hidden="true">→</span></a>
                 </div>
@@ -169,47 +163,13 @@ require __DIR__ . '/partials/header.php'; ?>
                     <div>
                         <p class="eyebrow">NEWLY POSTED</p>
                         <h2 id="latest-jobs-title">งานที่เพิ่มล่าสุด</h2>
-                        <p class="text-secondary mb-0">ดูประกาศงานใหม่จากผู้ว่าจ้างที่ผ่านการยืนยัน</p>
+                        <p class="text-secondary mb-0">ดูประกาศงานที่เผยแพร่ล่าสุดจากทุกจังหวัด</p>
                     </div>
-                    <a class="btn btn-link text-decoration-none px-0" href="<?= BASE_URL ?>/jobs.php">ดูงานทั้งหมด <span aria-hidden="true">→</span></a>
+                    <a class="btn btn-link text-decoration-none px-0" href="<?= BASE_URL ?>/jobs.php?scope=all">ดูงานทั้งหมด <span aria-hidden="true">→</span></a>
                 </div>
                 <div class="row g-4"><?php foreach ($latestWorkerJobs as $job) require APP_ROOT . '/partials/worker-job-card.php'; ?><?php if (!$latestWorkerJobs): ?><p class="empty">ยังไม่มีงานใหม่ในขณะนี้</p><?php endif ?></div>
             </section>
         </div>
-
-        <section class="how-section" id="how" aria-labelledby="worker-how-title">
-            <div class="how-visual" aria-hidden="true">
-                <div class="phone">
-                    <b>FLEXJOB</b>
-                    <h3>สวัสดี 👋</h3>
-                    <p>งานใหม่สำหรับคุณ</p>
-                    <div>✦ <b>Event Staff</b><small>฿900 / วัน</small></div>
-                    <div>⌁ <b>Content Creator</b><small>฿1,500 / งาน</small></div>
-                </div>
-            </div>
-            <div class="how-content">
-                <p class="eyebrow">HOW FLEXJOB WORKS</p>
-                <h2 id="worker-how-title">หางานง่าย<br>จบในไม่กี่ขั้นตอน</h2>
-                <ol>
-                    <li><span>01</span>
-                        <div><b>สร้างโปรไฟล์ของคุณ</b>
-                            <p>เพิ่มข้อมูล ทักษะ และ Resume เพื่อให้ผู้ว่าจ้างรู้จักคุณ</p>
-                        </div>
-                    </li>
-                    <li><span>02</span>
-                        <div><b>เลือกงานที่สนใจ</b>
-                            <p>ค้นหาและกรองงานตามเวลา จังหวัด และค่าจ้าง</p>
-                        </div>
-                    </li>
-                    <li><span>03</span>
-                        <div><b>สมัคร แล้วเริ่มงาน</b>
-                            <p>ติดตามผลสมัครและรับข้อเสนอผ่านหน้าเดียว</p>
-                        </div>
-                    </li>
-                </ol>
-            </div>
-        </section>
-        <hr class="my-0">
 
     <?php elseif ($role === 'employer'): ?>
                 <?php
@@ -312,7 +272,7 @@ require __DIR__ . '/partials/header.php'; ?>
                         <search aria-label="ค้นหางาน">
                             <form class="landing-search rounded-4 p-2" action="<?= BASE_URL ?>/jobs.php" method="get">
                                 <div class="row g-2 align-items-center">
-                                    <div class="col-md-5"><label class="visually-hidden" for="landingJobSearch">ค้นหางาน</label><input class="form-control border-0" id="landingJobSearch" type="search" name="q" placeholder="ตำแหน่ง, ทักษะ หรือบริษัท"></div>
+                                    <div class="col-md-5"><label class="visually-hidden" for="landingJobSearch">ค้นหางาน</label><input class="form-control border-0" id="landingJobSearch" type="search" name="q" placeholder="ตำแหน่ง, ความสามารถ หรือบริษัท"></div>
                                     <div class="col-md-4"><label class="visually-hidden" for="landingWorkMode">รูปแบบการทำงาน</label><select class="form-select border-0" id="landingWorkMode" name="work_mode">
                                             <option value="">ทุกรูปแบบงาน</option>
                                             <option value="onsite">ทำงานที่สถานที่</option>
@@ -431,38 +391,6 @@ require __DIR__ . '/partials/header.php'; ?>
                                 </div>
                             </div>
                         </article><?php endforeach ?><p class="empty home-no-results" hidden>ไม่พบงานในหมวดนี้</p><?php if (!$jobs): ?><p class="empty">ยังไม่มีงานแนะนำในขณะนี้</p><?php endif ?></div>
-            </div>
-        </section>
-
-        <section class="how-section" id="how">
-            <div class="how-visual">
-                <div class="phone"> <b>FLEXJOB</b>
-                    <h3>สวัสดี 👋</h3>
-                    <p>งานใหม่สำหรับคุณ</p>
-                    <div>✦ <b>Event Staff</b><small>฿900 / วัน</small></div>
-                    <div>⌁ <b>Content Creator</b><small>฿1,500 / งาน</small></div>
-                </div>
-            </div>
-            <div class="how-content">
-                <p class="eyebrow">HOW FLEXJOB WORKS</p>
-                <h2>หางานง่าย<br>จบในไม่กี่ขั้นตอน</h2>
-                <ol>
-                    <li><span>01</span>
-                        <div><b>สร้างโปรไฟล์ของคุณ</b>
-                            <p>เพิ่มข้อมูล ทักษะ และ Resume เพื่อให้ผู้ว่าจ้างรู้จักคุณ</p>
-                        </div>
-                    </li>
-                    <li><span>02</span>
-                        <div><b>เลือกงานที่สนใจ</b>
-                            <p>ค้นหาและกรองงานตามเวลา พื้นที่ และค่าจ้าง</p>
-                        </div>
-                    </li>
-                    <li><span>03</span>
-                        <div><b>สมัคร แล้วเริ่มงาน</b>
-                            <p>ติดตามผลสมัครและรับข้อเสนอผ่านหน้าเดียว</p>
-                        </div>
-                    </li>
-                </ol>
             </div>
         </section>
 

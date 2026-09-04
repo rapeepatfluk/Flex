@@ -41,7 +41,10 @@ CREATE TABLE worker_profiles (
   work_province VARCHAR(100) NULL,
   preferred_work_mode ENUM('any', 'onsite', 'remote', 'hybrid') NOT NULL DEFAULT 'any',
   available_from DATE NULL,
+  matching_survey_required_at DATETIME NULL,
+  matching_survey_completed_at DATETIME NULL,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_worker_profiles_matching_survey (matching_survey_required_at, matching_survey_completed_at),
   CONSTRAINT fk_worker_profile_user FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -100,6 +103,10 @@ CREATE TABLE jobs (
   work_location VARCHAR(180) NOT NULL,
   work_province VARCHAR(100) NULL,
   work_schedule VARCHAR(180) NULL,
+  work_start_date DATE NULL,
+  work_end_date DATE NULL,
+  work_start_time TIME NULL,
+  work_end_time TIME NULL,
   work_mode ENUM('onsite', 'remote', 'hybrid') NOT NULL DEFAULT 'onsite',
   application_deadline DATE NULL,
   pay_amount DECIMAL(10,2) NOT NULL,
@@ -330,4 +337,22 @@ CREATE TABLE job_promotions (
   INDEX idx_promotion_job_status (job_id,promotion_status,ends_at),
   INDEX idx_promotion_review_queue (promotion_status,payment_submitted_at),
   INDEX idx_promotion_employer (employer_user_id,created_at)
+) ENGINE=InnoDB;
+
+-- Cached matching results. Source profile, preference, skill and job data remains in its original tables.
+CREATE TABLE job_worker_matches (
+  job_id INT UNSIGNED NOT NULL,
+  worker_user_id INT UNSIGNED NOT NULL,
+  match_score TINYINT UNSIGNED NULL,
+  data_strength TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  match_reasons_json TEXT NOT NULL,
+  missing_required_json TEXT NOT NULL,
+  required_skills_json TEXT NOT NULL,
+  preferred_skills_json TEXT NOT NULL,
+  calculated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (job_id,worker_user_id),
+  CONSTRAINT fk_job_worker_matches_job FOREIGN KEY (job_id) REFERENCES jobs(job_id) ON DELETE CASCADE,
+  CONSTRAINT fk_job_worker_matches_worker FOREIGN KEY (worker_user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+  INDEX idx_job_worker_matches_job_score (job_id,match_score),
+  INDEX idx_job_worker_matches_worker_score (worker_user_id,match_score)
 ) ENGINE=InnoDB;

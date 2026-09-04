@@ -28,7 +28,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($role === 'employer') {
             $pdo->prepare('INSERT INTO employer_profiles (user_id,company_name) VALUES (?,?)')->execute([$id, $companyName]);
         } else {
-            $pdo->prepare('INSERT INTO worker_profiles (user_id) VALUES (?)')->execute([$id]);
+            // Only accounts created from this point forward are required to complete onboarding.
+            // Existing Worker accounts remain unaffected by the new flow.
+            $pdo->prepare('INSERT INTO worker_profiles (user_id,matching_survey_required_at) VALUES (?,NOW())')->execute([$id]);
         }
 
         // Create verification token (expires in 24h)
@@ -74,59 +76,64 @@ HTML;
 }
 
 $pageTitle = 'สมัครใช้งาน | FLEXJOB';
+$pageStyles = ['auth'];
+$pageScripts = ['auth'];
 require APP_ROOT . '/partials/header.php'; ?>
-<main class="auth-page">
-    <div class="form-card">
-        <p class="eyebrow">JOIN FLEXJOB</p>
-        <h1>สร้างบัญชีใหม่</h1>
-        <p>กรอกข้อมูลเพื่อสมัครใช้งาน FLEXJOB</p>
+<main class="auth-page auth-experience py-4 py-lg-5">
+    <div class="container">
+        <div class="auth-shell auth-shell-register row g-0 mx-auto overflow-hidden">
+            <aside class="auth-aside col-lg-5 d-none d-lg-flex flex-column" aria-label="สิทธิประโยชน์ FLEXJOB">
+                <div class="auth-aside-glow auth-aside-glow-one"></div><div class="auth-aside-glow auth-aside-glow-two"></div>
+                <div class="position-relative">
+                    <p class="auth-kicker mb-3">JOIN FLEXJOB</p>
+                    <h2>เริ่มต้นโอกาสใหม่<br>ในแบบของคุณ</h2>
+                    <p class="mb-0">สร้างบัญชีเพียงไม่กี่ขั้นตอน แล้วเริ่มหางานหรือประกาศงานได้ทันทีหลังยืนยันอีเมล</p>
+                </div>
+                <div class="auth-benefits mt-auto position-relative">
+                    <div><span aria-hidden="true">1</span><p><b>สร้างบัญชี</b><small>เลือกบทบาทที่ตรงกับคุณ</small></p></div>
+                    <div><span aria-hidden="true">2</span><p><b>ยืนยันอีเมล</b><small>เพื่อความปลอดภัยของบัญชี</small></p></div>
+                    <div><span aria-hidden="true">3</span><p><b>เริ่มค้นหาโอกาส</b><small>ทุกอย่างพร้อมใน FLEXJOB</small></p></div>
+                </div>
+            </aside>
 
-        <form method="post">
-            <?= csrf_field() ?>
-            <div class="role-choice">
-                <label style="flex:1;cursor:pointer">
-                    <input type="radio" name="role" value="worker" checked style="margin-right:6px">ผู้หางาน
-                </label>
-                <label style="flex:1;cursor:pointer">
-                    <input type="radio" name="role" value="employer" style="margin-right:6px">ผู้ว่าจ้าง
-                </label>
-            </div>
+            <section class="auth-content col-lg-7">
+                <div class="auth-form-wrap auth-form-register-wrap">
+                    <a class="auth-back-link" href="<?= BASE_URL ?>/index.php"><span aria-hidden="true">←</span> กลับหน้าแรก</a>
+                    <div class="auth-mobile-mark d-lg-none" aria-hidden="true"><span>F</span></div>
+                    <p class="eyebrow mb-2">CREATE YOUR ACCOUNT</p>
+                    <h1 class="auth-title">สร้างบัญชีใหม่</h1>
+                    <p class="auth-subtitle">เลือกบทบาทของคุณ แล้วกรอกข้อมูลเพื่อเริ่มใช้งาน FLEXJOB</p>
 
-            <div class="company-field" id="company-field" style="display:none">
-                <label for="company_name">ชื่อบริษัท / ผู้ว่าจ้าง</label>
-                <input id="company_name" type="text" name="company_name" placeholder="ABC Company">
-            </div>
+                    <form method="post" class="auth-form">
+                        <?= csrf_field() ?>
+                        <fieldset class="mb-4"><legend class="form-label mb-2">คุณต้องการใช้งานในฐานะ</legend>
+                            <div class="auth-role-grid" role="radiogroup" aria-label="บทบาทผู้ใช้งาน">
+                                <input class="btn-check" type="radio" name="role" value="worker" id="role-worker" checked>
+                                <label class="auth-role-card" for="role-worker"><span class="auth-role-icon" aria-hidden="true">⌕</span><span><b>ผู้หางาน</b><small>ค้นหาและสมัครงานที่สนใจ</small></span></label>
+                                <input class="btn-check" type="radio" name="role" value="employer" id="role-employer">
+                                <label class="auth-role-card" for="role-employer"><span class="auth-role-icon" aria-hidden="true">＋</span><span><b>ผู้ว่าจ้าง</b><small>ประกาศงานและคัดเลือกผู้สมัคร</small></span></label>
+                            </div>
+                        </fieldset>
 
-            <label for="first_name">ชื่อ</label>
-            <input id="first_name" type="text" name="first_name" required autocomplete="given-name">
+                        <div class="auth-company-field mb-3" data-company-field hidden>
+                            <label class="form-label" for="company_name">ชื่อบริษัท / ผู้ว่าจ้าง</label>
+                            <input class="form-control form-control-lg" id="company_name" type="text" name="company_name" autocomplete="organization" placeholder="เช่น ABC Company">
+                        </div>
 
-            <label for="last_name">นามสกุล</label>
-            <input id="last_name" type="text" name="last_name" required autocomplete="family-name">
+                        <div class="row g-3 mb-3">
+                            <div class="col-sm-6"><label class="form-label" for="first_name">ชื่อ</label><input class="form-control form-control-lg" id="first_name" type="text" name="first_name" required autocomplete="given-name" enterkeyhint="next"></div>
+                            <div class="col-sm-6"><label class="form-label" for="last_name">นามสกุล</label><input class="form-control form-control-lg" id="last_name" type="text" name="last_name" required autocomplete="family-name" enterkeyhint="next"></div>
+                        </div>
+                        <div class="mb-3"><label class="form-label" for="email">อีเมล</label><input class="form-control form-control-lg" id="email" type="email" name="email" required autocomplete="username" inputmode="email" enterkeyhint="next" placeholder="name@example.com"></div>
+                        <div class="mb-3"><label class="form-label" for="phone">เบอร์โทรศัพท์</label><input class="form-control form-control-lg" id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" enterkeyhint="next" placeholder="08x-xxx-xxxx"></div>
+                        <div class="mb-2"><label class="form-label" for="new-password">รหัสผ่าน</label><div class="password-control"><input class="form-control form-control-lg" id="new-password" type="password" name="password" required minlength="8" autocomplete="new-password" enterkeyhint="done" aria-describedby="password-help" placeholder="อย่างน้อย 8 ตัวอักษร"><button class="password-toggle" type="button" data-password-toggle aria-controls="new-password" aria-pressed="false"><span>แสดง</span><span class="visually-hidden">รหัสผ่าน</span></button></div><div class="form-text" id="password-help">ใช้รหัสผ่านอย่างน้อย 8 ตัวอักษร</div></div>
+                        <button class="btn btn-primary btn-lg w-100 auth-submit" type="submit">สร้างบัญชีและยืนยันอีเมล <span aria-hidden="true">→</span></button>
+                    </form>
 
-            <label for="email">อีเมล</label>
-            <input id="email" type="email" name="email" required autocomplete="email" placeholder="example@email.com">
-
-            <label for="phone">เบอร์โทรศัพท์</label>
-            <input id="phone" type="tel" name="phone" autocomplete="tel" placeholder="08x-xxx-xxxx">
-
-            <label for="password">รหัสผ่าน</label>
-            <input id="password" type="password" name="password" required minlength="8" autocomplete="new-password" placeholder="อย่างน้อย 8 ตัวอักษร">
-
-            <button class="btn btn-primary full-width" style="margin-top:20px" type="submit">สร้างบัญชี</button>
-        </form>
-
-        <p class="form-note" style="margin-top:16px;font-size:13px">มีบัญชีอยู่แล้ว? <a href="<?= BASE_URL ?>/auth/login.php"><b>เข้าสู่ระบบ</b></a></p>
+                    <p class="auth-switch mb-0">มีบัญชีอยู่แล้ว? <a href="<?= BASE_URL ?>/auth/login.php">เข้าสู่ระบบ</a></p>
+                </div>
+            </section>
+        </div>
     </div>
 </main>
-<script>
-const companyField = document.getElementById('company-field');
-const companyInput = companyField.querySelector('input');
-const toggle = () => {
-    const isEmployer = document.querySelector('input[name=role]:checked').value === 'employer';
-    companyField.style.display = isEmployer ? 'block' : 'none';
-    companyInput.required = isEmployer;
-};
-document.querySelectorAll('input[name=role]').forEach(r => r.addEventListener('change', toggle));
-toggle();
-</script>
 <?php require APP_ROOT . '/partials/footer.php'; ?>

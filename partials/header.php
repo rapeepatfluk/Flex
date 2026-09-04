@@ -99,9 +99,6 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
             <?php else: ?>
                 <a href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a>
                 <?php if ($role === 'employer'): ?><a href="<?= BASE_URL ?>/employer/candidates.php">ค้นหาผู้หางาน</a><?php endif ?>
-                <?php if ($role !== 'employer'): ?>
-                    <a href="<?= BASE_URL ?>/index.php<?= $currentUser ? '?scroll=how' : '' ?>#how" id="howItWorksLink">วิธีใช้งาน</a>
-                <?php endif; ?>
                 <?php if (!$currentUser || $role !== 'worker'): ?>
                     <a href="<?= BASE_URL ?>/employer/dashboard.php">สำหรับผู้ว่าจ้าง</a>
                 <?php endif ?>

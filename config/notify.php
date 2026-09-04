@@ -1,7 +1,7 @@
 <?php
 /**
  * Email notification helpers for FLEXJOB
- * Call these after DB changes — they send email silently (fail-safe)
+ * Call these after DB changes — they enqueue email silently (fail-safe)
  */
 
 require_once __DIR__ . '/mailer.php';
@@ -86,7 +86,7 @@ function notify_worker_status(int $appId): void
 <p style="font-size:13px;color:#697671;margin-top:8px;">หากมีข้อสงสัย สามารถติดต่อผู้ว่าจ้างได้โดยตรงผ่านข้อมูลติดต่อในหน้ารายละเอียดการสมัคร</p>
 HTML;
 
-        send_mail(
+        queue_mail(
             $row['worker_email'],
             $row['worker_name'],
             "อัปเดตสถานะใบสมัคร: {$row['title']} — {$row['company_name']}",
@@ -166,7 +166,7 @@ function notify_employer_new_applicant(int $appId): void
 HTML;
         $body .= email_btn($applicantsUrl, 'ดูผู้สมัครทั้งหมด →');
 
-        send_mail(
+        queue_mail(
             $row['employer_email'],
             $row['employer_name'],
             "มีผู้สมัครงานใหม่: {$row['title']}",

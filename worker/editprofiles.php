@@ -75,7 +75,7 @@ require APP_ROOT . '/partials/header.php';
 
     <section class="profile-edit-guide row g-2 g-md-3 mb-4" aria-label="แนวทางการกรอกโปรไฟล์">
         <div class="col-md-4"><div class="profile-guide-item h-100"><span>01</span><div><b>บอกตัวตน</b><small>ใส่ข้อมูลและคำแนะนำตัวให้ชัดเจน</small></div></div></div>
-        <div class="col-md-4"><div class="profile-guide-item h-100"><span>02</span><div><b>เลือกงานและทักษะ</b><small>ช่วยให้ระบบแนะนำงานได้ตรงขึ้น</small></div></div></div>
+        <div class="col-md-4"><div class="profile-guide-item h-100"><span>02</span><div><b>เลือกงานและความสามารถ</b><small>ช่วยให้ระบบแนะนำงานได้ตรงขึ้น</small></div></div></div>
         <div class="col-md-4"><div class="profile-guide-item h-100"><span>03</span><div><b>เพิ่ม Resume และผลงาน</b><small>ให้ผู้ว่าจ้างตัดสินใจได้ง่ายขึ้น</small></div></div></div>
     </section>
 
@@ -132,11 +132,11 @@ require APP_ROOT . '/partials/header.php';
                             </div></div>
                         <?php endforeach ?>
                     </div>
-                    <div class="form-text">งานที่สนใจใช้บอกสิ่งที่อยากทำ ส่วนทักษะใช้บอกสิ่งที่คุณทำได้จริง</div>
+                    <div class="form-text">งานที่สนใจใช้บอกสิ่งที่อยากทำ ส่วนความสามารถใช้บอกสิ่งที่คุณทำได้จริง</div>
                     <div class="text-danger small mt-1" id="editInterestError" hidden>เลือกได้สูงสุด 5 หมวด</div>
                 </div>
                 <div class="col-12">
-                    <?php render_skill_selector('workerSkills', 'ทักษะที่ทำได้จริง', 'เลือกจากรายการเพื่อใช้แนะนำงานที่ตรงกับความสามารถของคุณ', $skillCategories, $selectedSkillIds, 'skill_ids[]', 'custom_skills'); ?>
+                    <?php render_skill_selector('workerSkills', 'ความสามารถที่ทำได้จริง', 'เลือกความสามารถภาพรวมจากรายการเพื่อใช้แนะนำงานที่ตรงกับคุณ', $skillCategories, $selectedSkillIds, 'skill_ids[]', 'custom_skills'); ?>
                 </div>
             </div>
 
@@ -145,7 +145,7 @@ require APP_ROOT . '/partials/header.php';
                 <div class="col-md-6"><label class="form-label">พื้นที่ให้บริการ</label><input class="form-control" value="จังหวัด<?= e(FLEXJOB_PROVINCE) ?>" disabled><div class="form-text">FLEXJOB เป็นเว็บไซต์หางานในจังหวัดบุรีรัมย์ จึงไม่ต้องเลือกจังหวัด</div></div>
                 <div class="col-md-6"><label class="form-label" for="preferred_work_mode">รูปแบบงานที่ต้องการ</label><select id="preferred_work_mode" class="form-select" name="preferred_work_mode"><?php foreach (['any' => 'ได้ทุกรูปแบบ', 'onsite' => 'ทำงานที่สถานที่', 'remote' => 'ทำงานออนไลน์', 'hybrid' => 'Hybrid'] as $value => $label): ?><option value="<?= $value ?>" <?= ($profile['preferred_work_mode'] ?? 'any') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
                 <div class="col-md-6"><label class="form-label" for="available_from">พร้อมเริ่มงานตั้งแต่</label><input id="available_from" class="form-control" type="date" name="available_from" value="<?= e($profile['available_from'] ?? '') ?>"></div>
-                <div class="col-md-6"><fieldset class="border rounded p-3 h-100"><legend class="h6 mb-2">การแสดงโปรไฟล์ต่อนายจ้าง</legend><div class="form-check"><input id="profile_visibility" class="form-check-input" type="checkbox" name="profile_visibility" value="searchable" <?= ($profile['profile_visibility'] ?? 'application_only') === 'searchable' ? 'checked' : '' ?>><label class="form-check-label fw-semibold" for="profile_visibility">ให้นายจ้างใน FLEXJOB ค้นพบโปรไฟล์ของฉัน</label></div><div class="form-text mt-2">เฉพาะนายจ้างที่ผ่านการยืนยันและมีประกาศที่เปิดรับเท่านั้น ระบบไม่แสดงอีเมล เบอร์โทร Resume หรือ Portfolio ในหน้าค้นหา</div><div class="form-text">หากไม่เปิด คุณยังสมัครงานเองได้ตามปกติ</div></fieldset></div>
+                <div class="col-md-6"><fieldset class="border rounded p-3 h-100"><legend class="h6 mb-2">การแสดงโปรไฟล์ต่อนายจ้าง</legend><div class="form-check"><input id="profile_visibility" class="form-check-input" type="checkbox" name="profile_visibility" value="searchable" <?= ($profile['profile_visibility'] ?? 'application_only') === 'searchable' ? 'checked' : '' ?>><label class="form-check-label fw-semibold" for="profile_visibility">ให้นายจ้างใน FLEXJOB ค้นพบโปรไฟล์ของฉัน</label></div><div class="form-text mt-2">เมื่อเปิดใช้งาน เฉพาะนายจ้างที่ผ่านการยืนยันและมีประกาศงานที่เปิดรับเท่านั้นที่ค้นหาและดู Resume หรือ Portfolio ของคุณได้ ระบบยังซ่อนอีเมลและเบอร์โทรไว้</div><div class="form-text">หากไม่เปิด คุณยังสมัครงานเองได้ตามปกติ</div></fieldset></div>
             </div>
             <h2 class="profile-section-title h5 mb-3">ผลงานและเอกสารประกอบ</h2>
             <div class="profile-section profile-portfolio-section row g-3 mb-4">

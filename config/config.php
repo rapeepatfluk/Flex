@@ -62,7 +62,20 @@ function redirect(string $path): never
     header('Location: ' . BASE_URL . '/' . ltrim($path, '/'));
     exit;
 }
-function require_login(?string $role = null): void
+function worker_matching_survey_required(?int $workerId = null): bool
+{
+    $workerId ??= (int) (user()['id'] ?? 0);
+    if ($workerId <= 0) return false;
+
+    $statement = db()->prepare('SELECT matching_survey_required_at IS NOT NULL AND matching_survey_completed_at IS NULL FROM worker_profiles WHERE user_id=?');
+    $statement->execute([$workerId]);
+    return (bool) $statement->fetchColumn();
+}
+function require_worker_matching_survey_complete(): void
+{
+    if (is_role('worker') && worker_matching_survey_required()) redirect('worker/matching-survey.php');
+}
+function require_login(?string $role = null, bool $allowIncompleteWorkerSurvey = false): void
 {
     if (!user() || ($role && !is_role($role))) redirect('auth/login.php');
 
@@ -73,6 +86,7 @@ function require_login(?string $role = null): void
         session_destroy();
         redirect('auth/login.php');
     }
+    if (!$allowIncompleteWorkerSurvey && user()['role'] === 'worker') require_worker_matching_survey_complete();
 }
 function dashboard_path(string $role): string
 {
@@ -113,6 +127,39 @@ function job_type(string $type): string
 function pay_text(array $job): string
 {
     return number_format((float)$job['pay_amount']) . ' บาท/' . ['hour' => 'ชม.', 'day' => 'วัน', 'project' => 'โปรเจกต์'][$job['pay_unit']];
+}
+function job_schedule_from_input(array $input, string $fallback = ''): array
+{
+    $startDate = trim((string) ($input['work_start_date'] ?? ''));
+    $endDate = trim((string) ($input['work_end_date'] ?? ''));
+    $startTime = trim((string) ($input['work_start_time'] ?? ''));
+    $endTime = trim((string) ($input['work_end_time'] ?? ''));
+    $validDate = static fn(string $value): bool => ($date = DateTimeImmutable::createFromFormat('!Y-m-d', $value)) && $date->format('Y-m-d') === $value;
+    $validTime = static fn(string $value): bool => ($time = DateTimeImmutable::createFromFormat('!H:i', $value)) && $time->format('H:i') === $value;
+
+    if ($startDate !== '' && !$validDate($startDate)) throw new RuntimeException('วันเริ่มงานไม่ถูกต้อง');
+    if ($endDate !== '' && !$validDate($endDate)) throw new RuntimeException('วันสิ้นสุดงานไม่ถูกต้อง');
+    if ($endDate !== '' && $startDate === '') throw new RuntimeException('กรุณาระบุวันเริ่มงานก่อนวันสิ้นสุดงาน');
+    if ($startDate !== '' && $endDate !== '' && $endDate < $startDate) throw new RuntimeException('วันสิ้นสุดงานต้องไม่ก่อนวันเริ่มงาน');
+    if (($startTime === '') !== ($endTime === '')) throw new RuntimeException('กรุณาระบุเวลาเริ่มและเวลาสิ้นสุดให้ครบคู่กัน');
+    if ($startTime !== '' && (!$validTime($startTime) || !$validTime($endTime))) throw new RuntimeException('ช่วงเวลาทำงานไม่ถูกต้อง');
+    if ($startTime !== '' && $endTime <= $startTime && ($endDate === '' || $endDate === $startDate)) throw new RuntimeException('เวลาสิ้นสุดต้องหลังเวลาเริ่มงาน');
+
+    $dateText = '';
+    if ($startDate !== '') {
+        $dateText = date('d/m/Y', strtotime($startDate));
+        if ($endDate !== '' && $endDate !== $startDate) $dateText .= ' – ' . date('d/m/Y', strtotime($endDate));
+    }
+    $timeText = $startTime !== '' ? $startTime . '–' . $endTime . ' น.' : '';
+    $summary = implode(' · ', array_filter([$dateText, $timeText]));
+
+    return [
+        'start_date' => $startDate ?: null,
+        'end_date' => $endDate ?: null,
+        'start_time' => $startTime ?: null,
+        'end_time' => $endTime ?: null,
+        'summary' => $summary ?: $fallback,
+    ];
 }
 function upload_file(string $field, array $allowed, string $folder): ?string
 {

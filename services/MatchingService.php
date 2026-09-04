@@ -56,14 +56,14 @@ function matching_skill_catalog(PDO $pdo, array $selectedSkillIds = []): array
 function matching_selected_skill_ids(PDO $pdo, array $rawSkillIds, string $customInput = '', int $limit = 20): array
 {
     $skillIds = array_values(array_unique(array_filter(array_map('intval', $rawSkillIds), fn(int $id): bool => $id > 0)));
-    if (count($skillIds) > $limit) throw new RuntimeException("เลือกทักษะได้สูงสุด {$limit} รายการ");
+    if (count($skillIds) > $limit) throw new RuntimeException("เลือกความสามารถได้สูงสุด {$limit} รายการ");
 
     if ($skillIds) {
         $placeholders = implode(',', array_fill(0, count($skillIds), '?'));
         $statement = $pdo->prepare("SELECT skill_id FROM skills WHERE is_active=1 AND skill_id IN ({$placeholders})");
         $statement->execute($skillIds);
         $validIds = array_map('intval', $statement->fetchAll(PDO::FETCH_COLUMN));
-        if (count($validIds) !== count($skillIds)) throw new RuntimeException('มีทักษะที่เลือกไม่ถูกต้อง');
+        if (count($validIds) !== count($skillIds)) throw new RuntimeException('มีความสามารถที่เลือกไม่ถูกต้อง');
         $skillIds = $validIds;
     }
 
@@ -81,7 +81,7 @@ function matching_selected_skill_ids(PDO $pdo, array $rawSkillIds, string $custo
         $existingNames[] = mb_strtolower($name, 'UTF-8');
     }
     $skillIds = array_values(array_unique($skillIds));
-    if (count($skillIds) > $limit) throw new RuntimeException("เลือกทักษะได้สูงสุด {$limit} รายการ");
+    if (count($skillIds) > $limit) throw new RuntimeException("เลือกความสามารถได้สูงสุด {$limit} รายการ");
     return $skillIds;
 }
 
@@ -129,6 +129,7 @@ function matching_sync_worker_skill_selection(PDO $pdo, int $workerId, array $sk
     $pdo->prepare('DELETE FROM worker_skills WHERE worker_user_id=?')->execute([$workerId]);
     $insert = $pdo->prepare('INSERT INTO worker_skills (worker_user_id,skill_id) VALUES (?,?)');
     foreach ($skillIds as $skillId) $insert->execute([$workerId, $skillId]);
+    matching_invalidate_worker_cache($pdo, $workerId);
     return matching_skill_names($pdo, $skillIds);
 }
 
@@ -136,12 +137,13 @@ function matching_sync_job_skill_selection(PDO $pdo, int $jobId, array $required
 {
     $requiredIds = matching_selected_skill_ids($pdo, $requiredIds, $customRequired);
     $preferredIds = array_values(array_diff(matching_selected_skill_ids($pdo, $preferredIds, $customPreferred), $requiredIds));
-    if (count($requiredIds) + count($preferredIds) > 20) throw new RuntimeException('เลือกทักษะรวมได้สูงสุด 20 รายการ');
+    if (count($requiredIds) + count($preferredIds) > 20) throw new RuntimeException('เลือกความสามารถรวมได้สูงสุด 20 รายการ');
 
     $pdo->prepare('DELETE FROM job_skills WHERE job_id=?')->execute([$jobId]);
     $insert = $pdo->prepare('INSERT INTO job_skills (job_id,skill_id,importance) VALUES (?,?,?)');
     foreach ($requiredIds as $skillId) $insert->execute([$jobId, $skillId, 'required']);
     foreach ($preferredIds as $skillId) $insert->execute([$jobId, $skillId, 'preferred']);
+    matching_invalidate_job_cache($pdo, $jobId);
 }
 
 function matching_sync_worker_skills(PDO $pdo, int $workerId, string $input): void
@@ -152,6 +154,7 @@ function matching_sync_worker_skills(PDO $pdo, int $workerId, string $input): vo
         $skillId = matching_skill_id($pdo, $name);
         if ($skillId) $insert->execute([$workerId, $skillId]);
     }
+    matching_invalidate_worker_cache($pdo, $workerId);
 }
 
 function matching_sync_job_skills(PDO $pdo, int $jobId, string $requiredInput, string $preferredInput): void
@@ -168,6 +171,7 @@ function matching_sync_job_skills(PDO $pdo, int $jobId, string $requiredInput, s
         if (isset($requiredKeys[mb_strtolower($name, 'UTF-8')])) continue;
         $insert->execute([$jobId, matching_skill_id($pdo, $name), 'preferred']);
     }
+    matching_invalidate_job_cache($pdo, $jobId);
 }
 
 function matching_sync_worker_preferences(PDO $pdo, int $workerId, array $categorySlugs): void
@@ -180,6 +184,7 @@ function matching_sync_worker_preferences(PDO $pdo, int $workerId, array $catego
         $categoryId = (int) $category->fetchColumn();
         if ($categoryId) $insert->execute([$workerId, $categoryId]);
     }
+    matching_invalidate_worker_cache($pdo, $workerId);
 }
 
 function matching_work_interests(PDO $pdo): array
@@ -211,6 +216,7 @@ function matching_sync_worker_work_interests(PDO $pdo, int $workerId, array $int
     $pdo->prepare('DELETE FROM worker_work_interests WHERE worker_user_id=?')->execute([$workerId]);
     $insert = $pdo->prepare('INSERT INTO worker_work_interests (worker_user_id,work_interest_id) VALUES (?,?)');
     foreach ($ids as $interestId) $insert->execute([$workerId, $interestId]);
+    matching_invalidate_worker_cache($pdo, $workerId);
 }
 
 function matching_ids(string|null $value): array
@@ -222,6 +228,89 @@ function matching_ids(string|null $value): array
 function matching_names(string|null $value): array
 {
     return $value ? array_values(array_filter(array_map('trim', explode('||', $value)))) : [];
+}
+
+function matching_cache_available(PDO $pdo): bool
+{
+    static $available = null;
+    if ($available !== null) return $available;
+    try {
+        $available = (bool) $pdo->query("SHOW TABLES LIKE 'job_worker_matches'")->fetchColumn();
+    } catch (PDOException $exception) {
+        $available = false;
+    }
+    return $available;
+}
+
+function matching_cache_encode_array(array $value): string
+{
+    $encoded = json_encode(array_values($value), JSON_UNESCAPED_UNICODE);
+    return is_string($encoded) ? $encoded : '[]';
+}
+
+function matching_cache_decode_array(?string $value): array
+{
+    $decoded = json_decode($value ?? '[]', true);
+    return is_array($decoded) ? array_values($decoded) : [];
+}
+
+function matching_cache_row_to_match(array $row): array
+{
+    return [
+        'score' => $row['match_score'] === null ? null : (int) $row['match_score'],
+        'data_strength' => (int) $row['data_strength'],
+        'reasons' => matching_cache_decode_array($row['match_reasons_json'] ?? null),
+        'missing_required' => matching_cache_decode_array($row['missing_required_json'] ?? null),
+        'required_skills' => matching_cache_decode_array($row['required_skills_json'] ?? null),
+        'preferred_skills' => matching_cache_decode_array($row['preferred_skills_json'] ?? null),
+    ];
+}
+
+function matching_cached_matches_for_worker(PDO $pdo, int $workerId, array $jobIds): array
+{
+    $jobIds = array_values(array_unique(array_filter(array_map('intval', $jobIds), fn(int $id): bool => $id > 0)));
+    if (!$jobIds || !matching_cache_available($pdo)) return [];
+    $placeholders = implode(',', array_fill(0, count($jobIds), '?'));
+    $statement = $pdo->prepare("SELECT job_id,match_score,data_strength,match_reasons_json,missing_required_json,required_skills_json,preferred_skills_json FROM job_worker_matches WHERE worker_user_id=? AND job_id IN ({$placeholders})");
+    $statement->execute(array_merge([$workerId], $jobIds));
+    $matches = [];
+    foreach ($statement->fetchAll() as $row) $matches[(int) $row['job_id']] = matching_cache_row_to_match($row);
+    return $matches;
+}
+
+function matching_cached_matches_for_job(PDO $pdo, int $jobId, array $workerIds): array
+{
+    $workerIds = array_values(array_unique(array_filter(array_map('intval', $workerIds), fn(int $id): bool => $id > 0)));
+    if (!$workerIds || !matching_cache_available($pdo)) return [];
+    $placeholders = implode(',', array_fill(0, count($workerIds), '?'));
+    $statement = $pdo->prepare("SELECT worker_user_id,match_score,data_strength,match_reasons_json,missing_required_json,required_skills_json,preferred_skills_json FROM job_worker_matches WHERE job_id=? AND worker_user_id IN ({$placeholders})");
+    $statement->execute(array_merge([$jobId], $workerIds));
+    $matches = [];
+    foreach ($statement->fetchAll() as $row) $matches[(int) $row['worker_user_id']] = matching_cache_row_to_match($row);
+    return $matches;
+}
+
+function matching_store_cache(PDO $pdo, int $jobId, int $workerId, array $match): void
+{
+    if (!matching_cache_available($pdo)) return;
+    $statement = $pdo->prepare('INSERT INTO job_worker_matches (job_id,worker_user_id,match_score,data_strength,match_reasons_json,missing_required_json,required_skills_json,preferred_skills_json) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE match_score=VALUES(match_score),data_strength=VALUES(data_strength),match_reasons_json=VALUES(match_reasons_json),missing_required_json=VALUES(missing_required_json),required_skills_json=VALUES(required_skills_json),preferred_skills_json=VALUES(preferred_skills_json),calculated_at=CURRENT_TIMESTAMP');
+    $statement->execute([
+        $jobId, $workerId, $match['score'] ?? null, (int) ($match['data_strength'] ?? 0),
+        matching_cache_encode_array($match['reasons'] ?? []),
+        matching_cache_encode_array($match['missing_required'] ?? []),
+        matching_cache_encode_array($match['required_skills'] ?? []),
+        matching_cache_encode_array($match['preferred_skills'] ?? []),
+    ]);
+}
+
+function matching_invalidate_worker_cache(PDO $pdo, int $workerId): void
+{
+    if (matching_cache_available($pdo)) $pdo->prepare('DELETE FROM job_worker_matches WHERE worker_user_id=?')->execute([$workerId]);
+}
+
+function matching_invalidate_job_cache(PDO $pdo, int $jobId): void
+{
+    if (matching_cache_available($pdo)) $pdo->prepare('DELETE FROM job_worker_matches WHERE job_id=?')->execute([$jobId]);
 }
 
 function matching_calculate(array $job, array $worker): array
@@ -241,7 +330,7 @@ function matching_calculate(array $job, array $worker): array
         $available += 40;
         $matchedIds = array_intersect($requiredIds, $workerSkillIds);
         $earned += 40 * count($matchedIds) / count($requiredIds);
-        $reasons[] = 'ตรงทักษะจำเป็น ' . count($matchedIds) . '/' . count($requiredIds);
+        $reasons[] = 'ตรงความสามารถที่จำเป็น ' . count($matchedIds) . '/' . count($requiredIds);
         foreach ($requiredIds as $index => $skillId) {
             if (!in_array($skillId, $workerSkillIds, true) && isset($requiredNames[$index])) $missing[] = $requiredNames[$index];
         }
@@ -251,7 +340,7 @@ function matching_calculate(array $job, array $worker): array
         $available += 15;
         $matchedCount = count(array_intersect($preferredIds, $workerSkillIds));
         $earned += 15 * $matchedCount / count($preferredIds);
-        if ($matchedCount) $reasons[] = 'ตรงทักษะเสริม ' . $matchedCount . '/' . count($preferredIds);
+        if ($matchedCount) $reasons[] = 'ตรงความสามารถเพิ่มเติม ' . $matchedCount . '/' . count($preferredIds);
     }
 
     $jobInterestId = (int) ($job['work_interest_id'] ?? 0);
@@ -332,7 +421,12 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
     $jobsStatement->execute([FLEXJOB_PROVINCE]);
     $jobs = $jobsStatement->fetchAll();
 
-    foreach ($jobs as &$job) $job['match'] = matching_calculate($job, $worker);
+    $cachedMatches = matching_cached_matches_for_worker($pdo, $workerId, array_column($jobs, 'job_id'));
+    foreach ($jobs as &$job) {
+        $jobId = (int) $job['job_id'];
+        $job['match'] = $cachedMatches[$jobId] ?? matching_calculate($job, $worker);
+        if (!array_key_exists($jobId, $cachedMatches)) matching_store_cache($pdo, $jobId, $workerId, $job['match']);
+    }
     unset($job);
     usort($jobs, function (array $a, array $b): int {
         $aScore = $a['match']['score'] ?? -1;
@@ -357,7 +451,7 @@ function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
     if (!$job) return [];
 
     $statement = $pdo->prepare("SELECT u.user_id,CONCAT(u.first_name,' ',u.last_name) name,
-        wp.professional_headline headline,wp.biography,wp.profile_image_path,wp.work_province,wp.preferred_work_mode,wp.available_from,
+        wp.professional_headline headline,wp.biography,wp.profile_image_path,wp.resume_file_path,wp.portfolio_file_path,wp.portfolio_url,wp.work_province,wp.preferred_work_mode,wp.available_from,
         GROUP_CONCAT(DISTINCT ws.skill_id ORDER BY ws.skill_id) skill_ids,
         GROUP_CONCAT(DISTINCT sk.skill_name ORDER BY sk.skill_name SEPARATOR '||') skill_names,
         GROUP_CONCAT(DISTINCT wjp.job_category_id ORDER BY wjp.job_category_id) preference_category_ids,
@@ -376,7 +470,12 @@ function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
         GROUP BY u.user_id ORDER BY u.created_at DESC LIMIT 300");
     $statement->execute([$jobId, $jobId, $jobId, FLEXJOB_PROVINCE]);
     $workers = $statement->fetchAll();
-    foreach ($workers as &$worker) $worker['match'] = matching_calculate($job, $worker);
+    $cachedMatches = matching_cached_matches_for_job($pdo, $jobId, array_column($workers, 'user_id'));
+    foreach ($workers as &$worker) {
+        $workerId = (int) $worker['user_id'];
+        $worker['match'] = $cachedMatches[$workerId] ?? matching_calculate($job, $worker);
+        if (!array_key_exists($workerId, $cachedMatches)) matching_store_cache($pdo, $jobId, $workerId, $worker['match']);
+    }
     unset($worker);
     usort($workers, function (array $a, array $b): int {
         $aScore = $a['match']['score'] ?? -1;

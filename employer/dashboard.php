@@ -154,7 +154,7 @@ require APP_ROOT . '/partials/header.php';
                     <span class="employer-summary-icon text-primary">✦</span>
                     <p class="text-secondary mb-1">พร้อมใช้ Matching</p>
                     <strong class="display-6 fw-bold"><?= $matchingReadyJobs ?></strong>
-                    <small class="d-block text-secondary mt-2">ประกาศที่ระบุทักษะไว้แล้ว</small>
+                    <small class="d-block text-secondary mt-2">ประกาศที่ระบุความสามารถไว้แล้ว</small>
                 </div>
             </article>
         </div>
@@ -245,7 +245,7 @@ require APP_ROOT . '/partials/header.php';
                 <div class="card-body text-center p-5">
                     <span class="employer-empty-icon" aria-hidden="true">＋</span>
                     <h3 class="h4 mt-3">เริ่มสร้างประกาศงานแรกของคุณ</h3>
-                    <p class="text-secondary mb-4">เพิ่มรายละเอียดงานและทักษะที่ต้องการ เพื่อให้ FLEXJOB ช่วยจับคู่ผู้สมัครได้แม่นยำขึ้น</p>
+                    <p class="text-secondary mb-4">เพิ่มรายละเอียดงานและความสามารถที่ต้องการ เพื่อให้ FLEXJOB ช่วยจับคู่ผู้สมัครได้แม่นยำขึ้น</p>
                     <a class="btn btn-primary" href="<?= BASE_URL ?>/employer/jobpost.php">สร้างประกาศงาน</a>
                 </div>
             </article>
@@ -286,7 +286,7 @@ require APP_ROOT . '/partials/header.php';
                                 <div class="col-lg-auto">
                                     <div class="d-flex gap-3 text-nowrap employer-job-metrics">
                                         <span><strong><?= (int) $job['applicants'] ?></strong><small>ผู้สมัคร</small></span>
-                                        <span><strong><?= (int) $job['matching_skills'] ?></strong><small>ทักษะ</small></span>
+                                        <span><strong><?= (int) $job['matching_skills'] ?></strong><small>ความสามารถ</small></span>
                                     </div>
                                 </div>
                                 <div class="col-lg-auto">

@@ -18,10 +18,10 @@ if (!function_exists('render_skill_selector')) {
                     <h3 class="h6 mb-1"><?= e($title) ?><?= $required ? ' <span class="text-danger">*</span>' : '' ?></h3>
                     <p class="small text-secondary mb-0"><?= e($hint) ?></p>
                 </div>
-                <span class="badge text-bg-light border text-primary-emphasis"><b data-skill-count>0</b> / 20 ทักษะ</span>
+                <span class="badge text-bg-light border text-primary-emphasis"><b data-skill-count>0</b> / 20 รายการ</span>
             </div>
 
-            <label class="visually-hidden" for="<?= e($selectorId) ?>Search">ค้นหาทักษะ</label>
+            <label class="visually-hidden" for="<?= e($selectorId) ?>Search">ค้นหาความสามารถ</label>
             <input class="form-control mb-3" id="<?= e($selectorId) ?>Search" type="search" data-skill-search placeholder="ค้นหาความสามารถ เช่น พัฒนาเว็บไซต์, บริการลูกค้า, งานอีเวนต์">
 
             <div class="nav nav-pills gap-2 flex-nowrap overflow-auto pb-2 mb-3" data-skill-tabs>
@@ -49,11 +49,11 @@ if (!function_exists('render_skill_selector')) {
                 <?php endforeach ?>
             </div>
 
-            <div class="skill-selector-empty border rounded-3 p-3 text-center small text-secondary mt-3" data-skill-empty hidden>ไม่พบทักษะจากคำค้นหา ลองพิมพ์ในช่อง “อื่น ๆ” ด้านล่างได้</div>
+            <div class="skill-selector-empty border rounded-3 p-3 text-center small text-secondary mt-3" data-skill-empty hidden>ไม่พบความสามารถจากคำค้นหา ลองพิมพ์ในช่อง “อื่น ๆ” ด้านล่างได้</div>
             <div class="mt-3 pt-3 border-top">
                 <label class="form-label small fw-semibold mb-1" for="<?= e($selectorId) ?>Custom">อื่น ๆ <span class="text-secondary fw-normal">(พิมพ์เพิ่มเองได้)</span></label>
-                <input class="form-control" id="<?= e($selectorId) ?>Custom" name="<?= e($customInputName) ?>" maxlength="300" placeholder="เช่น Blender, TikTok Shop, งานแกะสลัก — คั่นแต่ละทักษะด้วยจุลภาค">
-                <div class="form-text">ทักษะที่พิมพ์เองจะถูกบันทึกและใช้จับคู่ได้เช่นเดียวกับทักษะในรายการ</div>
+                <input class="form-control" id="<?= e($selectorId) ?>Custom" name="<?= e($customInputName) ?>" maxlength="300" placeholder="เช่น ตัดต่อวิดีโอ, ไลฟ์ขายสินค้า, งานฝีมือ — คั่นแต่ละรายการด้วยจุลภาค">
+                <div class="form-text">ความสามารถที่พิมพ์เองจะถูกบันทึกและใช้จับคู่ได้เช่นเดียวกับรายการในระบบ</div>
             </div>
         </section>
         <?php
@@ -68,13 +68,13 @@ if (!function_exists('render_job_skill_assignment_selector')) {
             <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-2 mb-3">
                 <div>
                     <p class="eyebrow mb-1">SKILL REQUIREMENTS</p>
-                    <h2 class="h5 mb-1">ทักษะที่ต้องการ</h2>
-                    <p class="small text-secondary mb-0">เลือกเฉพาะทักษะที่ผู้สมัครควรมี ระบบจะใช้ช่วยจับคู่ผู้สมัครกับประกาศนี้</p>
+                    <h2 class="h5 mb-1">ความสามารถที่ต้องการ</h2>
+                    <p class="small text-secondary mb-0">เลือกความสามารถภาพรวมที่ผู้สมัครควรมี ระบบจะใช้ช่วยจับคู่ผู้สมัครกับประกาศนี้</p>
                 </div>
-                <span class="badge text-bg-light border text-primary-emphasis"><b data-skill-count>0</b> / 20 ทักษะ</span>
+                <span class="badge text-bg-light border text-primary-emphasis"><b data-skill-count>0</b> / 20 รายการ</span>
             </div>
 
-            <label class="visually-hidden" for="<?= e($selectorId) ?>Search">ค้นหาทักษะ</label>
+            <label class="visually-hidden" for="<?= e($selectorId) ?>Search">ค้นหาความสามารถ</label>
             <input class="form-control mb-3" id="<?= e($selectorId) ?>Search" type="search" data-skill-search placeholder="ค้นหาความสามารถ เช่น พัฒนาเว็บไซต์, บริการลูกค้า, งานอีเวนต์">
 
             <div class="nav nav-pills gap-2 flex-nowrap overflow-auto pb-2 mb-3" data-skill-tabs>
@@ -85,7 +85,7 @@ if (!function_exists('render_job_skill_assignment_selector')) {
             </div>
 
             <fieldset class="border-0 p-0 m-0">
-                <legend class="visually-hidden">เลือกทักษะที่จำเป็น</legend>
+                <legend class="visually-hidden">เลือกความสามารถที่จำเป็น</legend>
                 <div class="row g-3" data-skill-groups>
                     <?php foreach ($categories as $category): ?>
                         <div class="col-12 skill-selector-group" data-skill-group="<?= e($category['slug']) ?>">
@@ -107,11 +107,11 @@ if (!function_exists('render_job_skill_assignment_selector')) {
                 </div>
             </fieldset>
 
-            <div class="skill-selector-empty border rounded-3 p-3 text-center small text-secondary mt-3" data-skill-empty hidden>ไม่พบทักษะจากคำค้นหา ลองเพิ่มในช่อง “อื่น ๆ” ด้านล่างได้</div>
+            <div class="skill-selector-empty border rounded-3 p-3 text-center small text-secondary mt-3" data-skill-empty hidden>ไม่พบความสามารถจากคำค้นหา ลองเพิ่มในช่อง “อื่น ๆ” ด้านล่างได้</div>
             <div class="mt-3 pt-3 border-top">
-                <label class="form-label small fw-semibold mb-1" for="<?= e($selectorId) ?>Custom">อื่น ๆ <span class="text-secondary fw-normal">(คั่นแต่ละทักษะด้วยจุลภาค)</span></label>
+                <label class="form-label small fw-semibold mb-1" for="<?= e($selectorId) ?>Custom">อื่น ๆ <span class="text-secondary fw-normal">(คั่นแต่ละรายการด้วยจุลภาค)</span></label>
                 <input class="form-control" id="<?= e($selectorId) ?>Custom" name="custom_job_skills" maxlength="300" placeholder="เช่น Blender, TikTok Shop, งานแกะสลัก">
-                <div class="form-text">ทักษะที่พิมพ์เองจะถูกบันทึกเป็นทักษะจำเป็น และใช้จับคู่ได้เช่นเดียวกับทักษะในรายการ</div>
+                <div class="form-text">ความสามารถที่พิมพ์เองจะถูกบันทึกเป็นรายการจำเป็น และใช้จับคู่ได้เช่นเดียวกับรายการในระบบ</div>
             </div>
         </section>
         <?php
@@ -159,7 +159,7 @@ if (!defined('FLEXJOB_SKILL_SELECTOR_SCRIPT')) {
             choices.forEach(choice => choice.addEventListener('change', event => {
                 if (choices.filter(item => item.checked).length > limit) {
                     event.currentTarget.checked = false;
-                    alert(`เลือกทักษะจากรายการได้สูงสุด ${limit} รายการ`);
+                    alert(`เลือกความสามารถจากรายการได้สูงสุด ${limit} รายการ`);
                 }
                 render();
             }));

@@ -106,8 +106,9 @@
 }
 
 .applicant-status-card {
-    position: sticky;
-    inset-block-start: 1.25rem;
+    /* Keep every sidebar card in the document flow. A sticky status card
+       caused the review/contact cards to scroll underneath it. */
+    position: static;
 }
 
 .applicant-status-option {
@@ -211,10 +212,27 @@
     color: #0369a1;
 }
 
-@media (max-width: 991.98px) {
-    .applicant-status-card {
-        position: static;
-    }
+.applicant-rating-modal .modal-content {
+    overflow: hidden;
+    border-radius: 1.1rem;
+}
+
+.applicant-rating-modal .modal-header {
+    border-bottom-color: #dbeafe;
+    background: linear-gradient(120deg, #f8fbff, #edf6ff);
+}
+
+.applicant-rating-modal .modal-footer {
+    border-top-color: #e2e8f0;
+    background: #f8fafc;
+}
+
+.applicant-rating-modal .rating-stars {
+    inline-size: max-content;
+    padding: .35rem .55rem;
+    border: 1px solid #dbeafe;
+    border-radius: .85rem;
+    background: #f8fbff;
 }
 
 @media (max-width: 575.98px) {

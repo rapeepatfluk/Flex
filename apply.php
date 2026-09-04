@@ -12,8 +12,8 @@ try {
 }
 
 $jobId = (int) ($_POST['job_id'] ?? 0);
-$check = db()->prepare("SELECT job_id,job_title,employer_user_id FROM jobs WHERE job_id=? AND work_province=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
-$check->execute([$jobId, FLEXJOB_PROVINCE]);
+$check = db()->prepare("SELECT job_id,job_title,employer_user_id FROM jobs WHERE job_id=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
+$check->execute([$jobId]);
 $job = $check->fetch();
 if (!$job) {
     flash('error', 'งานนี้ไม่เปิดรับสมัครแล้ว');

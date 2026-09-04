@@ -34,9 +34,20 @@
     box-shadow: 0 0 0 2px rgba(25, 135, 84, .08)
 }
 
+.survey-option:has(input[aria-invalid="true"]) {
+    border-color: #dc3545;
+    background: #fff5f5;
+    box-shadow: 0 0 0 2px rgb(220 53 69 / 10%);
+}
+
 .survey-option input {
     margin-top: .2rem;
     flex: 0 0 auto
+}
+
+.survey-option input:focus-visible {
+    outline: 3px solid rgb(13 110 253 / 45%);
+    outline-offset: 3px;
 }
 
 .survey-option span {

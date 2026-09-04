@@ -60,7 +60,7 @@ require APP_ROOT . '/partials/header.php';
             <div>
                 <p class="eyebrow mb-2">TALENT MATCHING</p>
                 <h1 id="candidate-search-title">ค้นหาผู้หางานที่เหมาะกับงาน</h1>
-                <p class="text-secondary mb-0">เปรียบเทียบทักษะ ความสนใจ และรูปแบบงาน เพื่อช่วยตัดสินใจได้เร็วขึ้น</p>
+                <p class="text-secondary mb-0">เปรียบเทียบความสามารถ ความสนใจ และรูปแบบงาน เพื่อช่วยตัดสินใจได้เร็วขึ้น</p>
             </div>
             <div class="d-flex flex-wrap gap-2">
                 <span class="candidate-job-count"><b><?= count($employerJobs) ?></b> ประกาศที่เปิดรับ</span>
@@ -113,7 +113,7 @@ require APP_ROOT . '/partials/header.php';
                                 </select>
                             </div>
                             <div class="col-lg-5">
-                                <label class="form-label" for="q">ชื่อ คำโปรย หรือทักษะ</label>
+                                <label class="form-label" for="q">ชื่อ คำโปรย หรือความสามารถ</label>
                                 <input class="form-control" id="q" name="q" type="search" value="<?= e($_GET['q'] ?? '') ?>" placeholder="เช่น Excel, Canva" enterkeyhint="search">
                             </div>
                             <div class="col-lg-3">
@@ -166,8 +166,8 @@ require APP_ROOT . '/partials/header.php';
                             <div class="candidate-label">งานที่สนใจ</div>
                             <div class="skills-wrap mb-3"><?php foreach (matching_names($worker['work_interest_names']) as $interest): ?><span class="skill-tag"><?= e($interest) ?></span><?php endforeach ?><?php if (!$worker['work_interest_names']): ?><span class="text-secondary small">ยังไม่ได้ระบุ</span><?php endif ?></div>
 
-                            <div class="candidate-label">ทักษะเด่น</div>
-                            <div class="skills-wrap mb-3"><?php foreach (matching_names($worker['skill_names']) as $skill): ?><span class="skill-tag"><?= e($skill) ?></span><?php endforeach ?><?php if (!$worker['skill_names']): ?><span class="text-secondary small">ยังไม่ได้ระบุทักษะ</span><?php endif ?></div>
+                            <div class="candidate-label">ความสามารถเด่น</div>
+                            <div class="skills-wrap mb-3"><?php foreach (matching_names($worker['skill_names']) as $skill): ?><span class="skill-tag"><?= e($skill) ?></span><?php endforeach ?><?php if (!$worker['skill_names']): ?><span class="text-secondary small">ยังไม่ได้ระบุความสามารถ</span><?php endif ?></div>
 
                             <p class="small text-secondary mb-2">⌖ <?= e($worker['work_province'] ?: '-') ?> · <?= e(['any' => 'ได้ทั้งหมด', 'onsite' => 'On-site', 'remote' => 'Remote', 'hybrid' => 'Hybrid'][$worker['preferred_work_mode']] ?? $worker['preferred_work_mode']) ?></p>
                             <?php if ($worker['match']['reasons']): ?><ul class="match-reasons"><?php foreach ($worker['match']['reasons'] as $reason): ?><li><?= e($reason) ?></li><?php endforeach ?></ul><?php endif ?>
@@ -190,7 +190,7 @@ require APP_ROOT . '/partials/header.php';
             <?php endforeach; ?>
         </div>
 
-        <?php if (!$workers): ?><div class="card border-0 shadow-sm candidate-empty-state"><div class="card-body p-5 text-center text-secondary">ไม่พบผู้หางานตามเงื่อนไข ลองลดตัวกรองหรือเพิ่มทักษะที่ต้องการในประกาศ</div></div><?php endif ?>
+        <?php if (!$workers): ?><div class="card border-0 shadow-sm candidate-empty-state"><div class="card-body p-5 text-center text-secondary">ไม่พบผู้หางานตามเงื่อนไข ลองลดตัวกรองหรือเพิ่มความสามารถที่ต้องการในประกาศ</div></div><?php endif ?>
         <?php if ($totalPages > 1): ?><nav class="mt-5" aria-label="หน้าผลการค้นหาผู้หางาน"><ul class="pagination justify-content-center flex-wrap"><?php for ($number = 1; $number <= $totalPages; $number++): $pageQuery = http_build_query(array_merge($_GET, ['page' => $number])); ?><li class="page-item <?= $number === $page ? 'active' : '' ?>"><a class="page-link" href="?<?= e($pageQuery) ?>"><?= $number ?></a></li><?php endfor ?></ul></nav><?php endif ?>
     <?php endif; ?>
 </main>
