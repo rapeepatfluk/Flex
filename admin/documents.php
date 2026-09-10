@@ -12,12 +12,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $note = trim($_POST['review_note'] ?? '');
         if (!in_array($status, ['approved', 'rejected', 'resubmit'], true)) throw new RuntimeException('สถานะเอกสารไม่ถูกต้อง');
 
-        $ownerStmt = $pdo->prepare('SELECT employer_user_id FROM employer_documents WHERE employer_document_id=?');
-        $ownerStmt->execute([$documentId]);
-        $employerId = (int) $ownerStmt->fetchColumn();
+        $ownerLookup = $pdo->prepare('SELECT employer_user_id FROM employer_documents WHERE employer_document_id=?');
+        $ownerLookup->execute([$documentId]);
+        $employerId = (int) $ownerLookup->fetchColumn();
         if (!$employerId) throw new RuntimeException('ไม่พบเอกสารผู้ว่าจ้าง');
 
         $pdo->beginTransaction();
+        $pdo->prepare('SELECT user_id FROM users WHERE user_id=? FOR UPDATE')->execute([$employerId]);
+        $ownerStmt = $pdo->prepare('SELECT employer_user_id,document_status FROM employer_documents WHERE employer_document_id=? FOR UPDATE');
+        $ownerStmt->execute([$documentId]);
+        $document = $ownerStmt->fetch();
+        if (!$document) throw new RuntimeException('ไม่พบเอกสารผู้ว่าจ้าง');
+        if ((int) $document['employer_user_id'] !== $employerId) throw new RuntimeException('ข้อมูลเจ้าของเอกสารเปลี่ยนแปลง กรุณาลองใหม่');
+        if ($document['document_status'] !== 'pending') throw new RuntimeException('เอกสารนี้ไม่ได้อยู่ในสถานะรอตรวจสอบ');
+        $latestStmt = $pdo->prepare('SELECT employer_document_id FROM employer_documents WHERE employer_user_id=? ORDER BY submitted_at DESC,employer_document_id DESC LIMIT 1');
+        $latestStmt->execute([$employerId]);
+        if ((int) $latestStmt->fetchColumn() !== $documentId) throw new RuntimeException('เอกสารนี้ไม่ใช่ฉบับล่าสุดของผู้ว่าจ้าง');
+
         $pdo->prepare('UPDATE employer_documents SET document_status=?, review_note=?, reviewed_by_user_id=?, reviewed_at=NOW() WHERE employer_document_id=?')
             ->execute([$status, $note ?: null, user()['id'], $documentId]);
         $statusText = ['approved' => 'ผ่านการตรวจสอบ', 'rejected' => 'ไม่ผ่านการตรวจสอบ', 'resubmit' => 'ต้องส่งเอกสารเพิ่มเติม'][$status];
@@ -32,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $query = trim($_GET['q'] ?? '');
-$sql = "SELECT ed.employer_document_id, ed.employer_user_id, ed.document_file_path, ed.document_status, ed.review_note, ed.submitted_at, ep.company_name, CONCAT(u.first_name, ' ', u.last_name) AS name, u.email FROM employer_documents ed JOIN users u ON u.user_id=ed.employer_user_id JOIN employer_profiles ep ON ep.user_id=ed.employer_user_id WHERE ed.document_status IN ('pending', 'resubmit')";
+$sql = "SELECT ed.employer_document_id, ed.employer_user_id, ed.document_file_path, ed.document_status, ed.review_note, ed.submitted_at, ep.company_name, CONCAT(u.first_name, ' ', u.last_name) AS name, u.email FROM employer_documents ed JOIN users u ON u.user_id=ed.employer_user_id JOIN employer_profiles ep ON ep.user_id=ed.employer_user_id WHERE ed.document_status='pending' AND ed.employer_document_id=(SELECT latest_ed.employer_document_id FROM employer_documents latest_ed WHERE latest_ed.employer_user_id=ed.employer_user_id ORDER BY latest_ed.submitted_at DESC,latest_ed.employer_document_id DESC LIMIT 1)";
 $params = [];
 if ($query !== '') {
     $sql .= ' AND (ep.company_name LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ?)';
@@ -45,8 +56,7 @@ $statement->execute($params);
 $documents = $statement->fetchAll();
 
 $statusMeta = [
-    'pending' => ['label' => 'รอตรวจสอบ', 'badge' => 'warning', 'icon' => '!', 'description' => 'เอกสารที่ส่งเข้ามาใหม่'],
-    'resubmit' => ['label' => 'ส่งเอกสารเพิ่ม', 'badge' => 'info', 'icon' => '↻', 'description' => 'รอทบทวนเอกสารเพิ่มเติม'],
+    'pending' => ['label' => 'รอตรวจสอบ', 'badge' => 'warning', 'icon' => '!', 'description' => 'เอกสารฉบับล่าสุดที่ส่งเข้ามา'],
 ];
 
 $pageTitle = 'ตรวจเอกสารผู้ว่าจ้าง | FLEXJOB';

@@ -8,21 +8,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $firstName   = trim($_POST['first_name']);
     $lastName    = trim($_POST['last_name']);
     $companyName = trim($_POST['company_name'] ?? '');
+    $username    = normalize_username((string) ($_POST['username'] ?? ''));
     $email       = strtolower(trim($_POST['email']));
     $phone       = trim($_POST['phone']);
     $password    = $_POST['password'];
 
     try {
+        $username = validate_username($username);
+        if (strlen($password) < 8) throw new RuntimeException('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
         if ($role === 'employer' && $companyName === '') {
             throw new RuntimeException('กรุณากรอกชื่อบริษัทหรือชื่อผู้ว่าจ้าง');
         }
 
         $pdo = db();
+        $duplicate = $pdo->prepare('SELECT email,username FROM users WHERE email=? OR username=? LIMIT 1');
+        $duplicate->execute([$email,$username]);
+        if ($existing = $duplicate->fetch()) {
+            throw new RuntimeException($existing['email'] === $email ? 'อีเมลนี้ถูกใช้งานแล้ว' : 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+        }
         $pdo->beginTransaction();
 
         // Insert user with 'pending' status
-        $pdo->prepare('INSERT INTO users (first_name,last_name,email,password_hash,role,phone,account_status) VALUES (?,?,?,?,?,?,\'pending\')')
-            ->execute([$firstName, $lastName, $email, password_hash($password, PASSWORD_DEFAULT), $role, $phone]);
+        $pdo->prepare('INSERT INTO users (username,first_name,last_name,email,password_hash,role,phone,account_status) VALUES (?,?,?,?,?,?,?,\'pending\')')
+            ->execute([$username, $firstName, $lastName, $email, password_hash($password, PASSWORD_DEFAULT), $role, $phone]);
         $id = (int)$pdo->lastInsertId();
 
         if ($role === 'employer') {
@@ -71,7 +79,7 @@ HTML;
 
     } catch (Throwable $e) {
         if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
-        flash('error', str_contains($e->getMessage(), 'Duplicate') ? 'อีเมลนี้ถูกใช้งานแล้ว' : $e->getMessage());
+        flash('error', str_contains($e->getMessage(), 'Duplicate') ? 'อีเมลหรือชื่อผู้ใช้นี้ถูกใช้งานแล้ว' : $e->getMessage());
     }
 }
 
@@ -124,6 +132,7 @@ require APP_ROOT . '/partials/header.php'; ?>
                             <div class="col-sm-6"><label class="form-label" for="first_name">ชื่อ</label><input class="form-control form-control-lg" id="first_name" type="text" name="first_name" required autocomplete="given-name" enterkeyhint="next"></div>
                             <div class="col-sm-6"><label class="form-label" for="last_name">นามสกุล</label><input class="form-control form-control-lg" id="last_name" type="text" name="last_name" required autocomplete="family-name" enterkeyhint="next"></div>
                         </div>
+                        <div class="mb-3"><label class="form-label" for="username">ชื่อผู้ใช้</label><input class="form-control form-control-lg" id="username" type="text" name="username" required minlength="4" maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9._]{2,28}[A-Za-z0-9]" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="เช่น somchai.work"><div class="form-text">4–30 ตัว ใช้ตัวอักษรอังกฤษ ตัวเลข จุด หรือขีดล่าง</div></div>
                         <div class="mb-3"><label class="form-label" for="email">อีเมล</label><input class="form-control form-control-lg" id="email" type="email" name="email" required autocomplete="username" inputmode="email" enterkeyhint="next" placeholder="name@example.com"></div>
                         <div class="mb-3"><label class="form-label" for="phone">เบอร์โทรศัพท์</label><input class="form-control form-control-lg" id="phone" type="tel" name="phone" autocomplete="tel" inputmode="tel" enterkeyhint="next" placeholder="08x-xxx-xxxx"></div>
                         <div class="mb-2"><label class="form-label" for="new-password">รหัสผ่าน</label><div class="password-control"><input class="form-control form-control-lg" id="new-password" type="password" name="password" required minlength="8" autocomplete="new-password" enterkeyhint="done" aria-describedby="password-help" placeholder="อย่างน้อย 8 ตัวอักษร"><button class="password-toggle" type="button" data-password-toggle aria-controls="new-password" aria-pressed="false"><span>แสดง</span><span class="visually-hidden">รหัสผ่าน</span></button></div><div class="form-text" id="password-help">ใช้รหัสผ่านอย่างน้อย 8 ตัวอักษร</div></div>

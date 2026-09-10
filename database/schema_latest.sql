@@ -1,9 +1,9 @@
 
 -- FLEXJOB latest baseline schema
 -- Import only into a new, empty database. It contains required reference data
--- (job categories, interests, broad skills and promotion packages), but no
+-- (job categories, interests, broad skills and subscription plans), but no
 -- users, employer profiles, jobs, applications, uploaded files or email log.
--- The migration history below records this snapshot as version 0008.
+-- The migration history below records this snapshot as version 0010.
 CREATE DATABASE IF NOT EXISTS db_flexjob CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_flexjob;
 
@@ -38,6 +38,55 @@ CREATE TABLE `applications` (
   CONSTRAINT `fk_application_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`job_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_application_worker` FOREIGN KEY (`worker_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `reviews` (
+  `review_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `application_id` int(10) unsigned NOT NULL,
+  `reviewer_user_id` int(10) unsigned NOT NULL,
+  `reviewee_user_id` int(10) unsigned NOT NULL,
+  `reviewer_role` enum('worker','employer') NOT NULL,
+  `rating` tinyint(3) unsigned NOT NULL,
+  `review_comment` varchar(1000) DEFAULT NULL,
+  `review_status` enum('visible','hidden') NOT NULL DEFAULT 'visible',
+  `moderated_by_user_id` int(10) unsigned DEFAULT NULL,
+  `moderated_at` datetime DEFAULT NULL,
+  `moderation_note` varchar(1000) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`review_id`),
+  UNIQUE KEY `uq_review_application_reviewer` (`application_id`,`reviewer_user_id`),
+  KEY `idx_reviewee_visible` (`reviewee_user_id`,`review_status`,`created_at`),
+  KEY `idx_review_reviewer` (`reviewer_user_id`,`created_at`),
+  KEY `fk_review_moderator` (`moderated_by_user_id`),
+  CONSTRAINT `fk_review_application` FOREIGN KEY (`application_id`) REFERENCES `applications` (`application_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_review_reviewer` FOREIGN KEY (`reviewer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_review_reviewee` FOREIGN KEY (`reviewee_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_review_moderator` FOREIGN KEY (`moderated_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  CONSTRAINT `chk_review_rating` CHECK (`rating` between 1 and 5)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `review_reports` (
+  `review_report_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `review_id` int(10) unsigned NOT NULL,
+  `reporter_user_id` int(10) unsigned NOT NULL,
+  `report_reason` varchar(500) NOT NULL,
+  `report_status` enum('pending','resolved','dismissed') NOT NULL DEFAULT 'pending',
+  `resolved_by_user_id` int(10) unsigned DEFAULT NULL,
+  `resolved_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`review_report_id`),
+  UNIQUE KEY `uq_review_reporter` (`review_id`,`reporter_user_id`),
+  KEY `idx_review_report_queue` (`report_status`,`created_at`),
+  KEY `fk_review_report_reporter` (`reporter_user_id`),
+  KEY `fk_review_report_resolver` (`resolved_by_user_id`),
+  CONSTRAINT `fk_review_report_review` FOREIGN KEY (`review_id`) REFERENCES `reviews` (`review_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_review_report_reporter` FOREIGN KEY (`reporter_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_review_report_resolver` FOREIGN KEY (`resolved_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -110,6 +159,59 @@ CREATE TABLE `employer_profiles` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `subscription_plans` (
+  `plan_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `plan_code` varchar(50) NOT NULL,
+  `plan_name` varchar(120) NOT NULL,
+  `plan_description` varchar(255) DEFAULT NULL,
+  `price` decimal(10,2) NOT NULL,
+  `duration_days` smallint(5) unsigned NOT NULL,
+  `active_job_limit` smallint(5) unsigned NOT NULL,
+  `promotion_credits` smallint(5) unsigned NOT NULL DEFAULT 0,
+  `promotion_duration_days` smallint(5) unsigned NOT NULL DEFAULT 7,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `sort_order` smallint(5) unsigned NOT NULL DEFAULT 10,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`plan_id`),
+  UNIQUE KEY `uq_subscription_plan_code` (`plan_code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `employer_subscriptions` (
+  `subscription_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `employer_user_id` int(10) unsigned NOT NULL,
+  `plan_id` int(10) unsigned NOT NULL,
+  `plan_name_snapshot` varchar(120) NOT NULL,
+  `amount` decimal(10,2) NOT NULL,
+  `duration_days` smallint(5) unsigned NOT NULL,
+  `active_job_limit` smallint(5) unsigned NOT NULL,
+  `promotion_credits` smallint(5) unsigned NOT NULL,
+  `promotion_duration_days` smallint(5) unsigned NOT NULL,
+  `subscription_status` enum('pending_payment','pending_verification','active','rejected','expired','cancelled') NOT NULL DEFAULT 'pending_payment',
+  `payment_slip_path` varchar(255) DEFAULT NULL,
+  `payment_reference` varchar(120) DEFAULT NULL,
+  `payment_submitted_at` datetime DEFAULT NULL,
+  `reviewed_by_user_id` int(10) unsigned DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL,
+  `review_note` varchar(1000) DEFAULT NULL,
+  `starts_at` datetime DEFAULT NULL,
+  `ends_at` datetime DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`subscription_id`),
+  KEY `idx_subscription_employer_period` (`employer_user_id`,`subscription_status`,`starts_at`,`ends_at`),
+  KEY `idx_subscription_review_queue` (`subscription_status`,`payment_submitted_at`),
+  KEY `fk_subscription_plan` (`plan_id`),
+  KEY `fk_subscription_reviewer` (`reviewed_by_user_id`),
+  CONSTRAINT `fk_subscription_employer` FOREIGN KEY (`employer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_subscription_plan` FOREIGN KEY (`plan_id`) REFERENCES `subscription_plans` (`plan_id`),
+  CONSTRAINT `fk_subscription_reviewer` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `job_categories` (
   `job_category_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `category_slug` varchar(100) NOT NULL,
@@ -152,6 +254,8 @@ CREATE TABLE `job_promotions` (
   `promotion_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `job_id` int(10) unsigned NOT NULL,
   `employer_user_id` int(10) unsigned NOT NULL,
+  `subscription_id` int(10) unsigned DEFAULT NULL,
+  `promotion_source` enum('standalone','subscription') NOT NULL DEFAULT 'standalone',
   `package_id` int(10) unsigned NOT NULL,
   `package_name_snapshot` varchar(120) NOT NULL,
   `amount` decimal(10,2) NOT NULL,
@@ -173,10 +277,12 @@ CREATE TABLE `job_promotions` (
   KEY `idx_promotion_job_status` (`job_id`,`promotion_status`,`ends_at`),
   KEY `idx_promotion_review_queue` (`promotion_status`,`payment_submitted_at`),
   KEY `idx_promotion_employer` (`employer_user_id`,`created_at`),
+  KEY `idx_promotion_subscription` (`subscription_id`,`promotion_status`),
   CONSTRAINT `fk_job_promotion_employer` FOREIGN KEY (`employer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_job_promotion_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`job_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_job_promotion_package` FOREIGN KEY (`package_id`) REFERENCES `promotion_packages` (`package_id`),
-  CONSTRAINT `fk_job_promotion_reviewer` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
+  CONSTRAINT `fk_job_promotion_reviewer` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_job_promotion_subscription` FOREIGN KEY (`subscription_id`) REFERENCES `employer_subscriptions` (`subscription_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -294,7 +400,9 @@ INSERT INTO schema_migrations (migration, checksum) VALUES
   ('0005_worker_survey_onboarding.sql', '3ab0e85cadfcf8d02a61743516df58f1ec7cf30b57d5ef858d8c4989447cb6b2'),
   ('0006_refresh_sample_jobs_buriram.sql', '98007d682875f4f08c00e082564ed18741116234466cfc7a94987a96d6dd61cc'),
   ('0007_add_structured_work_schedule.sql', 'dbb057a03630acc063a3a53fc9639a02d96e4a3c6b3b9d756ed61016083bee86'),
-  ('0008_email_delivery_queue.sql', 'efde1d0811fdfcab714bf7b5a1c1a600363611194263a33b254ae35ac737f9fc');
+  ('0008_email_delivery_queue.sql', 'efde1d0811fdfcab714bf7b5a1c1a600363611194263a33b254ae35ac737f9fc'),
+  ('0009_usernames_and_reviews.sql', '6d81e6c4b9360d7f25638c6d6a55231d98c32a4e07192b73892c66e24846f340'),
+  ('0010_employer_subscriptions.sql', '32e0cc169c690cb203c9f19338ee7cc8067be3e083cca0474b77fea86ace2172');
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -341,6 +449,7 @@ CREATE TABLE `skills` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `users` (
   `user_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `username` varchar(30) DEFAULT NULL,
   `first_name` varchar(100) NOT NULL,
   `last_name` varchar(100) NOT NULL,
   `email` varchar(190) NOT NULL,
@@ -351,7 +460,8 @@ CREATE TABLE `users` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `email_verified_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`user_id`),
-  UNIQUE KEY `email` (`email`)
+  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `uq_users_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -452,7 +562,9 @@ INSERT INTO `work_interests` VALUES (1,'web-development','เขียนโป�
 
 INSERT INTO `skill_categories` VALUES (1,'งานบริการและร้านค้า','service-retail',10,1,'2026-08-29 09:02:11'),(2,'งานอีเวนต์','event',20,1,'2026-08-29 09:02:11'),(3,'ขายและการตลาด','sales-marketing',30,1,'2026-08-29 09:02:11'),(4,'ครีเอทีฟและดิจิทัล','creative-digital',40,1,'2026-08-29 09:02:11'),(5,'งานสำนักงาน','office',50,1,'2026-08-29 09:02:11'),(6,'เทคโนโลยีและไอที','technology-design',60,1,'2026-08-29 09:02:11'),(7,'ขนส่งและงานทั่วไป','logistics-general',70,1,'2026-08-29 09:02:11');
 
-INSERT INTO `promotion_packages` VALUES (1,'boost-3d','ดันประกาศ 3 วัน','แสดงก่อนประกาศทั่วไปในผลการค้นหา',99.00,3,10,1,10,'2026-09-03 18:44:17','2026-09-03 18:44:17'),(2,'featured-7d','ประกาศแนะนำ 7 วัน','ลำดับสูงกว่าพร้อมป้ายประกาศแนะนำ',199.00,7,20,1,20,'2026-09-03 18:44:17','2026-09-03 18:44:17');
+INSERT INTO `promotion_packages` VALUES (1,'boost-3d','ดันประกาศ 3 วัน','แสดงก่อนประกาศทั่วไปในผลการค้นหา',99.00,3,10,0,10,'2026-09-03 18:44:17','2026-09-03 18:44:17'),(2,'featured-7d','ประกาศแนะนำ 7 วัน','ลำดับสูงกว่าพร้อมป้ายประกาศแนะนำ',199.00,7,20,0,20,'2026-09-03 18:44:17','2026-09-03 18:44:17'),(3,'pro-credit-7d','สิทธิ์โปรโมตจาก Pro','สิทธิ์โปรโมต 7 วันจากแพ็กเกจ Pro',0.00,7,20,0,99,'2026-09-09 00:00:00','2026-09-09 00:00:00');
+
+INSERT INTO `subscription_plans` VALUES (1,'pro-30d','Pro 30 วัน','เปิดรับพร้อมกัน 6 ประกาศ และโปรโมตได้ 2 ครั้ง ครั้งละ 7 วัน',239.00,30,6,2,7,1,10,'2026-09-09 00:00:00','2026-09-09 00:00:00');
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

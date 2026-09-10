@@ -13,6 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $portfolioFile = upload_file('portfolio_file', ['pdf', 'jpg', 'jpeg', 'png', 'webp', 'zip'], 'portfolios');
         $firstName = trim($_POST['first_name'] ?? '');
         $lastName = trim($_POST['last_name'] ?? '');
+        $username = validate_username((string) ($_POST['username'] ?? ''));
         $workMode = $_POST['preferred_work_mode'] ?? 'any';
         // A missing checkbox is the private option. Unknown values also fail closed.
         $visibility = ($_POST['profile_visibility'] ?? '') === 'searchable' ? 'searchable' : 'application_only';
@@ -23,8 +24,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($workMode, ['any', 'onsite', 'remote', 'hybrid'], true)) throw new RuntimeException('รูปแบบงานไม่ถูกต้อง');
 
         $pdo->beginTransaction();
-        $pdo->prepare('UPDATE users SET first_name=?, last_name=?, phone=? WHERE user_id=?')
-            ->execute([$firstName, $lastName, trim($_POST['phone'] ?? ''), $workerId]);
+        $pdo->prepare('UPDATE users SET username=?, first_name=?, last_name=?, phone=? WHERE user_id=?')
+            ->execute([$username, $firstName, $lastName, trim($_POST['phone'] ?? ''), $workerId]);
 
         matching_sync_worker_skill_selection($pdo, $workerId, (array) ($_POST['skill_ids'] ?? []), trim((string) ($_POST['custom_skills'] ?? '')));
         $pdo->prepare('INSERT INTO worker_profiles (user_id, professional_headline, biography, profile_image_path, resume_file_path, portfolio_file_path, portfolio_url, profile_visibility, work_province, preferred_work_mode, available_from) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE professional_headline=VALUES(professional_headline), biography=VALUES(biography), profile_image_path=COALESCE(VALUES(profile_image_path), profile_image_path), resume_file_path=COALESCE(VALUES(resume_file_path), resume_file_path), portfolio_file_path=COALESCE(VALUES(portfolio_file_path), portfolio_file_path), portfolio_url=VALUES(portfolio_url), profile_visibility=VALUES(profile_visibility), work_province=VALUES(work_province), preferred_work_mode=VALUES(preferred_work_mode), available_from=VALUES(available_from)')
@@ -34,15 +35,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
         $_SESSION['user']['name'] = $firstName . ' ' . $lastName;
+        $_SESSION['user']['username'] = $username;
         flash('success', 'บันทึกข้อมูลโปรไฟล์แล้ว');
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        flash('error', $e->getMessage());
+        flash('error', str_contains($e->getMessage(), 'Duplicate') ? 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' : $e->getMessage());
     }
     redirect('worker/editprofiles.php');
 }
 
-$profileStmt = $pdo->prepare('SELECT u.first_name, u.last_name, u.email, u.phone, wp.professional_headline, wp.biography, wp.profile_image_path, wp.resume_file_path, wp.portfolio_file_path, wp.portfolio_url, wp.profile_visibility, wp.work_province, wp.preferred_work_mode, wp.available_from FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=?');
+$profileStmt = $pdo->prepare('SELECT u.username, u.first_name, u.last_name, u.email, u.phone, wp.professional_headline, wp.biography, wp.profile_image_path, wp.resume_file_path, wp.portfolio_file_path, wp.portfolio_url, wp.profile_visibility, wp.work_province, wp.preferred_work_mode, wp.available_from FROM users u LEFT JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=?');
 $profileStmt->execute([$workerId]);
 $profile = $profileStmt->fetch() ?: [];
 $selectedSkillStmt = $pdo->prepare('SELECT skill_id FROM worker_skills WHERE worker_user_id=? ORDER BY skill_id');
@@ -93,6 +95,7 @@ require APP_ROOT . '/partials/header.php';
                 </div>
                 <div class="col-md-6"><label class="form-label" for="first_name">ชื่อ</label><input id="first_name" class="form-control" name="first_name" value="<?= e($profile['first_name'] ?? '') ?>" autocomplete="given-name" required></div>
                 <div class="col-md-6"><label class="form-label" for="last_name">นามสกุล</label><input id="last_name" class="form-control" name="last_name" value="<?= e($profile['last_name'] ?? '') ?>" autocomplete="family-name" required></div>
+                <div class="col-md-6"><label class="form-label" for="username">ชื่อผู้ใช้</label><input id="username" class="form-control" name="username" value="<?= e($profile['username'] ?? '') ?>" minlength="4" maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9._]{2,28}[A-Za-z0-9]" autocomplete="username" autocapitalize="none" required><div class="form-text">ใช้เข้าสู่ระบบแทนอีเมลได้</div></div>
                 <div class="col-md-6"><label class="form-label" for="phone">เบอร์โทรศัพท์</label><input id="phone" class="form-control" type="tel" name="phone" value="<?= e($profile['phone'] ?? '') ?>" autocomplete="tel"></div>
                 <div class="col-md-6"><label class="form-label" for="email">อีเมล</label><input id="email" class="form-control" type="email" value="<?= e($profile['email'] ?? '') ?>" autocomplete="email" disabled></div>
             </div>

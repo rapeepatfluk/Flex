@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->beginTransaction();
         $invitationStatement = $pdo->prepare("SELECT ji.job_invitation_id,ji.invitation_status,j.job_id,j.job_title,j.employer_user_id,
-            (j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())) is_open
+            (j.work_province=? AND " . application_open_job_sql('j') . ") is_open
             FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id
             WHERE ji.job_invitation_id=? AND ji.worker_user_id=? FOR UPDATE");
         $invitationStatement->execute([FLEXJOB_PROVINCE, $invitationId, $workerId]);
@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $pdo->prepare("UPDATE job_invitations SET invitation_status='viewed' WHERE worker_user_id=? AND invitation_status='sent'")->execute([$workerId]);
-$statement = $pdo->prepare("SELECT ji.job_invitation_id,ji.invitation_message,ji.invitation_status,ji.created_at,j.job_id,j.job_title,j.job_status,j.application_deadline,j.work_location,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path,(j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())) is_open FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id JOIN employer_profiles ep ON ep.user_id=j.employer_user_id WHERE ji.worker_user_id=? ORDER BY ji.created_at DESC");
+$statement = $pdo->prepare("SELECT ji.job_invitation_id,ji.invitation_message,ji.invitation_status,ji.created_at,j.job_id,j.job_title,j.job_status,j.application_deadline,j.work_location,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path,(j.work_province=? AND " . application_open_job_sql('j') . ") is_open FROM job_invitations ji JOIN jobs j ON j.job_id=ji.job_id JOIN employer_profiles ep ON ep.user_id=j.employer_user_id WHERE ji.worker_user_id=? ORDER BY ji.created_at DESC");
 $statement->execute([FLEXJOB_PROVINCE, $workerId]);
 $invitations = $statement->fetchAll();
 

@@ -8,6 +8,7 @@ $verificationStmt->execute([user()['id']]);
 $verificationStatus = $verificationStmt->fetchColumn() ?: 'not_submitted';
 $workInterests = matching_work_interests($pdo);
 $skillCategories = matching_skill_catalog($pdo);
+$subscriptionEntitlements = subscription_entitlements($pdo, (int) user()['id']);
 require_once APP_ROOT . '/partials/skill-selector.php';
 $formData = $_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST : [];
 
@@ -26,12 +27,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $workInterestId = (int) ($_POST['work_interest_id'] ?? 0);
         if (!matching_work_interest_exists($pdo, $workInterestId)) throw new RuntimeException('กรุณาเลือกหมวดงานหลัก');
         $schedule = job_schedule_from_input($_POST);
+        $applicationDeadline = trim((string) ($_POST['application_deadline'] ?? '')) ?: date('Y-m-d', strtotime('+30 days'));
+        if ($applicationDeadline < date('Y-m-d')) throw new RuntimeException('วันปิดรับสมัครต้องไม่เป็นวันที่ผ่านมาแล้ว');
 
         $pdo->beginTransaction();
+        $pdo->prepare('SELECT user_id FROM users WHERE user_id=? FOR UPDATE')->execute([user()['id']]);
+        subscription_assert_can_publish_job($pdo, (int) user()['id']);
         $pdo->prepare('INSERT INTO jobs (employer_user_id,job_category_id,work_interest_id,job_title,job_description,work_location,work_province,work_schedule,work_start_date,work_end_date,work_start_time,work_end_time,work_mode,application_deadline,pay_amount,pay_unit,open_positions) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')->execute([
             user()['id'], $categoryId, $workInterestId, trim($_POST['title'] ?? ''), trim($_POST['description'] ?? ''),
             trim($_POST['address'] ?? ''), FLEXJOB_PROVINCE, $schedule['summary'], $schedule['start_date'], $schedule['end_date'], $schedule['start_time'], $schedule['end_time'], $workMode,
-            ($_POST['application_deadline'] ?? '') ?: null, (float) ($_POST['pay_amount'] ?? 0),
+            $applicationDeadline, (float) ($_POST['pay_amount'] ?? 0),
             $_POST['pay_unit'] ?? 'hour', max(1, (int) ($_POST['positions'] ?? 1)),
         ]);
         $jobId = (int) $pdo->lastInsertId();
@@ -62,6 +67,7 @@ require APP_ROOT . '/partials/header.php';
             <a class="btn btn-outline-primary job-post-back-button" href="<?= BASE_URL ?>/employer/dashboard.php"><span aria-hidden="true">←</span> กลับไปจัดการประกาศ</a>
         </header>
 
+        <div class="alert alert-info">แพ็กเกจ <?= e($subscriptionEntitlements['plan']) ?>: เปิดรับ <?= $subscriptionEntitlements['open_jobs'] ?>/<?= $subscriptionEntitlements['active_job_limit'] ?> ประกาศ<?php if(!$subscriptionEntitlements['subscription']): ?> · <a href="<?= BASE_URL ?>/employer/subscription.php">อัปเกรดเป็น Pro</a><?php endif ?></div>
         <?php if ($verificationStatus !== 'approved'): ?>
             <section class="alert alert-warning job-post-alert mb-0" role="alert"><strong>ยังไม่สามารถเผยแพร่ประกาศได้</strong><span>บัญชีผู้ว่าจ้างต้องผ่านการยืนยันเอกสารจาก Admin ก่อน</span></section>
         <?php else: ?>
@@ -96,7 +102,7 @@ require APP_ROOT . '/partials/header.php';
                         <div class="col-md-6"><label class="form-label" for="province">จังหวัด</label><input id="province" class="form-control" value="<?= e(FLEXJOB_PROVINCE) ?>" readonly><div class="form-text">FLEXJOB เปิดรับเฉพาะงานในจังหวัดบุรีรัมย์</div></div>
                         <div class="col-12"><label class="form-label" for="address">สถานที่ทำงาน / จุดประสานงาน <span class="text-danger">*</span></label><input id="address" class="form-control" name="address" value="<?= e($formData['address'] ?? '') ?>" maxlength="255" placeholder="เช่น อำเภอเมืองบุรีรัมย์ หรือชื่อสถานที่" required><div class="form-text">สำหรับงานออนไลน์ กรุณาระบุจุดประสานงานของผู้ว่าจ้างในบุรีรัมย์</div></div>
                         <div class="col-12"><fieldset class="border rounded-4 p-3 h-100"><legend class="h6 mb-2">วันและเวลาทำงาน <span class="text-secondary fw-normal">(ไม่บังคับ)</span></legend><p class="form-text mt-0 mb-3" id="workScheduleHelp">ระบุแยกกันเพื่อให้ประกาศอ่านง่ายและรองรับการค้นหาตามวันหรือเวลาในอนาคต</p><div class="row g-3"><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_start_date">วันเริ่มงาน</label><input id="work_start_date" class="form-control" type="date" name="work_start_date" value="<?= e($formData['work_start_date'] ?? '') ?>" aria-describedby="workScheduleHelp"></div><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_end_date">วันสิ้นสุดงาน</label><input id="work_end_date" class="form-control" type="date" name="work_end_date" value="<?= e($formData['work_end_date'] ?? '') ?>" aria-describedby="workScheduleHelp"></div><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_start_time">เวลาเริ่มงาน</label><input id="work_start_time" class="form-control" type="time" name="work_start_time" value="<?= e($formData['work_start_time'] ?? '') ?>" aria-describedby="workScheduleHelp"></div><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_end_time">เวลาสิ้นสุดงาน</label><input id="work_end_time" class="form-control" type="time" name="work_end_time" value="<?= e($formData['work_end_time'] ?? '') ?>" aria-describedby="workScheduleHelp"></div></div></fieldset></div>
-                        <div class="col-md-6"><label class="form-label" for="application_deadline">วันปิดรับสมัคร</label><input id="application_deadline" class="form-control" type="date" name="application_deadline" min="<?= date('Y-m-d') ?>" value="<?= e($formData['application_deadline'] ?? '') ?>"></div>
+                        <div class="col-md-6"><label class="form-label" for="application_deadline">วันปิดรับสมัคร <span class="text-danger">*</span></label><input id="application_deadline" class="form-control" type="date" name="application_deadline" min="<?= date('Y-m-d') ?>" value="<?= e($formData['application_deadline'] ?? date('Y-m-d',strtotime('+30 days'))) ?>" required><div class="form-text">ค่าเริ่มต้น 30 วัน เพื่อไม่ให้ประกาศค้างเปิดรับตลอดไป</div></div>
                         <div class="col-md-6"><label class="form-label" for="pay_amount">ค่าจ้าง (บาท) <span class="text-danger">*</span></label><input id="pay_amount" class="form-control" type="number" name="pay_amount" min="1" inputmode="numeric" value="<?= e((string) ($formData['pay_amount'] ?? '')) ?>" required></div>
                         <div class="col-md-6"><label class="form-label" for="pay_unit">หน่วยค่าจ้าง <span class="text-danger">*</span></label><select id="pay_unit" class="form-select" name="pay_unit"><?php foreach (['hour'=>'ต่อชั่วโมง','day'=>'ต่อวัน','project'=>'ต่อโปรเจกต์'] as $value=>$label): ?><option value="<?= $value ?>" <?= ($formData['pay_unit'] ?? 'hour') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
                     </div>

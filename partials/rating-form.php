@@ -33,7 +33,9 @@ $ratingInputPrefix = 'rating-' . $ratingApplicationId;
                 <?php endfor ?>
             </div>
             <p class="form-text mb-3" id="<?= $ratingInputPrefix ?>-hint">เลือกจำนวนดาวจาก 1 ถึง 5 ดาว</p>
-            <button class="btn btn-primary" type="submit">บันทึกคะแนน</button>
+            <label class="form-label" for="<?= $ratingInputPrefix ?>-comment">ความคิดเห็น</label>
+            <textarea class="form-control mb-3" id="<?= $ratingInputPrefix ?>-comment" name="review_comment" rows="4" maxlength="1000" required placeholder="เล่าประสบการณ์จากการทำงานร่วมกันอย่างสุภาพและเป็นประโยชน์"></textarea>
+            <button class="btn btn-primary" type="submit">บันทึกรีวิว</button>
         </fieldset>
     </form>
 <?php endif ?>

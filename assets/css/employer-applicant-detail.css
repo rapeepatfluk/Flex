@@ -119,19 +119,38 @@
     border: 1px solid #e2e8f0;
     border-radius: .85rem;
     background: #fff;
-    cursor: pointer;
     transition: border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
 }
 
-.applicant-status-option:hover {
+.applicant-status-option.is-selectable {
+    cursor: pointer;
+}
+
+.applicant-status-option.is-selectable:hover {
     border-color: #93c5fd;
     background: #f8fbff;
 }
 
+.applicant-status-option.is-current,
 .applicant-status-option:has(.form-check-input:checked) {
     border-color: #0d6efd;
     background: #eff6ff;
     box-shadow: 0 .3rem .85rem rgb(13 110 253 / 9%);
+}
+
+.applicant-status-option.is-past {
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+}
+
+.applicant-status-option.is-locked {
+    border-style: dashed;
+    background: #f8fafc;
+}
+
+.applicant-status-option.is-locked .applicant-status-option-icon,
+.applicant-status-option.is-locked .applicant-status-option-copy {
+    opacity: .55;
 }
 
 .applicant-status-option:has(.form-check-input:focus-visible) {
@@ -141,6 +160,32 @@
 
 .applicant-status-option .form-check-input {
     flex: 0 0 auto;
+}
+
+.applicant-status-option-marker {
+    display: grid;
+    flex: 0 0 auto;
+    inline-size: 1rem;
+    block-size: 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 50%;
+    place-items: center;
+    background: #fff;
+    color: #64748b;
+    font-size: .58rem;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.applicant-status-option.is-past .applicant-status-option-marker {
+    border-color: #22c55e;
+    background: #22c55e;
+    color: #fff;
+}
+
+.applicant-status-option.is-current .applicant-status-option-marker {
+    border-color: #0d6efd;
+    color: #0d6efd;
 }
 
 .applicant-status-option-icon {
@@ -157,6 +202,7 @@
 
 .applicant-status-option-copy {
     display: grid;
+    flex: 1 1 auto;
     gap: .1rem;
     min-inline-size: 0;
 }
@@ -172,6 +218,34 @@
     line-height: 1.35;
 }
 
+.applicant-status-option-state {
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    border-radius: 999px;
+    padding: .18rem .45rem;
+    background: #e2e8f0;
+    color: #475569;
+    font-size: .62rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.applicant-status-option.is-past .applicant-status-option-state {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.applicant-status-option.is-current .applicant-status-option-state {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.applicant-status-option.is-selectable .applicant-status-option-state {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.applicant-status-option.tone-success.is-current,
 .applicant-status-option.tone-success:has(.form-check-input:checked) {
     border-color: #86efac;
     background: #f0fdf4;
@@ -182,6 +256,7 @@
     color: #15803d;
 }
 
+.applicant-status-option.tone-danger.is-current,
 .applicant-status-option.tone-danger:has(.form-check-input:checked) {
     border-color: #fecaca;
     background: #fff7f7;
@@ -192,6 +267,7 @@
     color: #b91c1c;
 }
 
+.applicant-status-option.tone-warning.is-current,
 .applicant-status-option.tone-warning:has(.form-check-input:checked) {
     border-color: #fde68a;
     background: #fffbeb;
@@ -202,6 +278,7 @@
     color: #a16207;
 }
 
+.applicant-status-option.tone-info.is-current,
 .applicant-status-option.tone-info:has(.form-check-input:checked) {
     border-color: #bae6fd;
     background: #f0f9ff;

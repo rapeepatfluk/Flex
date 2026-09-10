@@ -99,6 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
         verify_csrf();
         $requestedStatus = (string) $_POST['status'];
         $rating = null;
+        $reviewComment = '';
         if ($requestedStatus === 'completed' && array_key_exists('rating', $_POST)) {
             $rating = filter_var(
                 $_POST['rating'],
@@ -108,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
             if ($rating === false) {
                 throw new RuntimeException('กรุณาเลือกคะแนน 1–5 ดาว');
             }
+            $reviewComment = (string) ($_POST['review_comment'] ?? '');
         }
 
         $pdo->beginTransaction();
@@ -121,16 +123,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
 
         $ratingSaved = false;
         if ($rating !== null) {
-            $ratingUpdate = $pdo->prepare('UPDATE applications SET rating_by_employer=?, rated_by_employer_at=NOW() WHERE application_id=? AND rating_by_employer IS NULL');
-            $ratingUpdate->execute([$rating, $appId]);
-            if (!$ratingUpdate->rowCount()) {
-                throw new RuntimeException('คุณให้คะแนนสำหรับงานนี้ไปแล้ว');
-            }
+            review_create_for_application($pdo, $appId, (int) user()['id'], (int) $rating, $reviewComment);
             notification_create(
                 $pdo,
                 (int) $app['worker_user_id'],
-                'ได้รับคะแนนใหม่',
-                user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว หลังจบงาน',
+                'ได้รับรีวิวใหม่',
+                user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว พร้อมความคิดเห็นหลังจบงาน',
                 'worker/application-detail.php?id=' . $appId
             );
             $ratingSaved = true;
@@ -142,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
         }
 
         if ($ratingSaved) {
-            flash('success', 'บันทึกสถานะงานเสร็จสิ้นและคะแนน ' . $rating . ' ดาวเรียบร้อยแล้ว');
+            flash('success', 'บันทึกสถานะงานเสร็จสิ้นและรีวิวเรียบร้อยแล้ว');
         } elseif ($statusChanged) {
             flash('success', 'อัปเดตสถานะผู้สมัครแล้ว');
         } else {
@@ -164,15 +162,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($statusOptions[(string) ($_PO
 
 $showInterviewEmailPrompt = flash('interview_email_prompt') === '1';
 
-$ratingSummaryStatement = $pdo->prepare('SELECT ROUND(AVG(rating_by_employer), 1) AS average, COUNT(rating_by_employer) AS count FROM applications WHERE worker_user_id=? AND rating_by_employer IS NOT NULL');
-$ratingSummaryStatement->execute([$app['worker_user_id']]);
-$workerRatingSummary = $ratingSummaryStatement->fetch() ?: ['average' => null, 'count' => 0];
-
-$ratingSubmittedStatement = $pdo->prepare('SELECT rating_by_employer FROM applications WHERE application_id=?');
-$ratingSubmittedStatement->execute([$appId]);
-$employerRatingSubmitted = $ratingSubmittedStatement->fetchColumn() !== null;
+$workerRatingSummary = review_received_summary($pdo, (int) $app['worker_user_id']);
+$workerReviews = review_received_list($pdo, (int) $app['worker_user_id']);
+$employerRatingSubmitted = review_submitted_for_application($pdo, $appId, (int) user()['id']) !== null;
 
 $currentStatus = $statusOptions[$app['status']] ?? ['label' => 'ถอนใบสมัครแล้ว', 'description' => 'ผู้หางานถอนใบสมัครนี้แล้ว', 'tone' => 'secondary', 'icon' => '−'];
+$allowedStatusValues = application_allowed_statuses_from((string) $app['status']);
+$progressRanks = ['submitted' => 0, 'eligible' => 1, 'interview_passed' => 2, 'completed' => 3];
+$currentProgressRank = $progressRanks[$app['status']] ?? null;
+$selectableStatusValues = array_values(array_filter(
+    array_keys($statusOptions),
+    fn(string $statusValue): bool => $statusValue !== $app['status'] && in_array($statusValue, $allowedStatusValues, true)
+));
 $resumeFile = $app['application_resume'] ?: $app['profile_resume'];
 $skills = array_filter(array_map('trim', explode(',', (string) $app['skills'])));
 
@@ -333,21 +334,44 @@ require APP_ROOT . '/partials/header.php';
                                     <legend class="visually-hidden">เลือกสถานะผู้สมัคร</legend>
                                     <div class="vstack gap-2">
                                         <?php foreach ($statusOptions as $statusValue => $option): ?>
-                                            <label class="applicant-status-option tone-<?= e($option['tone']) ?> <?= $app['status'] === $statusValue ? 'is-selected' : '' ?>">
-                                                <input class="form-check-input m-0" type="radio" name="status" value="<?= e($statusValue) ?>" <?= $app['status'] === $statusValue ? 'checked' : '' ?>>
+                                            <?php
+                                            $isCurrentStatus = $app['status'] === $statusValue;
+                                            $isPastStatus = isset($progressRanks[$statusValue]) && (
+                                                ($currentProgressRank !== null && $progressRanks[$statusValue] < $currentProgressRank)
+                                                || ($app['status'] === 'not_selected' && $statusValue === 'submitted')
+                                            );
+                                            $isSelectableStatus = in_array($statusValue, $selectableStatusValues, true);
+                                            $visualState = $isCurrentStatus ? 'is-current' : ($isPastStatus ? 'is-past' : ($isSelectableStatus ? 'is-selectable' : 'is-locked'));
+                                            $stateLabel = $isCurrentStatus ? 'สถานะปัจจุบัน' : ($isPastStatus ? 'ผ่านแล้ว' : ($isSelectableStatus ? 'เลือกได้' : 'ยังไม่ถึงขั้นตอน'));
+                                            ?>
+                                            <?= $isSelectableStatus ? '<label' : '<div' ?> class="applicant-status-option tone-<?= e($option['tone']) ?> <?= e($visualState) ?>">
+                                                <?php if ($isSelectableStatus): ?>
+                                                    <input class="form-check-input m-0" type="radio" name="status" value="<?= e($statusValue) ?>">
+                                                <?php else: ?>
+                                                    <span class="applicant-status-option-marker" aria-hidden="true"><?= $isPastStatus ? '✓' : ($isCurrentStatus ? '●' : '−') ?></span>
+                                                <?php endif; ?>
                                                 <span class="applicant-status-option-icon" aria-hidden="true"><?= e($option['icon']) ?></span>
                                                 <span class="applicant-status-option-copy">
                                                     <strong><?= e($option['label']) ?></strong>
                                                     <small><?= e($option['description']) ?></small>
                                                 </span>
-                                            </label>
+                                                <span class="applicant-status-option-state"><?= e($stateLabel) ?></span>
+                                            <?= $isSelectableStatus ? '</label>' : '</div>' ?>
                                         <?php endforeach; ?>
                                     </div>
                                 </fieldset>
-                                <button class="btn btn-primary w-100 mt-3" type="submit">บันทึกสถานะ</button>
+                                <?php if ($selectableStatusValues): ?>
+                                    <button class="btn btn-primary w-100 mt-3" type="submit" disabled>เลือกสถานะถัดไป</button>
+                                <?php else: ?>
+                                    <p class="small text-secondary text-center mb-0 mt-3">กระบวนการของใบสมัครนี้สิ้นสุดแล้ว</p>
+                                <?php endif; ?>
                             </form>
                         <?php endif; ?>
                     </div>
+                </section>
+
+                <section class="card border-0 shadow-sm applicant-detail-card" aria-labelledby="workerReviewsHeading">
+                    <div class="card-body p-4"><p class="applicant-detail-eyebrow mb-1">WORKER REVIEWS</p><h2 class="h4 mb-3" id="workerReviewsHeading">ความคิดเห็นเกี่ยวกับผู้หางาน</h2><?php $reviews = $workerReviews; $reviewTargetLabel = 'ผู้หางาน'; require APP_ROOT . '/partials/review-list.php'; ?></div>
                 </section>
 
                 <?php if ($app['status'] === 'completed'): ?>
@@ -414,6 +438,8 @@ require APP_ROOT . '/partials/header.php';
                                 <?php endfor; ?>
                             </div>
                             <p class="form-text mb-0" id="completedRatingHint">เลือกจำนวนดาวจาก 1 ถึง 5 ดาว</p>
+                            <label class="form-label mt-3" for="completedReviewComment">ความคิดเห็น</label>
+                            <textarea class="form-control" id="completedReviewComment" name="review_comment" rows="4" maxlength="1000" required placeholder="เล่าประสบการณ์จากการทำงานร่วมกันอย่างสุภาพและเป็นประโยชน์"></textarea>
                         </fieldset>
                     </div>
                     <div class="modal-footer">

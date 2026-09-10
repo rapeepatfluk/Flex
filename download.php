@@ -29,8 +29,7 @@ if ($type === 'profile_resume' || $type === 'profile_portfolio') {
         JOIN jobs j ON j.job_id=?
         WHERE wp.user_id=? AND w.role='worker' AND w.account_status='active'
           AND wp.profile_visibility='searchable' AND wp.work_province=?
-          AND j.employer_user_id=? AND j.work_province=? AND j.job_status='published'
-          AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())");
+          AND j.employer_user_id=? AND j.work_province=? AND " . application_open_job_sql('j'));
     $statement->execute([$jobId, $workerId, FLEXJOB_PROVINCE, (int) user()['id'], FLEXJOB_PROVINCE]);
     $file = $statement->fetch();
     if ($file && is_role('employer') && matching_employer_is_verified($pdo, (int) user()['id'])) $path = $file['file_path'];
@@ -41,6 +40,11 @@ if ($type === 'profile_resume' || $type === 'profile_portfolio') {
     if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];
 } elseif ($type === 'promotion_slip') {
     $statement = $pdo->prepare('SELECT employer_user_id,payment_slip_path file_path FROM job_promotions WHERE promotion_id=?');
+    $statement->execute([$id]);
+    $file = $statement->fetch();
+    if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];
+} elseif ($type === 'subscription_slip') {
+    $statement = $pdo->prepare('SELECT employer_user_id,payment_slip_path file_path FROM employer_subscriptions WHERE subscription_id=?');
     $statement->execute([$id]);
     $file = $statement->fetch();
     if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];

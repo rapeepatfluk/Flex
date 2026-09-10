@@ -19,12 +19,9 @@ if ($application['employer_email'] && filter_var($application['employer_email'],
         . '&body=' . $emailBody;
 }
 
-$ratingSummaryStatement = $pdo->prepare('SELECT ROUND(AVG(rating_by_worker), 1) AS average, COUNT(rating_by_worker) AS count FROM applications WHERE rating_by_worker IS NOT NULL AND job_id IN (SELECT job_id FROM jobs WHERE employer_user_id=?)');
-$ratingSummaryStatement->execute([$application['employer_user_id']]);
-$employerRatingSummary = $ratingSummaryStatement->fetch() ?: ['average' => null, 'count' => 0];
-$ratingSubmittedStatement = $pdo->prepare('SELECT rating_by_worker FROM applications WHERE application_id=?');
-$ratingSubmittedStatement->execute([$applicationId]);
-$workerRatingSubmitted = $ratingSubmittedStatement->fetchColumn() !== null;
+$employerRatingSummary = review_received_summary($pdo, (int) $application['employer_user_id']);
+$employerReviews = review_received_list($pdo, (int) $application['employer_user_id']);
+$workerRatingSubmitted = review_submitted_for_application($pdo, $applicationId, (int) user()['id']) !== null;
 
 $statusLabels = [
     'submitted' => 'รอพิจารณา',
@@ -71,9 +68,9 @@ require APP_ROOT . '/partials/header.php';
                             <?php endif ?>
                         </div>
 
-                        <?php if ($application['status'] === 'submitted'): ?>
+                        <?php if (in_array($application['status'], ['submitted', 'eligible', 'interview_passed'], true)): ?>
                             <form class="border-top mt-4 pt-4" method="post" action="<?= BASE_URL ?>/worker/withdraw-application.php" onsubmit="return confirm('ยืนยันการถอนใบสมัครนี้? หากงานยังเปิดรับ คุณสามารถสมัครใหม่ได้ภายหลัง')">
-                                <?= csrf_field() ?><input type="hidden" name="application_id" value="<?= $application['id'] ?>"><button class="btn btn-outline-danger w-100" type="submit">ถอนใบสมัคร</button><p class="form-text mb-0 mt-2">ถอนได้ก่อนผู้ว่าจ้างเปลี่ยนผลการพิจารณา</p>
+                                <?= csrf_field() ?><input type="hidden" name="application_id" value="<?= $application['id'] ?>"><button class="btn btn-outline-danger w-100" type="submit">ถอนใบสมัคร</button><p class="form-text mb-0 mt-2">ถอนได้จนกว่าจะสิ้นสุดกระบวนการคัดเลือกหรือจบงาน</p>
                             </form>
                         <?php endif ?>
                     </div>
@@ -102,6 +99,8 @@ require APP_ROOT . '/partials/header.php';
                 <?php endif ?>
 
                 <section class="card border-0 shadow-sm rounded-4 application-company-card mt-4"><div class="card-body p-4 p-lg-5"><p class="eyebrow mb-2">ABOUT EMPLOYER</p><div class="d-flex align-items-center gap-3"><div class="application-employer-logo application-employer-logo-sm flex-shrink-0"><?php if ($application['company_logo']): ?><img src="<?= BASE_URL . '/' . e($application['company_logo']) ?>" alt="โลโก้ <?= e($application['company_name']) ?>" loading="lazy" decoding="async"><?php else: ?><?= e(mb_substr($application['company_name'], 0, 1)) ?><?php endif ?></div><h2 class="h5 mb-0"><?= e($application['company_name']) ?></h2></div><div class="mt-3"><?php $ratingSummary = $employerRatingSummary; require APP_ROOT . '/partials/rating-summary.php'; ?></div><?php if ($application['company_description']): ?><p class="application-company-description mb-0 mt-3"><?= nl2br(e($application['company_description'])) ?></p><?php endif ?></div></section>
+
+                <section class="card border-0 shadow-sm rounded-4 application-company-card mt-4"><div class="card-body p-4 p-lg-5"><p class="eyebrow mb-2">EMPLOYER REVIEWS</p><h2 class="h5 mb-3">ความคิดเห็นเกี่ยวกับผู้ว่าจ้าง</h2><?php $reviews = $employerReviews; $reviewTargetLabel = 'ผู้ว่าจ้าง'; require APP_ROOT . '/partials/review-list.php'; ?></div></section>
 
                 <?php if ($application['status'] === 'completed'): ?>
                 <section class="card border-0 shadow-sm rounded-4 application-rating-card mt-4"><div class="card-body p-4 p-lg-5"><p class="eyebrow mb-2">WORK REVIEW</p><h2 class="h5">ให้คะแนนผู้ว่าจ้าง</h2><?php $ratingApplicationId = (int) $application['id']; $ratingTargetName = $application['company_name']; $ratingTargetRole = 'ผู้ว่าจ้าง'; $ratingSummary = $employerRatingSummary; $ratingAlreadySubmitted = $workerRatingSubmitted; require APP_ROOT . '/partials/rating-form.php'; ?></div></section>

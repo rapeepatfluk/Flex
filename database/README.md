@@ -32,11 +32,22 @@ C:\xampp\php\php.exe scripts\process_email_queue.php
 It sends up to 20 queued emails per run. Failed messages retry twice at
 five-minute intervals before their status becomes `failed`.
 
+## Subscription expiry
+
+Run this command at least once per day (every hour is recommended) with Windows
+Task Scheduler. It expires finished Pro periods, keeps already-started promotion
+runs active for their full seven days, and hides jobs above the Free limit after
+the three-day downgrade grace period:
+
+```powershell
+C:\xampp\php\php.exe scripts\process_subscription_expiry.php
+```
+
 ## Latest baseline for a new machine
 
 Use [schema_latest.sql](schema_latest.sql) for a new empty database. It contains
 the latest structure through migration `0008` and only the reference data the
-application needs (categories, interests, broad skills and promotion packages).
+application needs (categories, interests, broad skills and subscription plans).
 It does not include user accounts, jobs, applications, uploads or email history.
 
 The file creates and uses `db_flexjob`, so import it only into a new database:
@@ -46,7 +57,7 @@ Get-Content database\schema_latest.sql -Raw | C:\xampp\mysql\bin\mysql.exe -u ro
 ```
 
 Do not run the current migrations immediately after this import: the snapshot
-already records migrations `0001` through `0008`. Run `migrate.php` only when a
+already records migrations `0001` through `0010`. Run `migrate.php` only when a
 new migration is added later.
 
 ## Adding a migration

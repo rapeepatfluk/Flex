@@ -9,6 +9,7 @@ if (!in_array($role, ['worker', 'employer'], true) || $_SERVER['REQUEST_METHOD']
 
 $applicationId = (int) ($_POST['application_id'] ?? 0);
 $rating = filter_input(INPUT_POST, 'rating', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1, 'max_range' => 5]]);
+$reviewComment = (string) ($_POST['review_comment'] ?? '');
 $redirectPath = $role === 'worker'
     ? 'worker/application-detail.php?id=' . $applicationId
     : 'employer/dashboard.php';
@@ -39,21 +40,15 @@ try {
         throw new RuntimeException('คุณไม่มีสิทธิ์ให้คะแนนสำหรับงานนี้');
     }
 
-    $ratingColumn = $role === 'worker' ? 'rating_by_worker' : 'rating_by_employer';
-    $ratedAtColumn = $role === 'worker' ? 'rated_by_worker_at' : 'rated_by_employer_at';
     $pdo->beginTransaction();
-    $update = $pdo->prepare("UPDATE applications SET {$ratingColumn}=?, {$ratedAtColumn}=NOW() WHERE application_id=? AND {$ratingColumn} IS NULL");
-    $update->execute([$rating, $applicationId]);
-    if (!$update->rowCount()) {
-        throw new RuntimeException('คุณให้คะแนนสำหรับงานนี้ไปแล้ว');
-    }
+    review_create_for_application($pdo, $applicationId, $currentUserId, (int) $rating, $reviewComment);
 
     $notificationUrl = $role === 'worker'
         ? 'employer/applicant-detail.php?id=' . $applicationId . '&job=' . $application['job_id']
         : 'worker/application-detail.php?id=' . $applicationId;
-    notification_create($pdo, $ratedUserId, 'ได้รับคะแนนใหม่', user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว หลังจบงาน', $notificationUrl);
+    notification_create($pdo, $ratedUserId, 'ได้รับรีวิวใหม่', user()['name'] . ' ให้คะแนนคุณ ' . $rating . ' ดาว พร้อมความคิดเห็นหลังจบงาน', $notificationUrl);
     $pdo->commit();
-    flash('success', 'บันทึกคะแนน ' . $rating . ' ดาวเรียบร้อยแล้ว');
+    flash('success', 'บันทึกคะแนนและความคิดเห็นเรียบร้อยแล้ว');
 } catch (PDOException $exception) {
     if (isset($pdo) && $pdo->inTransaction()) $pdo->rollBack();
     flash('error', 'ไม่สามารถบันทึกคะแนนได้ กรุณาลองใหม่');

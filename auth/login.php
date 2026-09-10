@@ -3,12 +3,26 @@ require_once __DIR__ . '/../config/config.php';
 if (user()) redirect(dashboard_path(user()['role']));
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = strtolower(trim($_POST['email']));
-    $stmt  = db()->prepare('SELECT * FROM users WHERE email = ?');
-    $stmt->execute([$email]);
+    try {
+        verify_csrf();
+    } catch (RuntimeException $exception) {
+        flash('error', $exception->getMessage());
+        redirect('auth/login.php');
+    }
+    $attempts = (int) ($_SESSION['login_attempts']['count'] ?? 0);
+    $lastAttempt = (int) ($_SESSION['login_attempts']['last_at'] ?? 0);
+    if ($attempts >= 5 && $lastAttempt > time() - 300) {
+        flash('error', 'ลองเข้าสู่ระบบหลายครั้งเกินไป กรุณารอ 5 นาทีแล้วลองใหม่');
+        redirect('auth/login.php');
+    }
+    if ($lastAttempt <= time() - 300) $attempts = 0;
+    $identifier = normalize_username((string) ($_POST['identifier'] ?? $_POST['email'] ?? ''));
+    $stmt  = db()->prepare('SELECT * FROM users WHERE email = ? OR username = ? LIMIT 1');
+    $stmt->execute([$identifier, $identifier]);
     $found = $stmt->fetch();
 
-    if ($found && password_verify($_POST['password'], $found['password_hash'])) {
+    if ($found && password_verify((string) ($_POST['password'] ?? ''), $found['password_hash'])) {
+        unset($_SESSION['login_attempts']);
         if ($found['account_status'] === 'pending') {
             $_SESSION['pending_verify'] = ['email' => $found['email'], 'name' => trim($found['first_name'] . ' ' . $found['last_name'])];
             flash('error', 'กรุณายืนยันอีเมลก่อนเข้าสู่ระบบ');
@@ -16,16 +30,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($found['account_status'] === 'suspended') {
             flash('error', 'บัญชีนี้ถูกระงับการใช้งาน');
         } else {
+            session_regenerate_id(true);
             $_SESSION['user'] = [
                 'id'    => $found['user_id'],
                 'name'  => trim($found['first_name'] . ' ' . $found['last_name']),
                 'role'  => $found['role'],
                 'email' => $found['email'],
+                'username' => $found['username'],
             ];
             redirect(dashboard_path($found['role']));
         }
     } else {
-        flash('error', 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        $_SESSION['login_attempts'] = ['count' => $attempts + 1, 'last_at' => time()];
+        flash('error', 'อีเมล ชื่อผู้ใช้ หรือรหัสผ่านไม่ถูกต้อง');
     }
 }
 $pageTitle = 'เข้าสู่ระบบ | FLEXJOB';
@@ -58,9 +75,10 @@ require APP_ROOT . '/partials/header.php'; ?>
                     <p class="auth-subtitle">เข้าสู่ FLEXJOB เพื่อจัดการงานของคุณ</p>
 
                     <form method="post" class="auth-form">
+                        <?= csrf_field() ?>
                         <div class="mb-3">
-                            <label class="form-label" for="email">อีเมล</label>
-                            <input class="form-control form-control-lg" id="email" type="email" name="email" required autocomplete="username" inputmode="email" enterkeyhint="next" placeholder="name@example.com">
+                            <label class="form-label" for="identifier">อีเมลหรือชื่อผู้ใช้</label>
+                            <input class="form-control form-control-lg" id="identifier" type="text" name="identifier" required autocomplete="username" autocapitalize="none" spellcheck="false" enterkeyhint="next" placeholder="name@example.com หรือ username">
                         </div>
                         <div class="mb-2">
                             <div class="d-flex align-items-center justify-content-between gap-3"><label class="form-label mb-0" for="current-password">รหัสผ่าน</label><a class="auth-inline-link" href="<?= BASE_URL ?>/auth/forgot-password.php">ลืมรหัสผ่าน?</a></div>

@@ -10,6 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verify_csrf();
         $firstName = trim($_POST['first_name'] ?? '');
         $lastName = trim($_POST['last_name'] ?? '');
+        $username = validate_username((string) ($_POST['username'] ?? ''));
         $companyName = trim($_POST['company_name'] ?? '');
         if ($firstName === '' || $lastName === '' || $companyName === '') {
             throw new RuntimeException('กรุณากรอกชื่อ นามสกุล และชื่อบริษัท / ผู้ว่าจ้าง');
@@ -17,21 +18,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $logo = upload_file('company_logo', ['jpg', 'jpeg', 'png', 'webp'], 'company-logos');
         $pdo->beginTransaction();
-        $pdo->prepare('UPDATE users SET first_name=?, last_name=?, phone=? WHERE user_id=?')->execute([$firstName, $lastName, trim($_POST['phone'] ?? ''), $employerId]);
+        $pdo->prepare('UPDATE users SET username=?, first_name=?, last_name=?, phone=? WHERE user_id=?')->execute([$username, $firstName, $lastName, trim($_POST['phone'] ?? ''), $employerId]);
         $pdo->prepare('UPDATE employer_profiles SET company_name=?, company_description=?, company_address=?, company_logo_path=COALESCE(?, company_logo_path) WHERE user_id=?')->execute([
             $companyName, trim($_POST['company_description'] ?? ''), trim($_POST['company_address'] ?? ''), $logo, $employerId,
         ]);
         $pdo->commit();
         $_SESSION['user']['name'] = $firstName . ' ' . $lastName;
+        $_SESSION['user']['username'] = $username;
         flash('success', 'บันทึกข้อมูลส่วนตัวและข้อมูลบริษัทแล้ว');
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        flash('error', $e->getMessage());
+        flash('error', str_contains($e->getMessage(), 'Duplicate') ? 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว' : $e->getMessage());
     }
     redirect('employer/editprofile.php');
 }
 
-$profileStmt = $pdo->prepare('SELECT u.first_name, u.last_name, u.email, u.phone, ep.company_name, ep.company_description, ep.company_address, ep.company_logo_path FROM users u JOIN employer_profiles ep ON ep.user_id=u.user_id WHERE u.user_id=?');
+$profileStmt = $pdo->prepare('SELECT u.username, u.first_name, u.last_name, u.email, u.phone, ep.company_name, ep.company_description, ep.company_address, ep.company_logo_path FROM users u JOIN employer_profiles ep ON ep.user_id=u.user_id WHERE u.user_id=?');
 $profileStmt->execute([$employerId]);
 $profile = $profileStmt->fetch();
 
@@ -75,6 +77,7 @@ require APP_ROOT . '/partials/header.php';
                                 <div class="row g-3">
                                     <div class="col-md-6"><label class="form-label" for="first_name">ชื่อ <span class="text-danger">*</span></label><input id="first_name" class="form-control" name="first_name" value="<?= e($profile['first_name'] ?? '') ?>" autocomplete="given-name" required></div>
                                     <div class="col-md-6"><label class="form-label" for="last_name">นามสกุล <span class="text-danger">*</span></label><input id="last_name" class="form-control" name="last_name" value="<?= e($profile['last_name'] ?? '') ?>" autocomplete="family-name" required></div>
+                                    <div class="col-md-6"><label class="form-label" for="username">ชื่อผู้ใช้ <span class="text-danger">*</span></label><input id="username" class="form-control" name="username" value="<?= e($profile['username'] ?? '') ?>" minlength="4" maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9._]{2,28}[A-Za-z0-9]" autocomplete="username" autocapitalize="none" required><div class="form-text">ใช้เข้าสู่ระบบแทนอีเมลได้</div></div>
                                     <div class="col-md-6"><label class="form-label" for="phone">เบอร์โทรศัพท์</label><input id="phone" class="form-control" name="phone" value="<?= e($profile['phone'] ?? '') ?>" autocomplete="tel" inputmode="tel" placeholder="เช่น 081-234-5678"></div>
                                     <div class="col-md-6"><label class="form-label" for="email">อีเมลบัญชี</label><input id="email" class="form-control" value="<?= e($profile['email'] ?? '') ?>" type="email" autocomplete="email" readonly aria-describedby="emailHelp"><div id="emailHelp" class="form-text">อีเมลนี้เชื่อมกับบัญชี จึงแก้ไขจากหน้านี้ไม่ได้</div></div>
                                 </div>

@@ -404,8 +404,8 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
     $jobsStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_id,j.job_category_id,j.work_interest_id,wi.interest_name work_interest_name,j.job_title AS title,j.created_at,
         jc.category_slug AS job_type,j.work_location AS location,j.work_province,j.work_schedule AS work_date,
         j.work_mode,j.pay_amount,j.pay_unit,ep.company_name,ep.company_logo_path AS company_logo,
-        (SELECT ROUND(AVG(a.rating_by_worker), 1) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_average,
-        (SELECT COUNT(a.rating_by_worker) FROM applications a JOIN jobs rated_jobs ON rated_jobs.job_id=a.job_id WHERE rated_jobs.employer_user_id=j.employer_user_id AND a.rating_by_worker IS NOT NULL) employer_rating_count,
+        (SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.reviewee_user_id=j.employer_user_id AND r.review_status='visible') employer_rating_average,
+        (SELECT COUNT(*) FROM reviews r WHERE r.reviewee_user_id=j.employer_user_id AND r.review_status='visible') employer_rating_count,
         (SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,
         (SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order,ji.job_image_id LIMIT 1) cover_image,
         GROUP_CONCAT(DISTINCT IF(js.importance='required',s.skill_id,NULL) ORDER BY s.skill_id) required_skill_ids,
@@ -416,7 +416,7 @@ function matching_jobs_for_worker(PDO $pdo, int $workerId, int $limit = 6): arra
         JOIN job_categories jc ON jc.job_category_id=j.job_category_id
         LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id
         LEFT JOIN job_skills js ON js.job_id=j.job_id LEFT JOIN skills s ON s.skill_id=js.skill_id
-        WHERE j.job_status='published' AND j.work_province=? AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())
+        WHERE " . application_open_job_sql('j') . " AND j.work_province=?
         GROUP BY j.job_id ORDER BY j.created_at DESC LIMIT 200");
     $jobsStatement->execute([FLEXJOB_PROVINCE]);
     $jobs = $jobsStatement->fetchAll();
@@ -445,7 +445,7 @@ function matching_workers_for_job(PDO $pdo, int $jobId, int $employerId): array
         GROUP_CONCAT(DISTINCT IF(js.importance='preferred',s.skill_name,NULL) ORDER BY s.skill_id SEPARATOR '||') preferred_skill_names
         FROM jobs j LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id
         LEFT JOIN job_skills js ON js.job_id=j.job_id LEFT JOIN skills s ON s.skill_id=js.skill_id
-        WHERE j.job_id=? AND j.employer_user_id=? AND j.work_province=? GROUP BY j.job_id");
+        WHERE j.job_id=? AND j.employer_user_id=? AND j.work_province=? AND " . application_open_job_sql('j') . " GROUP BY j.job_id");
     $jobStatement->execute([$jobId, $employerId, FLEXJOB_PROVINCE]);
     $job = $jobStatement->fetch();
     if (!$job) return [];
@@ -494,29 +494,45 @@ function matching_employer_is_verified(PDO $pdo, int $employerId): bool
 
 function matching_send_invitation(PDO $pdo, int $employerId, int $jobId, int $workerId, string $message): void
 {
-    if (!matching_employer_is_verified($pdo, $employerId)) throw new RuntimeException('บัญชีผู้ว่าจ้างต้องผ่านการยืนยันก่อนส่งคำเชิญ');
-    $jobStatement = $pdo->prepare("SELECT job_title FROM jobs WHERE job_id=? AND employer_user_id=? AND work_province=? AND job_status='published' AND (application_deadline IS NULL OR application_deadline>=CURDATE())");
-    $jobStatement->execute([$jobId, $employerId, FLEXJOB_PROVINCE]);
-    $jobTitle = $jobStatement->fetchColumn();
-    if (!$jobTitle) throw new RuntimeException('ไม่พบประกาศงานที่เปิดรับสมัคร');
-
-    $workerStatement = $pdo->prepare("SELECT CONCAT(first_name,' ',last_name) FROM users u JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=? AND u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable' AND wp.work_province=?");
-    $workerStatement->execute([$workerId, FLEXJOB_PROVINCE]);
-    if (!$workerStatement->fetchColumn()) throw new RuntimeException('ผู้หางานรายนี้ไม่เปิดให้ค้นหาโปรไฟล์');
-
-    $appliedStatement = $pdo->prepare('SELECT 1 FROM applications WHERE job_id=? AND worker_user_id=?');
-    $appliedStatement->execute([$jobId, $workerId]);
-    if ($appliedStatement->fetchColumn()) throw new RuntimeException('ผู้หางานรายนี้สมัครงานแล้ว');
-
     $pdo->beginTransaction();
     try {
+        $accountStatement = $pdo->prepare('SELECT account_status FROM users WHERE user_id=? FOR UPDATE');
+        $accountStatement->execute([$employerId]);
+        $employerAccountStatus = $accountStatement->fetchColumn();
+        $jobStatement = $pdo->prepare('SELECT j.job_title,j.job_status,j.application_deadline,j.open_positions
+            FROM jobs j WHERE j.job_id=? AND j.employer_user_id=? AND j.work_province=? FOR UPDATE');
+        $jobStatement->execute([$jobId, $employerId, FLEXJOB_PROVINCE]);
+        $job = $jobStatement->fetch();
+        if (!$job || $job['job_status'] !== 'published'
+            || ($job['application_deadline'] && $job['application_deadline'] < date('Y-m-d'))
+            || $employerAccountStatus !== 'active') {
+            throw new RuntimeException('ไม่พบประกาศงานที่เปิดรับสมัคร');
+        }
+        if (!matching_employer_is_verified($pdo, $employerId)) {
+            throw new RuntimeException('บัญชีผู้ว่าจ้างต้องผ่านการยืนยันก่อนส่งคำเชิญ');
+        }
+
+        $completedStatement = $pdo->prepare("SELECT COUNT(*) FROM applications WHERE job_id=? AND application_status='completed'");
+        $completedStatement->execute([$jobId]);
+        if ((int) $completedStatement->fetchColumn() >= (int) $job['open_positions']) {
+            throw new RuntimeException('ประกาศนี้รับผู้ปฏิบัติงานครบตามจำนวนแล้ว');
+        }
+
+        $workerStatement = $pdo->prepare("SELECT CONCAT(first_name,' ',last_name) FROM users u JOIN worker_profiles wp ON wp.user_id=u.user_id WHERE u.user_id=? AND u.role='worker' AND u.account_status='active' AND wp.profile_visibility='searchable' AND wp.work_province=?");
+        $workerStatement->execute([$workerId, FLEXJOB_PROVINCE]);
+        if (!$workerStatement->fetchColumn()) throw new RuntimeException('ผู้หางานรายนี้ไม่เปิดให้ค้นหาโปรไฟล์');
+
+        $appliedStatement = $pdo->prepare('SELECT 1 FROM applications WHERE job_id=? AND worker_user_id=?');
+        $appliedStatement->execute([$jobId, $workerId]);
+        if ($appliedStatement->fetchColumn()) throw new RuntimeException('ผู้หางานรายนี้สมัครงานแล้ว');
+
         $pdo->prepare('INSERT INTO job_invitations (job_id,worker_user_id,invitation_message) VALUES (?,?,?)')
             ->execute([$jobId, $workerId, trim($message) ?: null]);
-        notification_create($pdo, $workerId, 'คำเชิญสมัครงานใหม่', 'ผู้ว่าจ้างเชิญคุณสมัครงาน: ' . $jobTitle, 'worker/invitations.php');
+        notification_create($pdo, $workerId, 'คำเชิญสมัครงานใหม่', 'ผู้ว่าจ้างเชิญคุณสมัครงาน: ' . $job['job_title'], 'worker/invitations.php');
         $pdo->commit();
-    } catch (PDOException $e) {
+    } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
-        if ((string) $e->getCode() === '23000') throw new RuntimeException('ส่งคำเชิญสำหรับงานนี้ไปแล้ว');
+        if ($e instanceof PDOException && (string) $e->getCode() === '23000') throw new RuntimeException('ส่งคำเชิญสำหรับงานนี้ไปแล้ว');
         throw $e;
     }
 }

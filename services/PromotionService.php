@@ -108,8 +108,8 @@ function promotion_create_order(PDO $pdo, int $employerId, int $jobId, int $pack
     try {
         $jobStatement = $pdo->prepare("SELECT j.job_id
             FROM jobs j
-            WHERE j.job_id=? AND j.employer_user_id=? AND j.job_status='published'
-              AND j.work_province=? AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())
+            WHERE j.job_id=? AND j.employer_user_id=?
+              AND j.work_province=? AND " . application_open_job_sql('j') . "
             FOR UPDATE");
         $jobStatement->execute([$jobId, $employerId, FLEXJOB_PROVINCE]);
         if (!$jobStatement->fetchColumn()) throw new RuntimeException('ประกาศนี้ไม่อยู่ในสถานะที่โปรโมตได้');

@@ -7,10 +7,11 @@ $stats = [
     'employers' => (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role='employer'")->fetchColumn(),
     'workers' => (int) $pdo->query("SELECT COUNT(*) FROM users WHERE role='worker'")->fetchColumn(),
     'jobs' => (int) $pdo->query("SELECT COUNT(*) FROM jobs WHERE job_status='published'")->fetchColumn(),
-    'pending' => (int) $pdo->query("SELECT COUNT(*) FROM employer_documents WHERE document_status IN ('pending','resubmit')")->fetchColumn(),
-    'promotion_pending' => (int) $pdo->query("SELECT COUNT(*) FROM job_promotions WHERE promotion_status='pending_verification'")->fetchColumn(),
+    'pending' => (int) $pdo->query("SELECT COUNT(*) FROM employer_documents ed WHERE ed.document_status='pending' AND ed.employer_document_id=(SELECT latest_ed.employer_document_id FROM employer_documents latest_ed WHERE latest_ed.employer_user_id=ed.employer_user_id ORDER BY latest_ed.submitted_at DESC,latest_ed.employer_document_id DESC LIMIT 1)")->fetchColumn(),
+    'subscription_pending' => (int) $pdo->query("SELECT COUNT(*) FROM employer_subscriptions WHERE subscription_status='pending_verification'")->fetchColumn(),
+    'review_pending' => (int) $pdo->query("SELECT COUNT(*) FROM review_reports WHERE report_status='pending'")->fetchColumn(),
 ];
-$pendingDocuments = $pdo->query("SELECT ed.employer_user_id,ed.document_status,ed.submitted_at,ep.company_name,CONCAT(u.first_name,' ',u.last_name) contact_name FROM employer_documents ed JOIN employer_profiles ep ON ep.user_id=ed.employer_user_id JOIN users u ON u.user_id=ed.employer_user_id WHERE ed.document_status IN ('pending','resubmit') ORDER BY ed.submitted_at DESC LIMIT 4")->fetchAll();
+$pendingDocuments = $pdo->query("SELECT ed.employer_user_id,ed.document_status,ed.submitted_at,ep.company_name,CONCAT(u.first_name,' ',u.last_name) contact_name FROM employer_documents ed JOIN employer_profiles ep ON ep.user_id=ed.employer_user_id JOIN users u ON u.user_id=ed.employer_user_id WHERE ed.document_status='pending' AND ed.employer_document_id=(SELECT latest_ed.employer_document_id FROM employer_documents latest_ed WHERE latest_ed.employer_user_id=ed.employer_user_id ORDER BY latest_ed.submitted_at DESC,latest_ed.employer_document_id DESC LIMIT 1) ORDER BY ed.submitted_at DESC LIMIT 4")->fetchAll();
 $recentJobs = $pdo->query("SELECT j.job_id,j.job_status,j.job_title,j.created_at,ep.company_name,wi.interest_name work_interest_name FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id ORDER BY j.created_at DESC LIMIT 4")->fetchAll();
 $jobCategoryStats = $pdo->query("SELECT jc.category_slug,COUNT(DISTINCT j.job_id) AS job_count,COUNT(a.application_id) AS application_count FROM job_categories jc LEFT JOIN jobs j ON j.job_category_id=jc.job_category_id LEFT JOIN applications a ON a.job_id=j.job_id GROUP BY jc.job_category_id,jc.category_slug ORDER BY job_count DESC,jc.category_slug ASC")->fetchAll();
 $jobCategoryTotal = array_sum(array_map(static fn(array $category): int => (int) $category['job_count'], $jobCategoryStats));
@@ -37,7 +38,7 @@ require APP_ROOT . '/partials/header.php';
                     </div>
                     <div class="col-lg-auto"><div class="admin-dashboard-hero-actions">
                         <a class="btn btn-primary" href="<?= BASE_URL ?>/admin/documents.php">ตรวจเอกสารผู้ว่าจ้าง</a>
-                        <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/promotions.php">ตรวจสอบการชำระเงิน<?= $stats['promotion_pending'] ? ' (' . number_format($stats['promotion_pending']) . ')' : '' ?></a>
+                        <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/subscriptions.php">ตรวจสอบการชำระเงิน<?= $stats['subscription_pending'] ? ' (' . number_format($stats['subscription_pending']) . ')' : '' ?></a>
                         <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/admin/users.php">จัดการบัญชี</a>
                     </div></div>
                 </div>
@@ -98,7 +99,8 @@ require APP_ROOT . '/partials/header.php';
             <div class="row g-3">
                 <?php foreach ([
                     ['documents.php', '▤', 'VERIFICATION', 'เอกสารผู้ว่าจ้าง', 'อนุมัติ ขอเอกสารเพิ่ม หรือแจ้งผลการตรวจสอบให้ผู้ว่าจ้างทราบ', 'ตรวจสอบเอกสาร'],
-                    ['promotions.php', '✦', 'PROMOTION PAYMENTS', 'การโปรโมตประกาศ', 'ตรวจสอบสลิป อนุมัติการชำระเงิน และติดตามระยะเวลาโปรโมต', 'ตรวจสอบการชำระเงิน'],
+                    ['subscriptions.php', '฿', 'SUBSCRIPTION PAYMENTS', 'แพ็กเกจผู้ว่าจ้าง', 'ตรวจสอบสลิป อนุมัติแพ็กเกจ และติดตามรอบสมาชิก 30 วัน', 'ตรวจสอบการชำระเงิน'],
+                    ['reviews.php', '★', 'REVIEW MODERATION', 'รีวิวและรายงาน', 'ตรวจสอบรายงาน ซ่อน หรือคืนค่าความคิดเห็นจากงานที่เสร็จสิ้น', 'ดูแลรีวิว'],
                     ['jobs.php', '◷', 'JOB MODERATION', 'ประกาศงาน', 'ตรวจสอบเนื้อหา ซ่อน ปิดรับสมัคร หรือลบประกาศที่ไม่เหมาะสม', 'จัดการประกาศ'],
                     ['users.php', '◎', 'ACCOUNT MANAGEMENT', 'บัญชีผู้ใช้', 'ค้นหา ตรวจสอบสถานะ และเปิดหรือระงับบัญชีผู้ใช้งาน', 'จัดการบัญชี'],
                 ] as [$path, $icon, $eyebrow, $title, $description, $action]): ?>

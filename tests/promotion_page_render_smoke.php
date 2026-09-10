@@ -5,57 +5,49 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/config.php';
 
 if (PROMPTPAY_ID === '' || PROMPTPAY_RECIPIENT_NAME === '') {
-    echo "promotion page render smoke test: SKIP (payment config missing)\n";
+    echo "subscription page render smoke test: SKIP (payment config missing)\n";
     exit;
 }
 
 $pdo = db();
-$fixture = $pdo->query("SELECT j.job_id,j.employer_user_id,u.first_name,u.last_name,u.email,pp.package_id,pp.package_name,pp.price,pp.duration_days
-    FROM jobs j
-    JOIN users u ON u.user_id=j.employer_user_id AND u.account_status='active'
-    JOIN employer_documents ed ON ed.employer_user_id=j.employer_user_id AND ed.document_status='approved'
-    CROSS JOIN promotion_packages pp
-    WHERE j.job_status='published' AND j.work_province='บุรีรัมย์'
-      AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())
-    ORDER BY j.job_id,pp.sort_order LIMIT 1")->fetch();
-
+$fixture = $pdo->query("SELECT u.user_id,u.first_name,u.last_name,u.email,sp.*
+    FROM users u
+    JOIN employer_documents ed ON ed.employer_user_id=u.user_id AND ed.document_status='approved'
+    CROSS JOIN subscription_plans sp
+    WHERE u.role='employer' AND u.account_status='active' AND sp.plan_code='pro-30d' AND sp.is_active=1
+    ORDER BY u.user_id LIMIT 1")->fetch();
 if (!$fixture) {
-    echo "promotion page render smoke test: SKIP (no verified open job fixture)\n";
+    echo "subscription page render smoke test: SKIP (no verified employer fixture)\n";
     exit;
 }
 
 $pdo->beginTransaction();
 try {
-    $insert = $pdo->prepare("INSERT INTO job_promotions
-        (job_id,employer_user_id,package_id,package_name_snapshot,amount,duration_days,promotion_status)
-        VALUES (?,?,?,?,?,?,'pending_payment')");
-    $insert->execute([
-        $fixture['job_id'], $fixture['employer_user_id'], $fixture['package_id'],
-        $fixture['package_name'], $fixture['price'], $fixture['duration_days'],
-    ]);
-    $promotionId = (int) $pdo->lastInsertId();
+    $insert = $pdo->prepare("INSERT INTO employer_subscriptions
+        (employer_user_id,plan_id,plan_name_snapshot,amount,duration_days,active_job_limit,promotion_credits,promotion_duration_days,subscription_status)
+        VALUES (?,?,?,?,?,?,?,?,'pending_payment')");
+    $insert->execute([$fixture['user_id'],$fixture['plan_id'],$fixture['plan_name'],$fixture['price'],$fixture['duration_days'],$fixture['active_job_limit'],$fixture['promotion_credits'],$fixture['promotion_duration_days']]);
+    $subscriptionId = (int) $pdo->lastInsertId();
 
     $_SESSION['user'] = [
-        'id' => (int) $fixture['employer_user_id'],
+        'id' => (int) $fixture['user_id'],
         'name' => trim($fixture['first_name'] . ' ' . $fixture['last_name']),
         'role' => 'employer',
         'email' => $fixture['email'],
     ];
     $_SERVER['REQUEST_METHOD'] = 'GET';
-    $_SERVER['REQUEST_URI'] = '/Flex/employer/promote.php';
-    $_GET = ['job' => (string) $fixture['job_id'], 'promotion' => (string) $promotionId];
+    $_SERVER['REQUEST_URI'] = '/Flex/employer/subscription.php';
+    $_GET = ['subscription' => (string) $subscriptionId];
     $_POST = [];
 
     ob_start();
-    require APP_ROOT . '/employer/promote.php';
+    require APP_ROOT . '/employer/subscription.php';
     $html = (string) ob_get_clean();
-
-    foreach (['id="promotionQr"', 'data-payload="', 'สแกนด้วยแอปธนาคาร', 'ส่งสลิปให้ตรวจสอบ'] as $expected) {
-        if (!str_contains($html, $expected)) throw new RuntimeException('Rendered promotion page is incomplete: ' . $expected);
+    foreach (['id="promotionQr"','data-payload="','สแกนด้วยแอปธนาคาร','ส่งสลิปให้ตรวจสอบ','฿239.00'] as $expected) {
+        if (!str_contains($html, $expected)) throw new RuntimeException('Rendered subscription page is incomplete: ' . $expected);
     }
     if (str_contains($html, PROMPTPAY_ID)) throw new RuntimeException('Full PromptPay identifier is exposed in the rendered page');
-
-    echo "promotion page render smoke test: PASS\n";
+    echo "subscription page render smoke test: PASS\n";
 } finally {
     if ($pdo->inTransaction()) $pdo->rollBack();
 }

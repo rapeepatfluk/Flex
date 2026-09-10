@@ -21,10 +21,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($reason === '') throw new RuntimeException('กรุณาระบุเหตุผลในการลบประกาศ');
 
         $pdo->beginTransaction();
-        $pdo->prepare('DELETE FROM jobs WHERE job_id=?')->execute([$jobId]);
-        admin_notify_user($pdo, (int) $job['employer_user_id'], 'ประกาศงานถูกลบ', 'ประกาศ “' . $job['job_title'] . '” ถูกลบออกจากระบบ — เหตุผล: ' . $reason);
+        $pdo->prepare('SELECT job_id FROM jobs WHERE job_id=? FOR UPDATE')->execute([$jobId]);
+        $historyStatement = $pdo->prepare('SELECT
+            EXISTS(SELECT 1 FROM applications WHERE job_id=?)
+            OR EXISTS(SELECT 1 FROM job_invitations WHERE job_id=?)
+            OR EXISTS(SELECT 1 FROM job_promotions WHERE job_id=?)');
+        $historyStatement->execute([$jobId, $jobId, $jobId]);
+        $hasHistory = (bool) $historyStatement->fetchColumn();
+        if ($hasHistory) {
+            $pdo->prepare("UPDATE jobs SET job_status='hidden' WHERE job_id=?")->execute([$jobId]);
+            admin_notify_user($pdo, (int) $job['employer_user_id'], 'ประกาศงานถูกนำออก', 'ประกาศ “' . $job['job_title'] . '” ถูกซ่อนจากระบบเพื่อเก็บประวัติที่เกี่ยวข้อง — เหตุผล: ' . $reason);
+        } else {
+            $pdo->prepare('DELETE FROM jobs WHERE job_id=?')->execute([$jobId]);
+            admin_notify_user($pdo, (int) $job['employer_user_id'], 'ประกาศงานถูกลบ', 'ประกาศ “' . $job['job_title'] . '” ถูกลบออกจากระบบ — เหตุผล: ' . $reason);
+        }
         $pdo->commit();
-        flash('success', 'ลบประกาศงานแล้วและแจ้งเหตุผลให้ผู้ว่าจ้างแล้ว');
+        flash('success', $hasHistory ? 'ซ่อนประกาศและเก็บประวัติที่เกี่ยวข้องไว้แล้ว' : 'ลบประกาศงานแล้วและแจ้งเหตุผลให้ผู้ว่าจ้างแล้ว');
         redirect('admin/jobs.php');
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -62,7 +74,7 @@ require APP_ROOT . '/partials/header.php';
 
                         <aside class="admin-jobdelete-warning" role="alert">
                             <span aria-hidden="true">!</span>
-                            <div><strong>ข้อมูลใบสมัครที่เกี่ยวข้องจะถูกลบออกด้วย</strong><p class="mb-0">ระบบจะส่งเหตุผลที่ระบุให้ผู้ว่าจ้างทราบทันทีหลังยืนยันการลบ</p></div>
+                            <div><strong>ระบบจะรักษาประวัติธุรกรรมและใบสมัคร</strong><p class="mb-0">หากประกาศมีผู้สมัคร คำเชิญ หรือการโปรโมต ระบบจะซ่อนประกาศแทนการลบถาวร และแจ้งเหตุผลให้ผู้ว่าจ้างทราบ</p></div>
                         </aside>
 
                         <form method="post" action="<?= BASE_URL ?>/admin/jobdelete.php?id=<?= $jobId ?>">

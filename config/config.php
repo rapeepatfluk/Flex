@@ -96,6 +96,21 @@ function e(?string $value): string
 {
     return htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
 }
+function normalize_username(string $username): string
+{
+    return strtolower(trim($username));
+}
+function validate_username(string $username): string
+{
+    $username = normalize_username($username);
+    if (!preg_match('/^[a-z0-9][a-z0-9._]{2,28}[a-z0-9]$/', $username)) {
+        throw new RuntimeException('ชื่อผู้ใช้ต้องมี 4–30 ตัว ใช้ตัวอักษรอังกฤษ ตัวเลข จุด หรือขีดล่าง และต้องขึ้นต้น–ลงท้ายด้วยตัวอักษรหรือตัวเลข');
+    }
+    if (in_array($username, ['admin','administrator','flexjob','support','system','root'], true)) {
+        throw new RuntimeException('ชื่อผู้ใช้นี้สงวนไว้ กรุณาเลือกชื่ออื่น');
+    }
+    return $username;
+}
 function flash(string $key, ?string $value = null): ?string
 {
     if ($value !== null) {
@@ -193,3 +208,5 @@ require_once __DIR__ . '/notify.php';
 require_once APP_ROOT . '/services/ApplicationService.php';
 require_once APP_ROOT . '/services/MatchingService.php';
 require_once APP_ROOT . '/services/PromotionService.php';
+require_once APP_ROOT . '/services/ReviewService.php';
+require_once APP_ROOT . '/services/SubscriptionService.php';

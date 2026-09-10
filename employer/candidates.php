@@ -6,7 +6,7 @@ $pdo = db();
 $employerId = (int) user()['id'];
 $verified = matching_employer_is_verified($pdo, $employerId);
 
-$jobStatement = $pdo->prepare("SELECT j.job_id,j.job_title,j.work_location,j.work_schedule,j.pay_amount,j.pay_unit,j.open_positions,j.created_at,wi.interest_name work_interest_name FROM jobs j LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id WHERE j.employer_user_id=? AND j.work_province=? AND j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE()) ORDER BY j.created_at DESC");
+$jobStatement = $pdo->prepare("SELECT j.job_id,j.job_title,j.work_location,j.work_schedule,j.pay_amount,j.pay_unit,j.open_positions,j.created_at,wi.interest_name work_interest_name FROM jobs j LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id WHERE j.employer_user_id=? AND j.work_province=? AND " . application_open_job_sql('j') . " ORDER BY j.created_at DESC");
 $jobStatement->execute([$employerId, FLEXJOB_PROVINCE]);
 $employerJobs = $jobStatement->fetchAll();
 $latestJobs = array_slice($employerJobs, 0, 3);

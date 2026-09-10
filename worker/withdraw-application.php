@@ -11,14 +11,24 @@ try {
 
     $pdo = db();
     $pdo->beginTransaction();
-    $statement = $pdo->prepare("SELECT a.application_id,a.job_id,j.job_title,j.employer_user_id FROM applications a JOIN jobs j ON j.job_id=a.job_id WHERE a.application_id=? AND a.worker_user_id=? AND a.application_status='submitted' FOR UPDATE");
+    $jobIdStatement = $pdo->prepare('SELECT job_id FROM applications WHERE application_id=? AND worker_user_id=?');
+    $jobIdStatement->execute([$applicationId, user()['id']]);
+    $jobId = (int) $jobIdStatement->fetchColumn();
+    if (!$jobId) throw new RuntimeException('ไม่พบใบสมัครที่ต้องการยกเลิก');
+
+    $jobStatement = $pdo->prepare('SELECT job_title,employer_user_id FROM jobs WHERE job_id=? FOR UPDATE');
+    $jobStatement->execute([$jobId]);
+    $job = $jobStatement->fetch();
+    if (!$job) throw new RuntimeException('ไม่พบประกาศงานของใบสมัครนี้');
+
+    $statement = $pdo->prepare("SELECT application_id,job_id FROM applications WHERE application_id=? AND worker_user_id=? AND application_status IN ('submitted','eligible','interview_passed') FOR UPDATE");
     $statement->execute([$applicationId, user()['id']]);
     $application = $statement->fetch();
-    if (!$application) throw new RuntimeException('ยกเลิกได้เฉพาะใบสมัครที่กำลังรอพิจารณา');
+    if (!$application) throw new RuntimeException('ไม่สามารถถอนใบสมัครที่สิ้นสุดกระบวนการแล้ว');
 
-    $pdo->prepare("UPDATE applications SET application_status='withdrawn',withdrawn_at=NOW() WHERE application_id=? AND worker_user_id=? AND application_status='submitted'")
+    $pdo->prepare("UPDATE applications SET application_status='withdrawn',withdrawn_at=NOW() WHERE application_id=? AND worker_user_id=? AND application_status IN ('submitted','eligible','interview_passed')")
         ->execute([$applicationId, user()['id']]);
-    notification_create($pdo, (int) $application['employer_user_id'], 'ผู้สมัครถอนใบสมัคร', user()['name'] . ' ถอนใบสมัครงาน: ' . $application['job_title'], 'employer/applicants.php?job=' . $application['job_id']);
+    notification_create($pdo, (int) $job['employer_user_id'], 'ผู้สมัครถอนใบสมัคร', user()['name'] . ' ถอนใบสมัครงาน: ' . $job['job_title'], 'employer/applicants.php?job=' . $application['job_id']);
     $pdo->commit();
     flash('success', 'ถอนใบสมัครเรียบร้อยแล้ว');
 } catch (RuntimeException $e) {

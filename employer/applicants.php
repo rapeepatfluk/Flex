@@ -220,7 +220,7 @@ require APP_ROOT . '/partials/header.php';
                                             <label class="form-label small fw-semibold mb-1" for="status-<?= $app['id'] ?>">ผลการพิจารณา</label>
                                             <select class="form-select form-select-sm" id="status-<?= $app['id'] ?>" name="status">
                                                 <?php foreach ($statusOptions as $statusValue => $option): ?>
-                                                    <?php if ($statusValue !== 'withdrawn'): ?>
+                                                    <?php if ($statusValue !== 'withdrawn' && in_array($statusValue, application_allowed_statuses_from($app['status']), true)): ?>
                                                         <option value="<?= e($statusValue) ?>" <?= $app['status'] === $statusValue ? 'selected' : '' ?>><?= e($option['label']) ?></option>
                                                     <?php endif; ?>
                                                 <?php endforeach; ?>

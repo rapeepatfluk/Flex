@@ -74,6 +74,36 @@
     border-radius: .5rem;
 }
 
+.review-list {
+    display: grid;
+    gap: 1rem;
+}
+
+.review-item {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .9rem;
+    background: #fff;
+}
+
+.review-item time,
+.review-report summary {
+    color: #64748b;
+    font-size: .78rem;
+}
+
+.review-stars {
+    display: block;
+    color: #f59e0b;
+    font-size: .9rem;
+    letter-spacing: .08rem;
+}
+
+.review-report summary {
+    inline-size: fit-content;
+    cursor: pointer;
+}
+
 @media (pointer: coarse) {
     .rating-star {
         min-inline-size: 3rem;

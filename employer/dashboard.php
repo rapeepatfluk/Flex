@@ -4,6 +4,8 @@ require_once __DIR__ . '/../config/config.php';
 require_login('employer');
 $pdo = db();
 promotion_sync_expired($pdo);
+subscription_sync_statuses($pdo);
+$subscriptionEntitlements = subscription_entitlements($pdo, (int) user()['id']);
 
 $profileStmt = $pdo->prepare("SELECT ep.*, COALESCE((SELECT ed.document_status FROM employer_documents ed WHERE ed.employer_user_id=ep.user_id ORDER BY ed.submitted_at DESC LIMIT 1),'not_submitted') AS verification_status FROM employer_profiles ep WHERE ep.user_id=?");
 $profileStmt->execute([user()['id']]);
@@ -14,12 +16,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         verify_csrf();
 
         if (($_POST['action'] ?? '') === 'document') {
+            if (!in_array($profile['verification_status'], ['not_submitted', 'rejected', 'resubmit'], true)) {
+                throw new RuntimeException($profile['verification_status'] === 'pending' ? 'เอกสารอยู่ระหว่างตรวจสอบ กรุณารอผลก่อนส่งใหม่' : 'บัญชีนี้ผ่านการยืนยันแล้ว');
+            }
             $file = upload_file('criminal_record', ['pdf', 'jpg', 'jpeg', 'png'], 'verification');
             if (!$file) {
                 throw new RuntimeException('กรุณาเลือกเอกสาร');
             }
 
             $pdo->beginTransaction();
+            $pdo->prepare('SELECT user_id FROM users WHERE user_id=? FOR UPDATE')->execute([user()['id']]);
+            $latestDocumentStatement = $pdo->prepare("SELECT document_status FROM employer_documents WHERE employer_user_id=? ORDER BY submitted_at DESC,employer_document_id DESC LIMIT 1");
+            $latestDocumentStatement->execute([user()['id']]);
+            $latestDocumentStatus = $latestDocumentStatement->fetchColumn() ?: 'not_submitted';
+            if (!in_array($latestDocumentStatus, ['not_submitted', 'rejected', 'resubmit'], true)) {
+                throw new RuntimeException($latestDocumentStatus === 'pending' ? 'เอกสารอยู่ระหว่างตรวจสอบ กรุณารอผลก่อนส่งใหม่' : 'บัญชีนี้ผ่านการยืนยันแล้ว');
+            }
             $pdo->prepare("INSERT INTO employer_documents (employer_user_id,document_file_path,document_status) VALUES (?,?,'pending')")
                 ->execute([user()['id'], $file]);
             notification_create_for_role(
@@ -56,11 +68,12 @@ $jobsStmt = $pdo->prepare("SELECT
         WHEN j.job_status='published' AND j.application_deadline IS NOT NULL AND j.application_deadline<CURDATE() THEN 'expired'
         ELSE j.job_status
     END AS display_status,
-    (j.job_status='published' AND (j.application_deadline IS NULL OR j.application_deadline>=CURDATE())) AS is_open,
+    (" . application_open_job_sql('j') . ") AS is_open,
     j.created_at,
     (SELECT jp.promotion_status FROM job_promotions jp WHERE jp.job_id=j.job_id ORDER BY jp.created_at DESC,jp.promotion_id DESC LIMIT 1) AS promotion_status,
     (SELECT jp.ends_at FROM job_promotions jp WHERE jp.job_id=j.job_id AND jp.promotion_status='active' ORDER BY jp.starts_at DESC LIMIT 1) AS promotion_ends_at,
     COUNT(DISTINCT a.application_id) AS applicants,
+    COUNT(DISTINCT CASE WHEN a.application_status='completed' THEN a.application_id END) AS completed_applicants,
     COUNT(DISTINCT js.skill_id) AS matching_skills,
     (SELECT ji.image_file_path
      FROM job_images ji
@@ -121,6 +134,7 @@ require APP_ROOT . '/partials/header.php';
                     <div class="d-flex flex-column flex-sm-row flex-lg-column gap-2 justify-content-lg-end">
                         <a class="btn btn-primary btn-lg px-4" href="<?= BASE_URL ?>/employer/jobpost.php">สร้างประกาศงาน</a>
                         <a class="btn btn-outline-primary btn-lg px-4" href="<?= BASE_URL ?>/employer/candidates.php">ค้นหาผู้หางาน</a>
+                        <a class="btn btn-outline-success btn-lg px-4" href="<?= BASE_URL ?>/employer/subscription.php">แพ็กเกจ <?= e($subscriptionEntitlements['plan']) ?> · <?= $subscriptionEntitlements['open_jobs'] ?>/<?= $subscriptionEntitlements['active_job_limit'] ?> งาน</a>
                     </div>
                 </div>
             </div>
@@ -176,7 +190,7 @@ require APP_ROOT . '/partials/header.php';
                 <div class="col-lg-auto">
                     <?php if ($profile['verification_status'] === 'approved'): ?>
                         <span class="badge rounded-pill text-bg-success px-3 py-2">ยืนยันผู้ว่าจ้างแล้ว</span>
-                    <?php else: ?>
+                    <?php elseif (in_array($profile['verification_status'], ['not_submitted', 'rejected', 'resubmit'], true)): ?>
                         <form method="post" enctype="multipart/form-data" class="row g-2 align-items-center">
                             <?= csrf_field() ?>
                             <input type="hidden" name="action" value="document">
@@ -188,6 +202,8 @@ require APP_ROOT . '/partials/header.php';
                                 <button class="btn btn-primary text-nowrap" type="submit">ส่งเอกสาร</button>
                             </div>
                         </form>
+                    <?php else: ?>
+                        <span class="badge rounded-pill text-bg-warning px-3 py-2">รอผลการตรวจสอบ</span>
                     <?php endif; ?>
                 </div>
             </div>
@@ -233,7 +249,7 @@ require APP_ROOT . '/partials/header.php';
                                 <div class="d-flex flex-wrap gap-2 mt-3">
                                     <a class="btn btn-primary btn-sm flex-grow-1" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $job['id'] ?>">ดูผู้สมัคร</a>
                                     <?php if ($job['is_open']): ?><a class="btn btn-outline-primary btn-sm" href="<?= BASE_URL ?>/employer/candidates.php?job=<?= $job['id'] ?>" aria-label="ค้นหาคนที่เหมาะกับ <?= e($job['title']) ?>">ค้นหาคน</a><?php endif; ?>
-                                    <?php if ($job['is_open']): ?><a class="btn btn-outline-success btn-sm" href="<?= BASE_URL ?>/employer/promote.php?job=<?= $job['id'] ?>">✦ โปรโมต</a><?php endif; ?>
+                                    <?php if ($job['is_open']): ?><a class="btn btn-outline-success btn-sm" href="<?= BASE_URL ?>/employer/subscription.php?job=<?= $job['id'] ?>">✦ ใช้สิทธิ์โปรโมต</a><?php endif; ?>
                                 </div>
                             </div>
                         </article>
@@ -294,8 +310,9 @@ require APP_ROOT . '/partials/header.php';
                                         <a class="btn btn-sm btn-primary" href="<?= BASE_URL ?>/employer/applicants.php?job=<?= $job['id'] ?>">ผู้สมัคร</a>
                                         <?php if ($job['is_open']): ?><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/employer/candidates.php?job=<?= $job['id'] ?>">ค้นหาคน</a><?php endif; ?>
                                         <a class="btn btn-sm btn-secondary" href="<?= BASE_URL ?>/employer/jobedit.php?id=<?= $job['id'] ?>">แก้ไข</a>
-                                        <?php if ($job['is_open']): ?><a class="btn btn-sm btn-outline-success" href="<?= BASE_URL ?>/employer/promote.php?job=<?= $job['id'] ?>">✦ โปรโมต</a><?php endif; ?>
-                                        <form method="post" action="<?= BASE_URL ?>/employer/jobdelete.php" onsubmit="return confirm('ยืนยันการลบประกาศงานนี้? ข้อมูลผู้สมัครของประกาศนี้จะถูกลบด้วย');">
+                                        <?php if ($job['is_open']): ?><a class="btn btn-sm btn-outline-success" href="<?= BASE_URL ?>/employer/subscription.php?job=<?= $job['id'] ?>">✦ ใช้สิทธิ์โปรโมต</a><?php endif; ?>
+                                        <form method="post" action="<?= BASE_URL ?>/employer/job-status.php"><?= csrf_field() ?><input type="hidden" name="job_id" value="<?= (int)$job['id'] ?>"><button class="btn btn-sm btn-outline-secondary" name="action" value="<?= $job['status']==='published'?'hide':'publish' ?>"><?= $job['status']==='published'?'ซ่อน':'เปิดประกาศ' ?></button></form>
+                                        <form method="post" action="<?= BASE_URL ?>/employer/jobdelete.php" onsubmit="return confirm('ยืนยันการลบประกาศงานนี้? ประกาศที่มีประวัติผู้สมัคร คำเชิญ หรือการโปรโมตจะลบถาวรไม่ได้');">
                                             <?= csrf_field() ?>
                                             <input type="hidden" name="job_id" value="<?= $job['id'] ?>">
                                             <button class="btn btn-sm btn-danger" type="submit">ลบ</button>

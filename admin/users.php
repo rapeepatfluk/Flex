@@ -11,12 +11,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $status = $_POST['status'] ?? '';
         if (!in_array($status, ['active', 'suspended'], true)) throw new RuntimeException('สถานะบัญชีไม่ถูกต้อง');
 
-        $accountStmt = $pdo->prepare("SELECT role FROM users WHERE user_id=? AND role IN ('worker', 'employer')");
-        $accountStmt->execute([$userId]);
-        if (!$accountStmt->fetch()) throw new RuntimeException('ไม่สามารถจัดการบัญชีนี้ได้');
-
         $pdo->beginTransaction();
+        $accountStmt = $pdo->prepare("SELECT role,account_status,email_verified_at FROM users WHERE user_id=? AND role IN ('worker', 'employer') FOR UPDATE");
+        $accountStmt->execute([$userId]);
+        $account = $accountStmt->fetch();
+        if (!$account) throw new RuntimeException('ไม่สามารถจัดการบัญชีนี้ได้');
+        if ($account['account_status'] === 'pending') throw new RuntimeException('บัญชีนี้ยังไม่ยืนยันอีเมล จึงเปลี่ยนสถานะผ่านหน้าผู้ดูแลไม่ได้');
+        if ($status === 'active' && !$account['email_verified_at']) throw new RuntimeException('ไม่สามารถเปิดบัญชีที่ยังไม่ยืนยันอีเมลได้');
+
         $pdo->prepare('UPDATE users SET account_status=? WHERE user_id=?')->execute([$status, $userId]);
+        if ($status === 'suspended' && $account['role'] === 'employer') {
+            $pdo->prepare("UPDATE jobs SET job_status='hidden' WHERE employer_user_id=? AND job_status='published'")->execute([$userId]);
+        }
         admin_notify_user($pdo, $userId, 'สถานะบัญชี FLEXJOB', $status === 'active' ? 'บัญชีของคุณเปิดใช้งานแล้ว' : 'บัญชีของคุณถูกระงับการใช้งาน');
         $pdo->commit();
         flash('success', $status === 'active' ? 'เปิดใช้งานบัญชีแล้ว' : 'ระงับบัญชีแล้ว');
@@ -33,23 +39,23 @@ if (!in_array($roleFilter, ['worker', 'employer'], true)) {
     $roleFilter = '';
 }
 
-$sql = "SELECT user_id, first_name, last_name, email, phone, role, account_status, created_at FROM users WHERE role IN ('worker', 'employer')";
+$sql = "SELECT user_id, username, first_name, last_name, email, phone, role, account_status, created_at FROM users WHERE role IN ('worker', 'employer')";
 $params = [];
 if ($roleFilter !== '') {
     $sql .= ' AND role=?';
     $params[] = $roleFilter;
 }
 if ($query !== '') {
-    $sql .= ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ?)';
+    $sql .= ' AND (first_name LIKE ? OR last_name LIKE ? OR email LIKE ? OR username LIKE ?)';
     $term = '%' . $query . '%';
-    array_push($params, $term, $term, $term);
+    array_push($params, $term, $term, $term, $term);
 }
 $sql .= ' ORDER BY created_at DESC';
 $statement = $pdo->prepare($sql);
 $statement->execute($params);
 $accounts = $statement->fetchAll();
 
-$summary = ['worker' => 0, 'employer' => 0, 'active' => 0, 'suspended' => 0];
+$summary = ['worker' => 0, 'employer' => 0, 'active' => 0, 'suspended' => 0, 'pending' => 0];
 foreach ($accounts as $account) {
     if (isset($summary[$account['role']])) $summary[$account['role']]++;
     if (isset($summary[$account['account_status']])) $summary[$account['account_status']]++;
@@ -81,8 +87,9 @@ require APP_ROOT . '/partials/header.php';
                 ['employer', 'ผู้ว่าจ้าง', '▣', 'sky'],
                 ['active', 'บัญชีใช้งานอยู่', '✓', 'green'],
                 ['suspended', 'บัญชีถูกระงับ', '!', 'red'],
+                ['pending', 'รอยืนยันอีเมล', '…', 'sky'],
             ] as [$key, $label, $icon, $tone]): ?>
-                <div class="col-6 col-xl-3">
+                <div class="col-6 col-xl">
                     <article class="card border-0 admin-users-stat admin-users-stat-<?= e($tone) ?> h-100">
                         <div class="card-body p-3 p-lg-4">
                             <span class="admin-users-stat-icon" aria-hidden="true"><?= e($icon) ?></span>
@@ -130,6 +137,8 @@ require APP_ROOT . '/partials/header.php';
                     <?php foreach ($accounts as $account):
                         $isEmployer = $account['role'] === 'employer';
                         $isActive = $account['account_status'] === 'active';
+                        $isPending = $account['account_status'] === 'pending';
+                        $accountStatusLabel = $isPending ? 'รอยืนยันอีเมล' : ($isActive ? 'ใช้งานอยู่' : 'ถูกระงับ');
                         $statusId = 'account-status-' . $account['user_id'];
                     ?>
                         <div class="col-12">
@@ -142,10 +151,11 @@ require APP_ROOT . '/partials/header.php';
                                                 <div class="min-w-0 flex-grow-1">
                                                     <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
                                                         <span class="badge rounded-pill <?= $isEmployer ? 'text-bg-primary' : 'text-bg-info' ?>"><?= $isEmployer ? 'ผู้ว่าจ้าง' : 'ผู้หางาน' ?></span>
-                                                        <span class="admin-user-status <?= $isActive ? 'is-active' : 'is-suspended' ?>"><span aria-hidden="true"><?= $isActive ? '✓' : '!' ?></span><?= $isActive ? 'ใช้งานอยู่' : 'ถูกระงับ' ?></span>
+                                                        <span class="admin-user-status <?= $isActive ? 'is-active' : 'is-suspended' ?>"><span aria-hidden="true"><?= $isPending ? '…' : ($isActive ? '✓' : '!') ?></span><?= e($accountStatusLabel) ?></span>
                                                     </div>
                                                     <h3 class="h5 mb-1"><?= e($account['first_name'] . ' ' . $account['last_name']) ?></h3>
                                                     <dl class="admin-user-meta mb-0">
+                                                        <div><dt>ชื่อผู้ใช้</dt><dd><?= e($account['username'] ?: 'ยังไม่ได้ตั้ง') ?></dd></div>
                                                         <div><dt>อีเมล</dt><dd><?= e($account['email']) ?></dd></div>
                                                         <div><dt>เบอร์โทรศัพท์</dt><dd><?= e($account['phone'] ?: '-') ?></dd></div>
                                                         <div><dt>สมัครเมื่อ</dt><dd><?= date('d/m/Y', strtotime($account['created_at'])) ?></dd></div>
@@ -156,6 +166,9 @@ require APP_ROOT . '/partials/header.php';
                                         </div>
 
                                         <div class="col-xl-auto">
+                                            <?php if ($isPending): ?>
+                                                <p class="small text-secondary mb-0">ผู้ใช้ต้องยืนยันอีเมลด้วยตนเองก่อน ผู้ดูแลจึงจะจัดการสถานะได้</p>
+                                            <?php else: ?>
                                             <form class="admin-user-status-form" method="post" action="<?= BASE_URL ?>/admin/users.php">
                                                 <?= csrf_field() ?>
                                                 <input type="hidden" name="user_id" value="<?= $account['user_id'] ?>">
@@ -168,6 +181,7 @@ require APP_ROOT . '/partials/header.php';
                                                     <button class="btn btn-primary" type="submit">บันทึก</button>
                                                 </div>
                                             </form>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>

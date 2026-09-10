@@ -47,14 +47,15 @@ $accountLinks = match ($role) {
         ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและบริษัท', 'path' => 'employer/editprofile.php'],
         ['icon' => '＋', 'label' => 'สร้างประกาศงาน', 'path' => 'employer/jobpost.php'],
         ['icon' => '▣', 'label' => 'จัดการประกาศงาน', 'path' => 'employer/dashboard.php'],
-        ['icon' => '✦', 'label' => 'โปรโมตประกาศ', 'path' => 'employer/dashboard.php#all-jobs'],
+        ['icon' => '฿', 'label' => 'แพ็กเกจผู้ว่าจ้าง', 'path' => 'employer/subscription.php'],
         ['icon' => '◎', 'label' => 'ค้นหาผู้หางาน', 'path' => 'employer/candidates.php'],
     ],
     'admin' => [
         ['icon' => '⌂', 'label' => 'ภาพรวมระบบ', 'path' => 'admin/dashboard.php'],
         ['icon' => '▤', 'label' => 'ตรวจเอกสาร', 'path' => 'admin/documents.php'],
         ['icon' => '◷', 'label' => 'จัดการประกาศ', 'path' => 'admin/jobs.php'],
-        ['icon' => '฿', 'label' => 'ตรวจสลิปโปรโมต', 'path' => 'admin/promotions.php'],
+        ['icon' => '฿', 'label' => 'ตรวจสลิปแพ็กเกจ', 'path' => 'admin/subscriptions.php'],
+        ['icon' => '★', 'label' => 'ดูแลรีวิว', 'path' => 'admin/reviews.php'],
         ['icon' => '◎', 'label' => 'จัดการบัญชี', 'path' => 'admin/users.php'],
     ],
     default => [],
@@ -94,7 +95,8 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
                 <a href="<?= BASE_URL ?>/admin/dashboard.php">ภาพรวมระบบ</a>
                 <a href="<?= BASE_URL ?>/admin/documents.php">เอกสารผู้ว่าจ้าง</a>
                 <a href="<?= BASE_URL ?>/admin/jobs.php">ตรวจสอบประกาศ</a>
-                <a href="<?= BASE_URL ?>/admin/promotions.php">ตรวจสลิปโปรโมต</a>
+                <a href="<?= BASE_URL ?>/admin/subscriptions.php">ตรวจสลิปแพ็กเกจ</a>
+                <a href="<?= BASE_URL ?>/admin/reviews.php">ดูแลรีวิว</a>
                 <a href="<?= BASE_URL ?>/admin/users.php">จัดการบัญชี</a>
             <?php else: ?>
                 <a href="<?= BASE_URL ?>/jobs.php">ค้นหางาน</a>
@@ -172,7 +174,7 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
     $currentAdminNavPage = match ($currentAdminPage) {
         'jobdelete.php' => 'jobs.php',
         'employer.php' => 'users.php',
-        'promotions.php' => 'promotions.php',
+        'promotions.php' => 'subscriptions.php',
         default => $currentAdminPage,
     };
 ?>
@@ -182,7 +184,8 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
             <a class="<?= $currentAdminNavPage === 'dashboard.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/dashboard.php"><span aria-hidden="true">⌂</span>ภาพรวมระบบ</a>
             <a class="<?= $currentAdminNavPage === 'documents.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/documents.php"><span aria-hidden="true">▤</span>ตรวจเอกสาร</a>
             <a class="<?= $currentAdminNavPage === 'jobs.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/jobs.php"><span aria-hidden="true">◷</span>จัดการประกาศ</a>
-            <a class="<?= $currentAdminNavPage === 'promotions.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/promotions.php"><span aria-hidden="true">฿</span>ตรวจสลิปโปรโมต</a>
+            <a class="<?= $currentAdminNavPage === 'subscriptions.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/subscriptions.php"><span aria-hidden="true">฿</span>ตรวจสลิปแพ็กเกจ</a>
+            <a class="<?= $currentAdminNavPage === 'reviews.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/reviews.php"><span aria-hidden="true">★</span>ดูแลรีวิว</a>
             <a class="<?= $currentAdminNavPage === 'users.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/users.php"><span aria-hidden="true">◎</span>จัดการบัญชี</a>
         </nav>
     </aside>
@@ -193,4 +196,9 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
     <?php endif ?>
     <?php if ($message = flash('error')): ?>
         <div class="flash alert alert-danger" role="alert"><?= e($message) ?></div>
+    <?php endif ?>
+    <?php if ($currentUser && in_array($role, ['worker','employer'], true) && empty($currentUser['username'])):
+        $usernameSetupPath = $role === 'worker' ? 'worker/editprofiles.php' : 'employer/editprofile.php';
+    ?>
+        <div class="flash alert alert-warning" role="status">บัญชีเดิมของคุณยังไม่มีชื่อผู้ใช้ — <a class="alert-link" href="<?= BASE_URL ?>/<?= $usernameSetupPath ?>">ตั้งชื่อผู้ใช้เพื่อใช้ล็อกอินแทนอีเมล</a></div>
     <?php endif ?>

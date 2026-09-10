@@ -4,7 +4,7 @@ require_login('employer');
 
 $pdo = db();
 $jobId = (int) ($_GET['id'] ?? $_POST['job_id'] ?? 0);
-$jobStmt = $pdo->prepare("SELECT j.job_id,j.work_interest_id,j.job_title,j.job_description,j.work_location,j.work_province,j.work_schedule,j.work_start_date,j.work_end_date,j.work_start_time,j.work_end_time,j.work_mode,j.application_deadline,j.pay_amount,j.pay_unit,j.open_positions,jc.category_slug,
+$jobStmt = $pdo->prepare("SELECT j.job_id,j.job_status,j.work_interest_id,j.job_title,j.job_description,j.work_location,j.work_province,j.work_schedule,j.work_start_date,j.work_end_date,j.work_start_time,j.work_end_time,j.work_mode,j.application_deadline,j.pay_amount,j.pay_unit,j.open_positions,jc.category_slug,
     GROUP_CONCAT(DISTINCT IF(js.importance='required',s.skill_name,NULL) ORDER BY s.skill_name SEPARATOR ', ') required_skills,
     GROUP_CONCAT(DISTINCT IF(js.importance='preferred',s.skill_name,NULL) ORDER BY s.skill_name SEPARATOR ', ') preferred_skills
     FROM jobs j JOIN job_categories jc ON jc.job_category_id=j.job_category_id
@@ -43,8 +43,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $workInterestId = (int) ($_POST['work_interest_id'] ?? 0);
         if (!matching_work_interest_exists($pdo, $workInterestId)) throw new RuntimeException('กรุณาเลือกหมวดงานหลัก');
         $schedule = job_schedule_from_input($_POST, (string) ($job['work_schedule'] ?? ''));
+        $applicationDeadline = trim((string) ($_POST['application_deadline'] ?? '')) ?: date('Y-m-d', strtotime('+30 days'));
+        if ($applicationDeadline < date('Y-m-d')) throw new RuntimeException('วันปิดรับสมัครต้องไม่เป็นวันที่ผ่านมาแล้ว');
+        $requestedPositions = max(1, (int) ($_POST['positions'] ?? 1));
+
+        $wasOpenBeforeEdit = $job['job_status'] === 'published'
+            && (empty($job['application_deadline']) || $job['application_deadline'] >= date('Y-m-d'));
 
         $pdo->beginTransaction();
+        $pdo->prepare('SELECT user_id FROM users WHERE user_id=? FOR UPDATE')->execute([user()['id']]);
+        $pdo->prepare('SELECT job_id FROM jobs WHERE job_id=? AND employer_user_id=? FOR UPDATE')->execute([$jobId, user()['id']]);
+        $completedStatement = $pdo->prepare("SELECT COUNT(*) FROM applications WHERE job_id=? AND application_status='completed'");
+        $completedStatement->execute([$jobId]);
+        $completedCount = (int) $completedStatement->fetchColumn();
+        if ($requestedPositions < $completedCount) throw new RuntimeException('จำนวนคนที่เปิดรับต้องไม่น้อยกว่าจำนวนผู้สมัครที่จบงานแล้ว (' . $completedCount . ' คน)');
+        if ($job['job_status'] === 'published' && !$wasOpenBeforeEdit) {
+            subscription_assert_can_publish_job($pdo, (int) user()['id'], $jobId);
+        }
         $pdo->prepare('UPDATE jobs SET job_category_id=?, work_interest_id=?, job_title=?, job_description=?, work_location=?, work_province=?, work_schedule=?, work_start_date=?, work_end_date=?, work_start_time=?, work_end_time=?, work_mode=?, application_deadline=?, pay_amount=?, pay_unit=?, open_positions=? WHERE job_id=? AND employer_user_id=?')
             ->execute([
                 $categoryId,
@@ -59,14 +74,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $schedule['start_time'],
                 $schedule['end_time'],
                 $workMode,
-                ($_POST['application_deadline'] ?? '') ?: null,
+                $applicationDeadline,
                 (float) ($_POST['pay_amount'] ?? 0),
                 $_POST['pay_unit'] ?? 'hour',
-                max(1, (int) ($_POST['positions'] ?? 1)),
+                $requestedPositions,
                 $jobId,
                 user()['id'],
             ]);
         matching_sync_job_skill_selection($pdo, $jobId, (array) ($_POST['required_skill_ids'] ?? []), trim((string) ($_POST['custom_required_skills'] ?? '')), (array) ($_POST['preferred_skill_ids'] ?? []), trim((string) ($_POST['custom_preferred_skills'] ?? '')));
+
+        if ($completedCount >= $requestedPositions) {
+            $pdo->prepare("UPDATE jobs SET job_status='closed' WHERE job_id=?")->execute([$jobId]);
+        }
 
         $image = upload_file('job_image', ['jpg', 'jpeg', 'png', 'webp'], 'jobs');
         if ($image) {
@@ -128,7 +147,7 @@ require APP_ROOT . '/partials/header.php';
                 <div class="col-md-6"><label class="form-label" for="address">สถานที่ทำงาน / จุดประสานงานในบุรีรัมย์</label><input id="address" class="form-control" name="address" value="<?= e($job['work_location']) ?>" required><div class="form-text">งานออนไลน์ให้ระบุอำเภอหรือจุดประสานงานของผู้ว่าจ้างในบุรีรัมย์</div></div>
                 <div class="col-12"><fieldset class="border rounded-4 p-3"><legend class="h6 mb-2">วันและเวลาทำงาน <span class="text-secondary fw-normal">(ไม่บังคับ)</span></legend><p class="form-text mt-0 mb-3" id="editWorkScheduleHelp">แยกข้อมูลวันและเวลาเพื่อให้อ่านง่ายและนำไปใช้ค้นหางานได้ในอนาคต</p><div class="row g-3"><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_start_date">วันเริ่มงาน</label><input id="work_start_date" class="form-control" type="date" name="work_start_date" value="<?= e($job['work_start_date'] ?? '') ?>" aria-describedby="editWorkScheduleHelp"></div><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_end_date">วันสิ้นสุดงาน</label><input id="work_end_date" class="form-control" type="date" name="work_end_date" value="<?= e($job['work_end_date'] ?? '') ?>" aria-describedby="editWorkScheduleHelp"></div><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_start_time">เวลาเริ่มงาน</label><input id="work_start_time" class="form-control" type="time" name="work_start_time" value="<?= e(isset($job['work_start_time']) ? substr((string) $job['work_start_time'], 0, 5) : '') ?>" aria-describedby="editWorkScheduleHelp"></div><div class="col-sm-6 col-xl-3"><label class="form-label" for="work_end_time">เวลาสิ้นสุดงาน</label><input id="work_end_time" class="form-control" type="time" name="work_end_time" value="<?= e(isset($job['work_end_time']) ? substr((string) $job['work_end_time'], 0, 5) : '') ?>" aria-describedby="editWorkScheduleHelp"></div></div><?php if (empty($job['work_start_date']) && !empty($job['work_schedule'])): ?><p class="form-text mb-0 mt-3">กำหนดการเดิม: <?= e($job['work_schedule']) ?> — ระบุข้อมูลด้านบนแล้วบันทึกเพื่อเปลี่ยนเป็นรูปแบบใหม่</p><?php endif; ?></fieldset></div>
                 <div class="col-md-6"><label class="form-label" for="work_mode">รูปแบบการทำงาน</label><select id="work_mode" class="form-select" name="work_mode"><?php foreach (['onsite' => 'ทำงานที่สถานที่', 'remote' => 'ทำงานออนไลน์', 'hybrid' => 'Hybrid'] as $value => $label): ?><option value="<?= $value ?>" <?= ($job['work_mode'] ?? 'onsite') === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach ?></select></div>
-                <div class="col-md-6"><label class="form-label" for="application_deadline">วันปิดรับสมัคร</label><input id="application_deadline" class="form-control" type="date" name="application_deadline" value="<?= e($job['application_deadline'] ?? '') ?>"></div>
+                <div class="col-md-6"><label class="form-label" for="application_deadline">วันปิดรับสมัคร <span class="text-danger">*</span></label><input id="application_deadline" class="form-control" type="date" name="application_deadline" min="<?= date('Y-m-d') ?>" value="<?= e($job['application_deadline'] ?? date('Y-m-d',strtotime('+30 days'))) ?>" required></div>
                 <div class="col-md-6"><label class="form-label" for="pay_amount">ค่าจ้าง</label><input id="pay_amount" class="form-control" type="number" name="pay_amount" min="1" value="<?= e((string) $job['pay_amount']) ?>" required></div>
                 <div class="col-md-6"><label class="form-label" for="pay_unit">หน่วย</label><select id="pay_unit" class="form-select" name="pay_unit"><?php foreach (['hour' => 'ต่อชั่วโมง', 'day' => 'ต่อวัน', 'project' => 'ต่อโปรเจกต์'] as $value => $label): ?><option value="<?= $value ?>" <?= $job['pay_unit'] === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select></div>
                 <div class="col-md-6"><label class="form-label" for="job_image">เปลี่ยนรูปประกอบ</label><input id="job_image" class="form-control" type="file" name="job_image" accept=".jpg,.jpeg,.png,.webp"><div class="form-text">ไม่เลือกไฟล์หากต้องการใช้รูปเดิม</div></div>
