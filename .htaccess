@@ -1,0 +1,20 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Never expose source-control metadata or server-side project internals.
+    RewriteRule (^|/)\. - [F,L]
+    RewriteRule ^(?:config|database|docs|scripts|services|tests|lib|partials|tmp|Flexjob)(?:/|$) - [F,L,NC]
+</IfModule>
+
+<FilesMatch "(?i)\.(?:sql|md|ini|log|bak|dist)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+</IfModule>

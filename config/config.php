@@ -1,13 +1,43 @@
 <?php
 
 declare(strict_types=1);
-session_start();
 
-const DB_HOST = '127.0.0.1';
-const DB_NAME = 'db_flexjob';
-const DB_USER = 'root';
-const DB_PASS = '';
-const BASE_URL = '/Flex';
+function app_is_https_request(): bool
+{
+    if (!empty($_SERVER['HTTPS']) && strtolower((string) $_SERVER['HTTPS']) !== 'off') return true;
+    if ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443) return true;
+
+    if (getenv('FLEXJOB_TRUST_PROXY_HEADERS') === '1') {
+        $forwardedProtocol = strtolower(trim(explode(',', (string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''))[0]));
+        return $forwardedProtocol === 'https';
+    }
+
+    return false;
+}
+
+if (session_status() !== PHP_SESSION_ACTIVE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'secure' => app_is_https_request(),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
+
+define('DB_HOST', getenv('FLEXJOB_DB_HOST') ?: '127.0.0.1');
+define('DB_PORT', (int) (getenv('FLEXJOB_DB_PORT') ?: 3306));
+define('DB_NAME', getenv('FLEXJOB_DB_NAME') ?: 'db_flexjob');
+define('DB_USER', getenv('FLEXJOB_DB_USER') ?: 'root');
+define('DB_PASS', getenv('FLEXJOB_DB_PASS') !== false ? (string) getenv('FLEXJOB_DB_PASS') : '');
+
+$configuredBaseUrl = trim((string) (getenv('FLEXJOB_BASE_URL') ?: '/Flex'));
+if ($configuredBaseUrl === '/') $configuredBaseUrl = '';
+if ($configuredBaseUrl !== '' && !str_starts_with($configuredBaseUrl, '/')) $configuredBaseUrl = '/' . $configuredBaseUrl;
+define('BASE_URL', rtrim($configuredBaseUrl, '/'));
+unset($configuredBaseUrl);
+
 const APP_ROOT = __DIR__ . '/..';
 const FLEXJOB_PROVINCE = 'บุรีรัมย์';
 
@@ -42,12 +72,30 @@ function db(): PDO
 {
     static $pdo;
     if (!$pdo) {
-        $pdo = new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [
+        $pdo = new PDO(mysql_dsn(), DB_USER, DB_PASS, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
         ]);
     }
     return $pdo;
+}
+function mysql_dsn(bool $includeDatabase = true): string
+{
+    $dsn = 'mysql:host=' . DB_HOST . ';port=' . DB_PORT;
+    if ($includeDatabase) $dsn .= ';dbname=' . DB_NAME;
+    return $dsn . ';charset=utf8mb4';
+}
+function app_url(string $path = ''): string
+{
+    $configuredUrl = trim((string) getenv('FLEXJOB_APP_URL'));
+    $base = $configuredUrl !== ''
+        ? rtrim($configuredUrl, '/')
+        : (app_is_https_request() ? 'https://' : 'http://')
+            . (preg_replace('/[^A-Za-z0-9.\-:\[\]]/', '', (string) ($_SERVER['HTTP_HOST'] ?? 'localhost')) ?: 'localhost')
+            . BASE_URL;
+
+    return $path === '' ? $base : $base . '/' . ltrim($path, '/');
 }
 function user(): ?array
 {

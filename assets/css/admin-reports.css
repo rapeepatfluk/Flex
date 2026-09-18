@@ -1,0 +1,148 @@
+.admin-reports {
+    padding-block: 2.5rem 4rem;
+}
+
+.admin-reports-hero,
+.admin-report-filter,
+.admin-report-card,
+.admin-report-stat {
+    border: 1px solid #dce9f9;
+    border-radius: 1.125rem;
+    box-shadow: 0 .65rem 1.5rem rgb(15 23 42 / 5%);
+}
+
+.admin-reports-hero {
+    overflow: hidden;
+    background: linear-gradient(120deg, #f8fbff, #e8f5ff 60%, #d6edff);
+}
+
+.admin-reports h1,
+.admin-reports h2 {
+    color: #112b52;
+    font-weight: 750;
+    letter-spacing: -.03em;
+}
+
+.admin-reports-eyebrow {
+    color: #005bd7;
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+}
+
+.admin-report-filter,
+.admin-report-card {
+    background: #fff;
+}
+
+.admin-report-filter .form-label {
+    color: #405a7c;
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+.admin-report-filter .form-control,
+.admin-report-filter .btn {
+    min-block-size: 2.8rem;
+    border-radius: .75rem;
+}
+
+.admin-report-period {
+    color: #587196;
+    font-size: .85rem;
+}
+
+.admin-report-stat {
+    overflow: hidden;
+    background: #fff;
+}
+
+.admin-report-stat .card-body {
+    min-block-size: 9.5rem;
+}
+
+.admin-report-stat p,
+.admin-report-stat small {
+    color: #5d7395;
+    font-size: .8rem;
+    font-weight: 700;
+}
+
+.admin-report-stat strong {
+    display: block;
+    overflow: hidden;
+    margin-block: .5rem;
+    color: #102c56;
+    font-size: clamp(1.35rem, 2.1vw, 1.9rem);
+    line-height: 1.1;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-report-stat small {
+    display: block;
+    color: #7588a4;
+    font-size: .74rem;
+    font-weight: 500;
+}
+
+.admin-report-stat-blue { background: linear-gradient(145deg, #eff7ff, #fff); }
+.admin-report-stat-sky { background: linear-gradient(145deg, #ecfbff, #fff); }
+.admin-report-stat-indigo { background: linear-gradient(145deg, #f1f2ff, #fff); }
+.admin-report-stat-violet { background: linear-gradient(145deg, #f7f1ff, #fff); }
+.admin-report-stat-green { background: linear-gradient(145deg, #effdf5, #fff); }
+.admin-report-stat-amber { background: linear-gradient(145deg, #fff9ed, #fff); }
+
+.admin-report-table thead th {
+    padding-block: .85rem;
+    border-bottom-color: #dce9f9;
+    color: #607795;
+    font-size: .76rem;
+}
+
+.admin-report-table tbody td {
+    padding-block: .85rem;
+    border-bottom-color: #edf2f7;
+    color: #254568;
+}
+
+.admin-report-table tbody td:first-child {
+    font-weight: 700;
+}
+
+.admin-report-status-list {
+    display: grid;
+    gap: .6rem;
+    padding: 0;
+    list-style: none;
+}
+
+.admin-report-status-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .9rem 1rem;
+    border: 1px solid #e1edf8;
+    border-radius: .8rem;
+    background: #f9fcff;
+    color: #466384;
+}
+
+.admin-report-status-list strong {
+    color: #075dcc;
+    font-size: 1.1rem;
+}
+
+@media (max-width:575.98px) {
+    .admin-reports {
+        padding-block-start: 1.25rem;
+    }
+
+    .admin-reports-hero,
+    .admin-report-filter,
+    .admin-report-card,
+    .admin-report-stat {
+        border-radius: 1rem;
+    }
+}

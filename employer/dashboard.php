@@ -111,10 +111,9 @@ $jobStatusMeta = [
     'closed' => ['ปิดรับสมัคร', 'dark'],
 ];
 $promotionStatusMeta = [
-    'pending_payment' => ['รอชำระ', 'warning'],
-    'pending_verification' => ['รอตรวจสลิป', 'info'],
-    'active' => ['✦ กำลังโปรโมต', 'primary'],
-    'rejected' => ['สลิปไม่ผ่าน', 'danger'],
+    'active' => ['✦ กำลังโปรโมตด้วย Pro', 'primary'],
+    'expired' => ['สิทธิ์โปรโมตสิ้นสุด', 'secondary'],
+    'cancelled' => ['ยกเลิกการโปรโมต', 'secondary'],
 ];
 
 $pageTitle = 'Dashboard ผู้ว่าจ้าง | FLEXJOB';

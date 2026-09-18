@@ -4,7 +4,10 @@ require_login('worker');
 
 $pdo = db();
 $workerId = (int) user()['id'];
-$matchedJobs = promotion_attach_to_jobs($pdo, matching_jobs_for_worker($pdo, $workerId, 6));
+$matchedJobs = array_values(array_filter(
+    promotion_attach_to_jobs($pdo, matching_jobs_for_worker($pdo, $workerId, 6)),
+    'matching_is_recommendable'
+));
 $matchedCount = count($matchedJobs);
 
 $pageTitle = 'งานที่เหมาะกับคุณ | FLEXJOB';

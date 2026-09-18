@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->commit();
 
         // Send verification email
-        $verifyUrl = 'http://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/auth/verify.php?token=' . $token;
+        $verifyUrl = app_url('auth/verify.php?token=' . urlencode($token));
         $fullName  = "$firstName $lastName";
 
         $emailBody = <<<HTML

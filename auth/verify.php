@@ -26,7 +26,8 @@ if ($row['used_at']) {
 
 if (strtotime($row['expires_at']) < time()) {
     flash('error', 'ลิงก์ยืนยันหมดอายุแล้ว (24 ชั่วโมง) — กรุณาขอลิงก์ใหม่');
-    redirect('auth/resend-verify.php');
+    $_SESSION['pending_verify'] = ['email' => $row['email'], 'name' => $row['name']];
+    redirect('auth/pending-verify.php');
 }
 
 // Mark token as used & activate account

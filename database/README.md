@@ -7,14 +7,14 @@ The canonical schema is managed through ordered SQL files in `database/migration
 Run these commands from the project root:
 
 ```powershell
-C:\xampp\php\php.exe database\migrate.php --status
-C:\xampp\php\php.exe database\migrate.php
+php database\migrate.php --status
+php database\migrate.php
 ```
 
 For the current database, which already has the FLEXJOB tables, register the initial schema without executing it:
 
 ```powershell
-C:\xampp\php\php.exe database\migrate.php --baseline
+php database\migrate.php --baseline
 ```
 
 After baseline, run `migrate.php` normally whenever a new migration file is added.
@@ -26,7 +26,7 @@ browser does not wait for the SMTP server. Run this worker every minute with
 Windows Task Scheduler (or another server scheduler):
 
 ```powershell
-C:\xampp\php\php.exe scripts\process_email_queue.php
+php scripts\process_email_queue.php
 ```
 
 It sends up to 20 queued emails per run. Failed messages retry twice at
@@ -40,24 +40,24 @@ runs active for their full seven days, and hides jobs above the Free limit after
 the three-day downgrade grace period:
 
 ```powershell
-C:\xampp\php\php.exe scripts\process_subscription_expiry.php
+php scripts\process_subscription_expiry.php
 ```
 
 ## Latest baseline for a new machine
 
 Use [schema_latest.sql](schema_latest.sql) for a new empty database. It contains
-the latest structure through migration `0008` and only the reference data the
+the latest structure through migration `0013` and only the reference data the
 application needs (categories, interests, broad skills and subscription plans).
 It does not include user accounts, jobs, applications, uploads or email history.
 
 The file creates and uses `db_flexjob`, so import it only into a new database:
 
 ```powershell
-Get-Content database\schema_latest.sql -Raw | C:\xampp\mysql\bin\mysql.exe -u root
+Get-Content database\schema_latest.sql -Raw | mysql --user=flexjob_admin --password
 ```
 
 Do not run the current migrations immediately after this import: the snapshot
-already records migrations `0001` through `0010`. Run `migrate.php` only when a
+already records migrations `0001` through `0013`. Run `migrate.php` only when a
 new migration is added later.
 
 ## Adding a migration

@@ -17,12 +17,15 @@ if ($role === 'worker') {
     $workerJobPool = promotion_attach_to_jobs($pdo, matching_jobs_for_worker($pdo, $workerId, 200));
     $promotedJobs = array_values(array_filter($workerJobPool, fn(array $job): bool => !empty($job['is_promoted'])));
     usort($promotedJobs, function (array $a, array $b): int {
-        return (int) ($b['promotion_priority'] ?? 0) <=> (int) ($a['promotion_priority'] ?? 0)
+        return (strtotime((string) ($b['promotion_started_at'] ?? '')) ?: 0) <=> (strtotime((string) ($a['promotion_started_at'] ?? '')) ?: 0)
             ?: (int) $b['id'] <=> (int) $a['id'];
     });
     $promotedJobs = array_slice($promotedJobs, 0, 6);
 
-    $workerJobs = array_values(array_filter($workerJobPool, fn(array $job): bool => empty($job['is_promoted'])));
+    $workerJobs = array_values(array_filter(
+        $workerJobPool,
+        fn(array $job): bool => empty($job['is_promoted']) && matching_is_recommendable($job)
+    ));
     usort($workerJobs, function (array $a, array $b): int {
         return (int) ($b['match']['score'] ?? -1) <=> (int) ($a['match']['score'] ?? -1)
             ?: (int) $b['id'] <=> (int) $a['id'];
@@ -40,7 +43,7 @@ if ($role === 'worker') {
         ORDER BY j.created_at DESC,j.job_id DESC LIMIT 6");
     $latestWorkerStatement->execute();
     $latestWorkerJobs = promotion_attach_to_jobs($pdo, $latestWorkerStatement->fetchAll());
-    $hasMatchingProfile = (bool) array_filter($workerJobs, fn(array $job): bool => $job['match']['score'] !== null);
+    $hasMatchingProfile = (bool) array_filter($workerJobPool, fn(array $job): bool => $job['match']['score'] !== null);
     $profileStmt = $pdo->prepare("SELECT wp.professional_headline,wp.biography,wp.resume_file_path,wp.work_province,COUNT(DISTINCT ws.skill_id) skill_count,COUNT(DISTINCT wjp.job_category_id) preference_count,COUNT(DISTINCT wwi.work_interest_id) work_interest_count FROM worker_profiles wp LEFT JOIN worker_skills ws ON ws.worker_user_id=wp.user_id LEFT JOIN worker_job_preferences wjp ON wjp.worker_user_id=wp.user_id LEFT JOIN worker_work_interests wwi ON wwi.worker_user_id=wp.user_id WHERE wp.user_id=? GROUP BY wp.user_id");
     $profileStmt->execute([$workerId]);
     $matchingProfile = $profileStmt->fetch() ?: [];
@@ -61,7 +64,7 @@ if ($role === 'worker') {
 }
 
 // ── Landing page data (ใช้เสมอ) ──────────────────────────────────────────────
-$jobStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,wi.interest_name work_interest_name,j.job_description AS description,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.reviewee_user_id=j.employer_user_id AND r.review_status='visible') employer_rating_average,(SELECT COUNT(*) FROM reviews r WHERE r.reviewee_user_id=j.employer_user_id AND r.review_status='visible') employer_rating_count,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order LIMIT 1) cover_image,promo.promotion_id,promo.package_code AS promotion_code,promo.display_priority FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id LEFT JOIN (SELECT jp.job_id,jp.promotion_id,jp.starts_at,pp.package_code,pp.display_priority FROM job_promotions jp JOIN promotion_packages pp ON pp.package_id=jp.package_id WHERE jp.promotion_status='active' AND jp.starts_at<=NOW() AND jp.ends_at>NOW()) promo ON promo.job_id=j.job_id WHERE " . application_open_job_sql('j') . " AND j.work_province=? ORDER BY (promo.promotion_id IS NOT NULL) DESC,promo.display_priority DESC,promo.starts_at DESC,j.created_at DESC LIMIT 10");
+$jobStatement = $pdo->prepare("SELECT j.job_id AS id,j.job_title AS title,jc.category_slug AS job_type,wi.interest_name work_interest_name,j.job_description AS description,j.work_location AS location,j.work_schedule AS work_date,j.pay_amount,j.pay_unit,j.open_positions AS positions,ep.company_name,ep.company_logo_path AS company_logo,(SELECT ROUND(AVG(r.rating),1) FROM reviews r WHERE r.reviewee_user_id=j.employer_user_id AND r.review_status='visible') employer_rating_average,(SELECT COUNT(*) FROM reviews r WHERE r.reviewee_user_id=j.employer_user_id AND r.review_status='visible') employer_rating_count,(SELECT ed.document_status='approved' FROM employer_documents ed WHERE ed.employer_user_id=j.employer_user_id ORDER BY ed.submitted_at DESC,ed.employer_document_id DESC LIMIT 1) is_verified,(SELECT ji.image_file_path FROM job_images ji WHERE ji.job_id=j.job_id ORDER BY ji.display_order LIMIT 1) cover_image,promo.promotion_id FROM jobs j JOIN employer_profiles ep ON ep.user_id=j.employer_user_id JOIN job_categories jc ON jc.job_category_id=j.job_category_id LEFT JOIN work_interests wi ON wi.work_interest_id=j.work_interest_id LEFT JOIN (SELECT jp.job_id,jp.promotion_id,jp.starts_at FROM job_promotions jp WHERE jp.promotion_status='active' AND jp.starts_at<=NOW() AND jp.ends_at>NOW()) promo ON promo.job_id=j.job_id WHERE " . application_open_job_sql('j') . " AND j.work_province=? ORDER BY (promo.promotion_id IS NOT NULL) DESC,promo.starts_at DESC,j.created_at DESC LIMIT 10");
 $jobStatement->execute([FLEXJOB_PROVINCE]);
 $jobs = $jobStatement->fetchAll();
 $positionStatement = $pdo->prepare("SELECT COALESCE(SUM(j.open_positions-(SELECT COUNT(*) FROM applications completed_application WHERE completed_application.job_id=j.job_id AND completed_application.application_status='completed')),0) FROM jobs j WHERE " . application_open_job_sql('j') . " AND j.work_province=?");
@@ -240,7 +243,7 @@ require __DIR__ . '/partials/header.php'; ?>
                                         <div class="worker-job-image worker-job-fallback" aria-hidden="true"><?= $icon ?></div>
                                     <?php endif; ?>
                                     <div class="card-body worker-job-body d-flex flex-column">
-                                        <?php if (!empty($job['promotion_id'])): ?><span class="badge text-bg-primary align-self-start mb-2">✦ <?= $job['promotion_code'] === 'featured-7d' ? 'ประกาศแนะนำ' : 'โปรโมต' ?></span><?php endif; ?><h3><?= e($job['title']) ?></h3>
+                                        <?php if (!empty($job['promotion_id'])): ?><span class="badge text-bg-primary align-self-start mb-2">✦ โปรโมตด้วย Pro</span><?php endif; ?><h3><?= e($job['title']) ?></h3>
                                         <p><?php if ($job['company_logo']): ?><img class="company-logo" src="<?= BASE_URL . '/' . e($job['company_logo']) ?>" alt="โลโก้ <?= e($job['company_name']) ?>" width="40" height="40" loading="lazy" decoding="async"><?php endif; ?><?= e($job['company_name']) ?><?= $job['is_verified'] ? ' · ✓ ยืนยันแล้ว' : '' ?></p>
                                         <div class="worker-employer-rating"><?php $ratingSummary = ['average' => $job['employer_rating_average'], 'count' => $job['employer_rating_count']]; require APP_ROOT . '/partials/rating-summary.php'; ?></div>
                                         <p class="worker-job-meta">⌖ <?= e($job['location']) ?><br>◷ <?= e($job['work_date']) ?></p>
@@ -380,7 +383,7 @@ require __DIR__ . '/partials/header.php'; ?>
                             <option value="freelance">ฟรีแลนซ์</option>
                         </select></label><button type="button" id="clearHomeFilters">ล้างตัวกรอง</button></aside>
                 <div class="home-job-list" id="homeJobList"><?php foreach ($jobs as $job): $icon = $job['job_type'] === 'event' ? '✦' : ($job['job_type'] === 'freelance' ? '⌁' : '◷'); ?><article class="home-job-row <?= $job['promotion_id'] ? 'is-promoted' : '' ?>" data-job-type="<?= e($job['job_type']) ?>"><?php if ($job['cover_image']): ?><img class="home-job-image" src="<?= BASE_URL . '/' . e($job['cover_image']) ?>" alt="<?= e($job['title']) ?>"><?php else: ?><div class="home-job-image home-job-icon <?= e($job['job_type']) ?>"><?= $icon ?></div><?php endif ?><div class="home-job-content">
-                                <?php if ($job['promotion_id']): ?><p class="home-verified">✦ <?= $job['promotion_code'] === 'featured-7d' ? 'ประกาศแนะนำ' : 'โปรโมต' ?></p><?php endif; ?>
+                                <?php if ($job['promotion_id']): ?><p class="home-verified">✦ โปรโมตด้วย Pro</p><?php endif; ?>
                                 <?php if ($job['is_verified']): ?><p class="home-verified">● ผู้ว่าจ้างยืนยันแล้ว</p><?php endif ?>
                                 <h3><?= e($job['title']) ?></h3>
                                 <p class="home-company"><?php if ($job['company_logo']): ?><img class="company-logo" src="<?= BASE_URL . '/' . e($job['company_logo']) ?>" alt="โลโก้ <?= e($job['company_name']) ?>"><?php endif; ?><?= e($job['company_name']) ?></p>

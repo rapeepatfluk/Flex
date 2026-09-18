@@ -113,7 +113,7 @@
 
 .employer-hero-copy h1 {
   max-inline-size: 10ch;
-  font-size: clamp(2.25rem, 4vw, 4.25rem);
+  /* font-size: clamp(2.25rem, 4vw, 4.25rem); */
   line-height: 1.1;
 }
 

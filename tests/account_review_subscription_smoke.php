@@ -84,6 +84,17 @@ if ($application) {
         if (!$submitted || (int) $submitted['rating'] !== 5 || trim((string) $submitted['review_comment']) === '') {
             throw new RuntimeException('Review comment was not persisted');
         }
+        $reporterId = (int) $application['employer_user_id'];
+        review_report($pdo,(int) $created['review_id'],$reporterId,'เนื้อหาไม่ตรงกับเหตุการณ์จริง');
+        $reportCheck = $pdo->prepare("SELECT report_status FROM review_reports WHERE review_id=? AND reporter_user_id=?");
+        $reportCheck->execute([(int) $created['review_id'],$reporterId]);
+        if ($reportCheck->fetchColumn() !== 'pending') throw new RuntimeException('Review report was not persisted');
+        try {
+            review_report($pdo,(int) $created['review_id'],$reporterId,'ส่งรายงานซ้ำ');
+            throw new RuntimeException('Duplicate review report was accepted');
+        } catch (RuntimeException $exception) {
+            if (!str_contains($exception->getMessage(), 'รายงานรีวิวนี้แล้ว')) throw $exception;
+        }
         try {
             review_create_for_application($pdo,$applicationId,$reviewerId,4,'รีวิวซ้ำ');
             throw new RuntimeException('Duplicate review was accepted');

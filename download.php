@@ -39,7 +39,7 @@ if ($type === 'profile_resume' || $type === 'profile_portfolio') {
     $file = $statement->fetch();
     if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];
 } elseif ($type === 'promotion_slip') {
-    $statement = $pdo->prepare('SELECT employer_user_id,payment_slip_path file_path FROM job_promotions WHERE promotion_id=?');
+    $statement = $pdo->prepare('SELECT employer_user_id,payment_slip_path file_path FROM legacy_standalone_job_promotions WHERE promotion_id=?');
     $statement->execute([$id]);
     $file = $statement->fetch();
     if ($file && (is_role('admin') || (is_role('employer') && (int) user()['id'] === (int) $file['employer_user_id']))) $path = $file['file_path'];

@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $resetId = (int) $pdo->lastInsertId();
 
                 // ลิงก์กู้คืน
-                $resetUrl = 'http://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/auth/reset-password.php?token=' . $token;
+                $resetUrl = app_url('auth/reset-password.php?token=' . urlencode($token));
                 
                 // รูปแบบเนื้อหาอีเมล
                 $body = <<<HTML

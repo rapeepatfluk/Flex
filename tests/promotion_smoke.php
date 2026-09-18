@@ -13,11 +13,15 @@ if ((float) $plan['price'] !== 239.0 || (int) $plan['duration_days'] !== 30
     throw new RuntimeException('Pro subscription entitlements are incorrect');
 }
 
-$activeStandalone = (int) $pdo->query("SELECT COUNT(*) FROM promotion_packages WHERE package_code IN ('boost-3d','featured-7d') AND is_active=1")->fetchColumn();
-if ($activeStandalone !== 0) throw new RuntimeException('Standalone promotion packages are still for sale');
-$creditPackage = $pdo->query("SELECT package_id,duration_days,is_active FROM promotion_packages WHERE package_code='pro-credit-7d' LIMIT 1")->fetch();
-if (!$creditPackage || (int) $creditPackage['duration_days'] !== 7 || (int) $creditPackage['is_active'] !== 0) {
-    throw new RuntimeException('Internal Pro promotion credit package is missing or exposed for sale');
+$promotionPackageTableCount = (int) $pdo->query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=DATABASE() AND table_name='promotion_packages'")->fetchColumn();
+if ($promotionPackageTableCount !== 0) throw new RuntimeException('Standalone promotion package table still exists');
+$promotionColumns = $pdo->query("SELECT column_name FROM information_schema.columns WHERE table_schema=DATABASE() AND table_name='job_promotions' ORDER BY ordinal_position")->fetchAll(PDO::FETCH_COLUMN);
+$expectedPromotionColumns = [
+    'promotion_id','job_id','employer_user_id','subscription_id','duration_days',
+    'promotion_status','starts_at','ends_at','created_at','updated_at',
+];
+if ($promotionColumns !== $expectedPromotionColumns) {
+    throw new RuntimeException('job_promotions still contains standalone payment fields');
 }
 
 $payload = promotion_promptpay_payload(PROMPTPAY_ID, 239.0);
@@ -40,10 +44,15 @@ $fixture = $pdo->query("SELECT job_id,employer_user_id FROM jobs ORDER BY job_id
 if ($fixture) {
     $pdo->beginTransaction();
     try {
+        $subscription = $pdo->prepare("INSERT INTO employer_subscriptions
+            (employer_user_id,plan_id,plan_name_snapshot,amount,duration_days,active_job_limit,promotion_credits,promotion_duration_days,subscription_status,starts_at,ends_at)
+            VALUES (?,?,'Pro smoke test',239,30,6,2,7,'active',NOW(),DATE_ADD(NOW(),INTERVAL 30 DAY))");
+        $subscription->execute([$fixture['employer_user_id'],$plan['plan_id']]);
+        $subscriptionId = (int) $pdo->lastInsertId();
         $insert = $pdo->prepare("INSERT INTO job_promotions
-            (job_id,employer_user_id,promotion_source,package_id,package_name_snapshot,amount,duration_days,promotion_status,starts_at,ends_at)
-            VALUES (?,?,'subscription',?,'สิทธิ์โปรโมตจาก Pro',0,7,'active',DATE_SUB(NOW(),INTERVAL 8 DAY),DATE_SUB(NOW(),INTERVAL 1 DAY))");
-        $insert->execute([$fixture['job_id'],$fixture['employer_user_id'],$creditPackage['package_id']]);
+            (job_id,employer_user_id,subscription_id,duration_days,promotion_status,starts_at,ends_at)
+            VALUES (?,?,?,7,'active',DATE_SUB(NOW(),INTERVAL 8 DAY),DATE_SUB(NOW(),INTERVAL 1 DAY))");
+        $insert->execute([$fixture['job_id'],$fixture['employer_user_id'],$subscriptionId]);
         $promotionId = (int) $pdo->lastInsertId();
         promotion_sync_expired($pdo);
         $check = $pdo->prepare('SELECT promotion_status FROM job_promotions WHERE promotion_id=?');

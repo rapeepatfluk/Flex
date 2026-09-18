@@ -149,14 +149,11 @@ function subscription_use_promotion(PDO $pdo, int $employerId, int $jobId): int
         $activeStatement = $pdo->prepare("SELECT promotion_id FROM job_promotions WHERE job_id=? AND promotion_status='active' AND starts_at<=NOW() AND ends_at>NOW() LIMIT 1 FOR UPDATE");
         $activeStatement->execute([$jobId]);
         if ($activeStatement->fetchColumn()) throw new RuntimeException('ประกาศนี้กำลังโปรโมตอยู่แล้ว');
-        $packageStatement = $pdo->query("SELECT package_id,package_name,duration_days FROM promotion_packages WHERE package_code='pro-credit-7d' LIMIT 1");
-        $package = $packageStatement->fetch();
-        if (!$package) throw new RuntimeException('ไม่พบสิทธิ์โปรโมตของแพ็กเกจ Pro');
         $duration = (int) $subscription['promotion_duration_days'];
         $insert = $pdo->prepare("INSERT INTO job_promotions
-            (job_id,employer_user_id,subscription_id,promotion_source,package_id,package_name_snapshot,amount,duration_days,promotion_status,starts_at,ends_at)
-            VALUES (?,?,?,'subscription',?,?,0,?,'active',NOW(),DATE_ADD(NOW(),INTERVAL ? DAY))");
-        $insert->execute([$jobId,$employerId,$subscription['subscription_id'],$package['package_id'],$package['package_name'],$duration,$duration]);
+            (job_id,employer_user_id,subscription_id,duration_days,promotion_status,starts_at,ends_at)
+            VALUES (?,?,?,?,'active',NOW(),DATE_ADD(NOW(),INTERVAL ? DAY))");
+        $insert->execute([$jobId,$employerId,$subscription['subscription_id'],$duration,$duration]);
         $promotionId = (int) $pdo->lastInsertId();
         $pdo->commit();
         return $promotionId;

@@ -69,6 +69,11 @@ try {
     if (!application_update_status_by_employer($pdo, $employerId, $jobId, $applicationId, 'completed')) {
         throw new RuntimeException('Forward transition to completed was not saved');
     }
+    $completedAtStatement = $pdo->prepare('SELECT completed_at FROM applications WHERE application_id=?');
+    $completedAtStatement->execute([$applicationId]);
+    if (!$completedAtStatement->fetchColumn()) {
+        throw new RuntimeException('Completing an application did not set completed_at');
+    }
     $jobStatusStatement = $pdo->prepare('SELECT job_status FROM jobs WHERE job_id=?');
     $jobStatusStatement->execute([$jobId]);
     if ($jobStatusStatement->fetchColumn() !== 'closed') {

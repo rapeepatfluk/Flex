@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("INSERT INTO auth_tokens (user_id,token,token_type,expires_at) VALUES (?,?,'email_verification',DATE_ADD(NOW(), INTERVAL 24 HOUR))")
             ->execute([$u['user_id'], $token]);
         $verificationId = (int) $pdo->lastInsertId();
-        $verifyUrl = 'http://' . $_SERVER['HTTP_HOST'] . BASE_URL . '/auth/verify.php?token=' . $token;
+        $verifyUrl = app_url('auth/verify.php?token=' . urlencode($token));
         $body = <<<HTML
 <h2 style="margin:0 0 8px;font-size:22px;color:#17231f;">ส่งลิงก์ยืนยันใหม่แล้ว</h2>
 <p style="margin:0 0 20px;color:#697671;">สวัสดี {$u['name']} — ลิงก์ยืนยันอีเมลของคุณมาแล้ว!</p>

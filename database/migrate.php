@@ -50,13 +50,19 @@ function sqlStatements(string $sql): array {
     return $statements;
 }
 function pdoServer(): PDO {
-    $pdo = new PDO('mysql:host=' . DB_HOST . ';charset=utf8mb4', DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    $pdo = new PDO(mysql_dsn(false), DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
     if (!preg_match('/^[A-Za-z0-9_]+$/', DB_NAME)) throw new RuntimeException('Invalid database name configured.');
     $pdo->exec('CREATE DATABASE IF NOT EXISTS ' . DB_NAME . ' CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
     return $pdo;
 }
 function pdoDatabase(): PDO {
-    return new PDO('mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4', DB_USER, DB_PASS, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+    return new PDO(mysql_dsn(), DB_USER, DB_PASS, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_EMULATE_PREPARES => false,
+    ]);
 }
 function createMigrationsTable(PDO $pdo): void {
     $pdo->exec('CREATE TABLE IF NOT EXISTS ' . MIGRATIONS_TABLE . ' (migration VARCHAR(255) NOT NULL PRIMARY KEY, checksum CHAR(64) NOT NULL, applied_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB');

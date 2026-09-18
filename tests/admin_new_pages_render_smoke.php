@@ -36,6 +36,20 @@ try {
     require APP_ROOT . '/admin/reviews.php';
     $reviewsHtml = (string) ob_get_clean();
     if (!str_contains($reviewsHtml, 'ดูแลรีวิว')) throw new RuntimeException('Admin review moderation page did not render');
+
+    $_SERVER['REQUEST_URI'] = '/Flex/admin/reports.php';
+    $_GET = [];
+    ob_start();
+    require APP_ROOT . '/admin/reports.php';
+    $reportsHtml = (string) ob_get_clean();
+    if (!str_contains($reportsHtml, 'รายงานระบบ FLEXJOB')) throw new RuntimeException('Admin reports page did not render');
+
+    $_SERVER['REQUEST_URI'] = '/Flex/admin/reports.php?print=1';
+    $_GET = ['print' => '1'];
+    ob_start();
+    require APP_ROOT . '/admin/reports.php';
+    $printHtml = (string) ob_get_clean();
+    if (!str_contains($printHtml, 'พิมพ์ / บันทึกเป็น PDF')) throw new RuntimeException('Admin report print page did not render');
 } finally {
     if ($pdo->inTransaction()) $pdo->rollBack();
 }

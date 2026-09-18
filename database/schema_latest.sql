@@ -3,7 +3,7 @@
 -- Import only into a new, empty database. It contains required reference data
 -- (job categories, interests, broad skills and subscription plans), but no
 -- users, employer profiles, jobs, applications, uploaded files or email log.
--- The migration history below records this snapshot as version 0010.
+-- The migration history below records this snapshot through version 0013.
 CREATE DATABASE IF NOT EXISTS db_flexjob CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_flexjob;
 
@@ -26,6 +26,7 @@ CREATE TABLE `applications` (
   `resume_file_path` varchar(255) DEFAULT NULL,
   `cover_note` text DEFAULT NULL,
   `application_status` enum('submitted','eligible','interview_passed','completed','not_selected','withdrawn') NOT NULL DEFAULT 'submitted',
+  `completed_at` datetime DEFAULT NULL,
   `withdrawn_at` datetime DEFAULT NULL,
   `rating_by_worker` tinyint(3) unsigned DEFAULT NULL,
   `rated_by_worker_at` timestamp NULL DEFAULT NULL,
@@ -35,6 +36,7 @@ CREATE TABLE `applications` (
   PRIMARY KEY (`application_id`),
   UNIQUE KEY `uq_application_job_worker` (`job_id`,`worker_user_id`),
   KEY `idx_application_worker` (`worker_user_id`,`application_status`),
+  KEY `idx_application_completed_at` (`completed_at`),
   CONSTRAINT `fk_application_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`job_id`) ON DELETE CASCADE,
   CONSTRAINT `fk_application_worker` FOREIGN KEY (`worker_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
@@ -254,6 +256,29 @@ CREATE TABLE `job_promotions` (
   `promotion_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `job_id` int(10) unsigned NOT NULL,
   `employer_user_id` int(10) unsigned NOT NULL,
+  `subscription_id` int(10) unsigned NOT NULL,
+  `duration_days` smallint(5) unsigned NOT NULL,
+  `promotion_status` enum('active','expired','cancelled') NOT NULL DEFAULT 'active',
+  `starts_at` datetime NOT NULL,
+  `ends_at` datetime NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`promotion_id`),
+  KEY `idx_promotion_job_status` (`job_id`,`promotion_status`,`ends_at`),
+  KEY `idx_promotion_employer` (`employer_user_id`,`created_at`),
+  KEY `idx_promotion_subscription` (`subscription_id`,`promotion_status`),
+  KEY `idx_promotion_active_period` (`promotion_status`,`starts_at`,`ends_at`),
+  CONSTRAINT `fk_job_promotion_employer` FOREIGN KEY (`employer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_job_promotion_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`job_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_job_promotion_subscription` FOREIGN KEY (`subscription_id`) REFERENCES `employer_subscriptions` (`subscription_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `legacy_standalone_job_promotions` (
+  `promotion_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `job_id` int(10) unsigned NOT NULL,
+  `employer_user_id` int(10) unsigned NOT NULL,
   `subscription_id` int(10) unsigned DEFAULT NULL,
   `promotion_source` enum('standalone','subscription') NOT NULL DEFAULT 'standalone',
   `package_id` int(10) unsigned NOT NULL,
@@ -277,12 +302,7 @@ CREATE TABLE `job_promotions` (
   KEY `idx_promotion_job_status` (`job_id`,`promotion_status`,`ends_at`),
   KEY `idx_promotion_review_queue` (`promotion_status`,`payment_submitted_at`),
   KEY `idx_promotion_employer` (`employer_user_id`,`created_at`),
-  KEY `idx_promotion_subscription` (`subscription_id`,`promotion_status`),
-  CONSTRAINT `fk_job_promotion_employer` FOREIGN KEY (`employer_user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_job_promotion_job` FOREIGN KEY (`job_id`) REFERENCES `jobs` (`job_id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_job_promotion_package` FOREIGN KEY (`package_id`) REFERENCES `promotion_packages` (`package_id`),
-  CONSTRAINT `fk_job_promotion_reviewer` FOREIGN KEY (`reviewed_by_user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_job_promotion_subscription` FOREIGN KEY (`subscription_id`) REFERENCES `employer_subscriptions` (`subscription_id`) ON DELETE SET NULL
+  KEY `idx_promotion_subscription` (`subscription_id`,`promotion_status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -367,24 +387,6 @@ CREATE TABLE `notifications` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `promotion_packages` (
-  `package_id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `package_code` varchar(50) NOT NULL,
-  `package_name` varchar(120) NOT NULL,
-  `package_description` varchar(255) DEFAULT NULL,
-  `price` decimal(10,2) NOT NULL,
-  `duration_days` smallint(5) unsigned NOT NULL,
-  `display_priority` smallint(5) unsigned NOT NULL DEFAULT 10,
-  `is_active` tinyint(1) NOT NULL DEFAULT 1,
-  `sort_order` smallint(5) unsigned NOT NULL DEFAULT 10,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`package_id`),
-  UNIQUE KEY `package_code` (`package_code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `schema_migrations` (
   `migration` varchar(255) NOT NULL,
   `checksum` char(64) NOT NULL,
@@ -402,7 +404,10 @@ INSERT INTO schema_migrations (migration, checksum) VALUES
   ('0007_add_structured_work_schedule.sql', 'dbb057a03630acc063a3a53fc9639a02d96e4a3c6b3b9d756ed61016083bee86'),
   ('0008_email_delivery_queue.sql', 'efde1d0811fdfcab714bf7b5a1c1a600363611194263a33b254ae35ac737f9fc'),
   ('0009_usernames_and_reviews.sql', '6d81e6c4b9360d7f25638c6d6a55231d98c32a4e07192b73892c66e24846f340'),
-  ('0010_employer_subscriptions.sql', '32e0cc169c690cb203c9f19338ee7cc8067be3e083cca0474b77fea86ace2172');
+  ('0010_employer_subscriptions.sql', '32e0cc169c690cb203c9f19338ee7cc8067be3e083cca0474b77fea86ace2172'),
+  ('0011_application_completed_at.sql', '8ff13087d629de68d5b5dfd1ecde3f47783164ffb3c5326ae73dc16cedde1476'),
+  ('0012_pro_only_job_promotions.sql', '531bf09dd7bab9b0cac26e7fd2380dd9f3ddfc49f52f69690299938eaa210dfd'),
+  ('0013_job_promotion_active_index.sql', '704219839456984a15305b4950b28666113702d9d03bc6f3d8d42bcdb370f060');
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -546,6 +551,7 @@ CREATE TABLE `worker_work_interests` (
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 
+
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
@@ -561,8 +567,6 @@ INSERT INTO `job_categories` VALUES (2,'event'),(3,'freelance'),(1,'part_time');
 INSERT INTO `work_interests` VALUES (1,'web-development','เขียนโปรแกรมและพัฒนาเว็บไซต์',1,10),(2,'graphic-design','ออกแบบกราฟิกและโปสเตอร์',1,20),(3,'ux-ui-design','ออกแบบ UX/UI',1,30),(4,'video-editing','ตัดต่อวิดีโอ',1,40),(5,'photo-video','ถ่ายภาพและวิดีโอ',1,50),(6,'admin-document','งานเอกสารและธุรการ',1,60),(7,'event-staff','Staff และงานอีเวนต์',1,70),(8,'sales-promotion','งานขายและแนะนำสินค้า',1,80),(9,'food-service','งานบริการ ร้านอาหาร และเครื่องดื่ม',1,90),(10,'content-social','คอนเทนต์และดูแลโซเชียลมีเดีย',1,100);
 
 INSERT INTO `skill_categories` VALUES (1,'งานบริการและร้านค้า','service-retail',10,1,'2026-08-29 09:02:11'),(2,'งานอีเวนต์','event',20,1,'2026-08-29 09:02:11'),(3,'ขายและการตลาด','sales-marketing',30,1,'2026-08-29 09:02:11'),(4,'ครีเอทีฟและดิจิทัล','creative-digital',40,1,'2026-08-29 09:02:11'),(5,'งานสำนักงาน','office',50,1,'2026-08-29 09:02:11'),(6,'เทคโนโลยีและไอที','technology-design',60,1,'2026-08-29 09:02:11'),(7,'ขนส่งและงานทั่วไป','logistics-general',70,1,'2026-08-29 09:02:11');
-
-INSERT INTO `promotion_packages` VALUES (1,'boost-3d','ดันประกาศ 3 วัน','แสดงก่อนประกาศทั่วไปในผลการค้นหา',99.00,3,10,0,10,'2026-09-03 18:44:17','2026-09-03 18:44:17'),(2,'featured-7d','ประกาศแนะนำ 7 วัน','ลำดับสูงกว่าพร้อมป้ายประกาศแนะนำ',199.00,7,20,0,20,'2026-09-03 18:44:17','2026-09-03 18:44:17'),(3,'pro-credit-7d','สิทธิ์โปรโมตจาก Pro','สิทธิ์โปรโมต 7 วันจากแพ็กเกจ Pro',0.00,7,20,0,99,'2026-09-09 00:00:00','2026-09-09 00:00:00');
 
 INSERT INTO `subscription_plans` VALUES (1,'pro-30d','Pro 30 วัน','เปิดรับพร้อมกัน 6 ประกาศ และโปรโมตได้ 2 ครั้ง ครั้งละ 7 วัน',239.00,30,6,2,7,1,10,'2026-09-09 00:00:00','2026-09-09 00:00:00');
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -594,4 +598,3 @@ INSERT INTO `skills` VALUES (158,1,'บริการและดูแลล�
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-

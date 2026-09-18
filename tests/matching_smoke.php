@@ -5,6 +5,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/../config/config.php';
 
 $pdo = db();
+$recommendableFixture = ['match' => ['score' => 1]];
+$zeroFixture = ['match' => ['score' => 0]];
+$unknownFixture = ['match' => ['score' => null]];
+if (!matching_is_recommendable($recommendableFixture)
+    || matching_is_recommendable($zeroFixture)
+    || matching_is_recommendable($unknownFixture)) {
+    throw new RuntimeException('Recommendation score threshold is incorrect');
+}
 $workerId = (int) $pdo->query("SELECT user_id FROM users WHERE role='worker' AND account_status='active' ORDER BY user_id LIMIT 1")->fetchColumn();
 $jobStatement = $pdo->prepare("SELECT job_id,employer_user_id,work_province,job_category_id FROM jobs WHERE job_status='published' AND work_province=? AND (application_deadline IS NULL OR application_deadline>=CURDATE()) ORDER BY job_id LIMIT 1");
 $jobStatement->execute([FLEXJOB_PROVINCE]);

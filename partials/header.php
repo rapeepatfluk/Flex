@@ -38,12 +38,14 @@ $brandPath = $role === 'admin' ? 'admin/dashboard.php' : 'index.php';
 
 $accountLinks = match ($role) {
     'worker' => [
+        ['icon' => '◉', 'label' => 'โปรไฟล์และประวัติของฉัน', 'path' => 'worker/profile.php'],
         ['icon' => '◎', 'label' => 'แบบสำรวจ Matching', 'path' => 'worker/matching-survey.php'],
         ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและ Resume', 'path' => 'worker/editprofiles.php'],
         ['icon' => '◷', 'label' => 'งานที่สมัครของฉัน', 'path' => 'worker/dashboard.php#applications'],
         ['icon' => '✦', 'label' => 'คำเชิญสมัครงาน', 'path' => 'worker/invitations.php'],
     ],
     'employer' => [
+        ['icon' => '◉', 'label' => 'โปรไฟล์และประวัติของฉัน', 'path' => 'employer/profile.php'],
         ['icon' => '▣', 'label' => 'ข้อมูลส่วนตัวและบริษัท', 'path' => 'employer/editprofile.php'],
         ['icon' => '＋', 'label' => 'สร้างประกาศงาน', 'path' => 'employer/jobpost.php'],
         ['icon' => '▣', 'label' => 'จัดการประกาศงาน', 'path' => 'employer/dashboard.php'],
@@ -52,6 +54,7 @@ $accountLinks = match ($role) {
     ],
     'admin' => [
         ['icon' => '⌂', 'label' => 'ภาพรวมระบบ', 'path' => 'admin/dashboard.php'],
+        ['icon' => '▥', 'label' => 'รายงานระบบ', 'path' => 'admin/reports.php'],
         ['icon' => '▤', 'label' => 'ตรวจเอกสาร', 'path' => 'admin/documents.php'],
         ['icon' => '◷', 'label' => 'จัดการประกาศ', 'path' => 'admin/jobs.php'],
         ['icon' => '฿', 'label' => 'ตรวจสลิปแพ็กเกจ', 'path' => 'admin/subscriptions.php'],
@@ -93,6 +96,7 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
         <nav class="main-nav">
             <?php if ($role === 'admin'): ?>
                 <a href="<?= BASE_URL ?>/admin/dashboard.php">ภาพรวมระบบ</a>
+                <a href="<?= BASE_URL ?>/admin/reports.php">รายงานระบบ</a>
                 <a href="<?= BASE_URL ?>/admin/documents.php">เอกสารผู้ว่าจ้าง</a>
                 <a href="<?= BASE_URL ?>/admin/jobs.php">ตรวจสอบประกาศ</a>
                 <a href="<?= BASE_URL ?>/admin/subscriptions.php">ตรวจสลิปแพ็กเกจ</a>
@@ -174,7 +178,7 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
     $currentAdminNavPage = match ($currentAdminPage) {
         'jobdelete.php' => 'jobs.php',
         'employer.php' => 'users.php',
-        'promotions.php' => 'subscriptions.php',
+        'promotions.php' => 'reports.php',
         default => $currentAdminPage,
     };
 ?>
@@ -182,6 +186,7 @@ $styles = array_merge(['header', 'header-theme'], $role === 'admin' ? ['admin-sh
         <p class="admin-sidebar-label">ADMIN MENU</p>
         <nav>
             <a class="<?= $currentAdminNavPage === 'dashboard.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/dashboard.php"><span aria-hidden="true">⌂</span>ภาพรวมระบบ</a>
+            <a class="<?= $currentAdminNavPage === 'reports.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/reports.php"><span aria-hidden="true">▥</span>รายงานระบบ</a>
             <a class="<?= $currentAdminNavPage === 'documents.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/documents.php"><span aria-hidden="true">▤</span>ตรวจเอกสาร</a>
             <a class="<?= $currentAdminNavPage === 'jobs.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/jobs.php"><span aria-hidden="true">◷</span>จัดการประกาศ</a>
             <a class="<?= $currentAdminNavPage === 'subscriptions.php' ? 'is-active' : '' ?>" href="<?= BASE_URL ?>/admin/subscriptions.php"><span aria-hidden="true">฿</span>ตรวจสลิปแพ็กเกจ</a>

@@ -254,6 +254,12 @@ function matching_cache_decode_array(?string $value): array
     return is_array($decoded) ? array_values($decoded) : [];
 }
 
+function matching_is_recommendable(array $job): bool
+{
+    $score = $job['match']['score'] ?? null;
+    return $score !== null && (int) $score > 0;
+}
+
 function matching_cache_row_to_match(array $row): array
 {
     return [

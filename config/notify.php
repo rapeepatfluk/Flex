@@ -46,8 +46,7 @@ function notify_worker_status(int $appId): void
             default        => '#8a6100',
         };
 
-        $dashboardUrl = BASE_URL . '/worker/application-detail.php?id=' . $appId;
-        $appUrl = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . $dashboardUrl;
+        $appUrl = app_url('worker/application-detail.php?id=' . $appId);
 
         notification_create(
             db(),
@@ -123,8 +122,7 @@ function notify_employer_new_applicant(int $appId): void
         $row = $s->fetch();
         if (!$row) return;
 
-        $applicantsUrl = 'http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')
-            . BASE_URL . '/employer/applicants.php?job=' . $row['job_id'];
+        $applicantsUrl = app_url('employer/applicants.php?job=' . $row['job_id']);
 
         $coverNote = $row['cover_note']
             ? '<blockquote style="margin:0 0 20px;padding:12px 16px;border-left:4px solid #d7f56d;background:#f7f8f4;border-radius:0 8px 8px 0;font-size:13px;color:#506059;">'

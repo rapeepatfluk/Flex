@@ -30,10 +30,16 @@ if ($token === '') {
 
 $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$errorMsg) {
+    try {
+        verify_csrf();
+    } catch (RuntimeException $e) {
+        $errors[] = $e->getMessage();
+    }
+
     $password = $_POST['password'] ?? '';
     $confirmPassword = $_POST['confirm_password'] ?? '';
 
-    if (strlen($password) < 8) {
+    if (!$errors && strlen($password) < 8) {
         $errors[] = 'รหัสผ่านใหม่ต้องมีความยาวอย่างน้อย 8 ตัวอักษร';
     } elseif ($password !== $confirmPassword) {
         $errors[] = 'รหัสผ่านใหม่และการยืนยันรหัสผ่านไม่ตรงกัน';
@@ -82,6 +88,7 @@ require APP_ROOT . '/partials/header.php'; ?>
             <?php endif; ?>
 
             <form method="post">
+                <?= csrf_field() ?>
                 <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
 
                 <label for="password">รหัสผ่านใหม่</label>

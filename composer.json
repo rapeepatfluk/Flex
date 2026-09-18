@@ -1,0 +1,20 @@
+{
+    "name": "flexjob/application",
+    "description": "FLEXJOB recruitment and job matching application",
+    "type": "project",
+    "require": {
+        "php": "^8.3",
+        "ext-fileinfo": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-session": "*"
+    },
+    "config": {
+        "platform": {
+            "php": "8.3.0"
+        },
+        "sort-packages": true
+    }
+}

@@ -98,6 +98,7 @@ require APP_ROOT . '/partials/header.php';
             <p class="admin-dashboard-eyebrow mb-1">QUICK ACTIONS</p><h2 class="h3 mb-3" id="admin-actions-heading">จัดการระบบ</h2>
             <div class="row g-3">
                 <?php foreach ([
+                    ['reports.php', '▥', 'SYSTEM REPORTS', 'รายงานระบบ', 'สรุปผู้ใช้ ประกาศงาน การสมัคร สถานะงาน และรายได้ พร้อมดาวน์โหลด CSV', 'ดูรายงาน'],
                     ['documents.php', '▤', 'VERIFICATION', 'เอกสารผู้ว่าจ้าง', 'อนุมัติ ขอเอกสารเพิ่ม หรือแจ้งผลการตรวจสอบให้ผู้ว่าจ้างทราบ', 'ตรวจสอบเอกสาร'],
                     ['subscriptions.php', '฿', 'SUBSCRIPTION PAYMENTS', 'แพ็กเกจผู้ว่าจ้าง', 'ตรวจสอบสลิป อนุมัติแพ็กเกจ และติดตามรอบสมาชิก 30 วัน', 'ตรวจสอบการชำระเงิน'],
                     ['reviews.php', '★', 'REVIEW MODERATION', 'รีวิวและรายงาน', 'ตรวจสอบรายงาน ซ่อน หรือคืนค่าความคิดเห็นจากงานที่เสร็จสิ้น', 'ดูแลรีวิว'],

@@ -21,7 +21,7 @@ if (!str_contains($legacyPage, "redirect('employer/subscription.php'") || str_co
 }
 if (!str_contains($dashboardPage, '/employer/subscription.php')) throw new RuntimeException('Employer dashboard does not link to the subscription plan');
 
-if (!str_contains($listingPage, 'promo.display_priority DESC') || !str_contains($listingPage, 'is-promoted')) {
+if (!str_contains($listingPage, 'promo.starts_at DESC') || !str_contains($listingPage, 'is-promoted') || str_contains($listingPage, 'promotion_packages')) {
     throw new RuntimeException('Promoted jobs are not prioritized and marked in the listing');
 }
 $promotedPosition = strpos($homePage, 'class="worker-promoted');

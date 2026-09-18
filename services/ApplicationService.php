@@ -106,8 +106,15 @@ function application_update_status_by_employer(
             }
         }
 
-        $update = $pdo->prepare('UPDATE applications SET application_status=? WHERE application_id=? AND job_id=?');
-        $update->execute([$newStatus, $applicationId, $jobId]);
+        if ($newStatus === 'completed') {
+            $update = $pdo->prepare("UPDATE applications
+                SET application_status='completed',completed_at=COALESCE(completed_at,NOW())
+                WHERE application_id=? AND job_id=?");
+            $update->execute([$applicationId, $jobId]);
+        } else {
+            $update = $pdo->prepare('UPDATE applications SET application_status=? WHERE application_id=? AND job_id=?');
+            $update->execute([$newStatus, $applicationId, $jobId]);
+        }
 
         if ($newStatus === 'completed') {
             $completedStatement = $pdo->prepare("SELECT COUNT(*) FROM applications WHERE job_id=? AND application_status='completed'");
